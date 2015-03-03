@@ -1,0 +1,3 @@
+Command to use OpenMP in F2PY
+
+f2py -c -m PytranTrace PytranCode.f95 --f90flags="-fopenmp" -lgomp

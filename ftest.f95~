@@ -1,0 +1,26 @@
+!Double loop sum
+real*8 function doubleloop(inp,n)
+  implicit none
+  integer, intent(in) :: n
+  real*8, intent(in) :: inp(n,n)
+  real*8 :: dum,b
+  integer :: i,j
+
+  dum = 0
+ 
+  !$omp parallel do private(i,j,b) reduction(+:dum)
+  do i=1,n
+    do j=1,n
+      b = inp(i,j)*2
+      b = b**2
+      b = b/2.
+      b = sqrt(b)
+      b = b + 2.
+      dum = dum + b
+    end do
+  end do
+  !$omp end parallel do
+
+  doubleloop = dum
+
+end function doubleloop

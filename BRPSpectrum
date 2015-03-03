@@ -1,0 +1,48 @@
+from numpy import *
+from matplotlib.pyplot import *
+from gaussfitter import *
+
+vnoise = 184
+vsat = 4000
+field = .2
+voltages = arange(0,5001,1)
+
+c = 25.720503401310726
+brpres = c/sqrt(515.)
+alkres = c/sqrt(1500.)
+brpeff = sqrt(brpres**2+field**2)
+aleff = sqrt(alkres**2+field**2)
+
+#Minimum Gain
+vbrp = vnoise/(1-brpeff/2)
+g = vbrp/.83E-3/(515./26.2)
+val = vbrp*(1500./515.)
+brpgauss = onedgaussian(voltages,0,1,vbrp,brpeff*vbrp/2.35)
+algauss = onedgaussian(voltages,0,1,val,aleff*val/2.35)
+ion()
+plot(voltages,brpgauss,label='515 eV')
+plot(voltages,algauss,label='1500 eV')
+plot([vnoise,vnoise],[0,1],'k--')
+plot([vsat,vsat],[0,1],'k--')
+legend()
+title('Predicted Spectrum: G='+str(g))
+xlabel('Voltage (V)')
+ylabel('Dimensionless Flux')
+savefig('MinimumGain.png')
+
+#Maximum Gain
+val = vsat/(1+aleff/2)
+g = val/.83E-3/(1500/26.2)
+vbrp = val*(515./1500.)
+brpgauss = onedgaussian(voltages,0,1,vbrp,brpeff*vbrp/2.35)
+algauss = onedgaussian(voltages,0,1,val,aleff*val/2.35)
+ion()
+plot(voltages,brpgauss,label='515 eV')
+plot(voltages,algauss,label='1500 eV')
+plot([vnoise,vnoise],[0,1],'k--')
+plot([vsat,vsat],[0,1],'k--')
+legend()
+title('Predicted Spectrum: G='+str(g))
+xlabel('Voltage (V)')
+ylabel('Dimensionless Flux')
+savefig('MaximumGain.png')

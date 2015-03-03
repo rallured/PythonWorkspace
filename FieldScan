@@ -1,0 +1,29 @@
+from numpy import *
+from matplotlib.pyplot import *
+from os import *
+
+def createarrays(scanfile):
+    #Read data in from file, columns are xpos, ypos, and centroid
+    data = genfromtxt(scanfile)
+    data = transpose(data)
+    xpos = data[0]
+    ypos = data[1]
+    cent = data[2]
+
+    #Create 2D arrays for the contour plot
+    xuniq = unique(data[0])
+    yuniq = unique(data[1])
+    xarr = zeros(size(xuniq),size(yuniq))
+    yarr = zeros(size(xuniq),size(yuniq))
+    carr = zeros(size(xuniq),size(yuniq))
+
+    #Populate arrays
+    for i in size(xpos):
+        xind = where(xuniq == xpos[i])
+        yind = where(yuniq == ypos[i])
+        xarr[xind,yind] = xpos[i]
+        yarr[xind,yind] = ypos[i]
+        carr[xind,yind] = cent[i]
+
+    
+    
