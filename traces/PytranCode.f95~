@@ -852,7 +852,7 @@ subroutine tracesphere(x,y,z,l,m,n,ux,uy,uz,num,rad)
 end subroutine tracesphere
 
 !Traces onto a cylinder
-!Center is assumed to be at origin, z axis is cylindrical axis
+!Center is assumed to be at origin, y axis is cylindrical axis
 subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
   !Declarations
   implicit none
@@ -860,7 +860,7 @@ subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
   real*8, intent(in) :: rad
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   integer :: i
-  real*8 :: a,b,c,mag,d1,d2,det
+  real*8 :: a,b,c,mag,d1,d2,det,dum
 
   !$omp parallel do private(a,b,c,det,mag,d1,d2)
   !Compute a,b,c terms in quadratic solution for distance to move rays
@@ -868,6 +868,9 @@ subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
     a = l(i)**2 + n(i)**2
     b = 2*(x(i)*l(i)+z(i)*n(i))
     c = x(i)**2 + z(i)**2 - rad**2
+	print *, x(i),y(i),z(i),l(i),m(i),n(i)
+	print *, a,b,c
+	read *, dum
     !Compute determinant, if < 0, set ray to 0's
     det = b**2 - 4*a*c
     if (det < 0) then
@@ -1324,15 +1327,14 @@ subroutine grat(x,y,l,m,n,num,d,order,wave)
 
   !Loop through rays, compute new diffracted ray direction
   do i=1,num
-    yaw = pi/2
     !Compute new direction cosines
-    m(i) = m(i) - order*wave/d
+    l(i) = l(i) - order*wave/d
     n(i) = sqrt(1 - l(i)**2 - m(i)**2)
     !Evanescence?
     if ((l(i)**2+m(i)**2)>1) then
       l(i) = 0.
-	  m(i) = 0.
-	  n(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
     end if
   end do
 

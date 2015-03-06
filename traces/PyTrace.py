@@ -314,41 +314,43 @@ def circularbeam(rad,num):
     l = np.repeat(0.,num)
     m = np.repeat(0.,num)
     n = np.repeat(1.,num)
-    ux = copy(l)
-    uy = copy(l)
-    uz = copy(l)
+    ux = np.copy(l)
+    uy = np.copy(l)
+    uz = np.copy(l)
     return
 
 #Define annulus of rays pointing in +z direction
 def annulus(rin,rout,num):
     global x,y,z,l,m,n,ux,uy,uz
-    rho = sqrt(rin**2+random.rand(num)*(rout**2-rin**2))
-    theta = random.rand(num)*2*np.pi
-    x = rho*cos(theta)
-    y = rho*sin(theta)
+    rho = np.sqrt(rin**2+np.random.rand(num)*(rout**2-rin**2))
+    theta = np.random.rand(num)*2*np.pi
+    x = rho*np.cos(theta)
+    y = rho*np.sin(theta)
     z = np.repeat(0.,num)
     l = np.repeat(0.,num)
     m = np.repeat(0.,num)
     n = np.repeat(1.,num)
-    ux = copy(l)
-    uy = copy(l)
-    uz = copy(l)
+    ux = np.copy(l)
+    uy = np.copy(l)
+    uz = np.copy(l)
     return
 
-#Define subapertured annulus
 def subannulus(rin,rout,dphi,num):
+    """Create a subapertured annulus source in +z direction
+    Annulus is centered about theta=0 which points to +x
+    """
     global x,y,z,l,m,n,ux,uy,uz
-    rho = sqrt(rin**2+random.rand(num)*(rout**2-rin**2))
-    theta = random.rand(num)*dphi - dphi/2.
-    x = rho*cos(theta)
-    y = rho*sin(theta)
+    rho = np.sqrt(rin**2+np.random.rand(num)*(rout**2-rin**2))
+    theta = np.random.rand(num)*dphi - dphi/2.
+    x = rho*np.cos(theta)
+    y = rho*np.sin(theta)
     z = np.repeat(0.,num)
     l = np.repeat(0.,num)
     m = np.repeat(0.,num)
     n = np.repeat(1.,num)
-    ux = copy(l)
-    uy = copy(l)
-    uz = copy(l)
+    ux = np.copy(l)
+    uy = np.copy(l)
+    uz = np.copy(l)
     return
 
 #Converging beam
@@ -400,8 +402,8 @@ def rectbeam(xhalfwidth,yhalfwidth,num):
     y = (random.rand(num)-.5)*2*yhalfwidth
     z = np.repeat(0.,num)
     n = np.repeat(1.,num)
-    l = copy(z)
-    m = copy(z)
+    l = np.copy(z)
+    m = np.copy(z)
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
@@ -454,29 +456,32 @@ def cylNull(reverse=False):
 
 
 #######  ANALYSES #########
+def rmsCentroid():
+    """Compute the RMS of rays from centroid in xy plane
+    """
+    cx = nanmean(x)
+    cy = nanmean(y)
+    rho = (x-cx)**2 + (y-cy)**2
+    return np.sqrt(np.mean(rho))
+
 def findimageplane(zscan,num):
     global x,y,z,l,m,n,ux,uy,uz
     rms = []
-    zsteps = linspace(-zscan,zscan,num)
-    for znow in linspace(-zscan,zscan,num):
+    zsteps = np.linspace(-zscan,zscan,num)
+    for znow in np.linspace(-zscan,zscan,num):
         #Transform to offset
         transform(0,0,znow,0,0,0)
         #Trace rays to new plane
         flat()
-        #Determine centroid
-        cx = nanmean(x)
-        cy = nanmean(y)
-        #Compute RMS image size
-        rho2 = (x-cx)**2+(y-cy)**2
-        rms.append(sqrt(mean(rho2)))
+        rms.append(rmsCentroid())
         #Return to nominal plane
         transform(0,0,-znow,0,0,0)
     flat()
 
-    clf()
-    plot(zsteps,rms)
+    plt.clf()
+    plt.plot(zsteps,rms)
 
-    return zsteps[where(rms==min(rms))]
+    return zsteps[np.where(rms==np.min(rms))]
 
 def findlineplane(zscan,num):
     global x,y,z,l,m,n,ux,uy,uz
@@ -529,8 +534,8 @@ def findimageplane2(zscan,num):
 def zerntest(n,m):
     #Plot radialpoly vs. fastradpoly for rho=0 to 1
     rho = linspace(0.,1.,10)
-    vec1 = copy(rho)
-    vec2 = copy(rho)
+    vec1 = np.copy(rho)
+    vec2 = np.copy(rho)
     for i in range(size(vec1)):
         vec1[i] = tran.radialpoly(rho[i],n,m)
         vec2[i] = tran.fastradpoly(rho[i],n,m)
@@ -539,13 +544,13 @@ def zerntest(n,m):
 
 #Wrapper for reconstructing referenced wavefront
 def referencedWavefront(xang,yang,phase,xang2,yang2,phase2):
-    phaseinf = copy(phase)
+    phaseinf = np.copy(phase)
     phaseinf[:,:] = 0.
     ind = where(logical_or(phase==100,phase2==100))
     phaseinf[ind] = 100
-    xanginf = copy(xang)
+    xanginf = np.copy(xang)
     xanginf = xang2-xang
-    yanginf = copy(yang)
+    yanginf = np.copy(yang)
     yanginf = yang2-yang
     xanginf[ind] = 100
     yanginf[ind] = 100

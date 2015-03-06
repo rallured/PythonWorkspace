@@ -852,7 +852,7 @@ subroutine tracesphere(x,y,z,l,m,n,ux,uy,uz,num,rad)
 end subroutine tracesphere
 
 !Traces onto a cylinder
-!Center is assumed to be at origin, z axis is cylindrical axis
+!Center is assumed to be at origin, y axis is cylindrical axis
 subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
   !Declarations
   implicit none
@@ -860,7 +860,7 @@ subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
   real*8, intent(in) :: rad
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   integer :: i
-  real*8 :: a,b,c,mag,d1,d2,det
+  real*8 :: a,b,c,mag,d1,d2,det,dum
 
   !$omp parallel do private(a,b,c,det,mag,d1,d2)
   !Compute a,b,c terms in quadratic solution for distance to move rays
