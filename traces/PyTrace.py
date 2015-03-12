@@ -66,11 +66,12 @@ def zernsurfrot(coeff1,coeff2,rad,rot,\
                 rorder1=None,aorder1=None,rorder2=None,aorder2=None):
     global x,y,z,l,m,n,ux,uy,uz
     if rorder1 is None:
-        rorder1,aorder1 = zernikemod.zmodes(size(coeff1))
+        rorder1,aorder1 = zernikemod.zmodes(np.size(coeff1))
     if rorder2 is None:
-        rorder2,aorder2 = zernikemod.zmodes(size(coeff2))
-    tran.tracezernrot(x,y,z,l,m,n,ux,uy,uz,coeff1,array(rorder1),array(aorder1),\
-                      coeff2,array(rorder2),array(aorder2),rad,rot)
+        rorder2,aorder2 = zernikemod.zmodes(np.size(coeff2))
+    tran.tracezernrot(x,y,z,l,m,n,ux,uy,uz,coeff1,np.array(rorder1),\
+                      np.array(aorder1),coeff2,np.array(rorder2),\
+                      np.array(aorder2),rad,rot)
     rho = np.sqrt(x**2+y**2)
     ind = np.where(rho<=rad)
     vignette(ind=ind)
