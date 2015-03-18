@@ -3,6 +3,7 @@ from matplotlib.pyplot import *
 import pyfits,os,pdb
 from zernikemod import stripnans
 from utilities import fourier
+from scipy.interpolate import griddata
 
 #This module is for evaluating a multi-dimensional AXRO correction MTF
 #Set a distortion map to axial sinusoids of varying amplitude, phase,
@@ -10,6 +11,35 @@ from utilities import fourier
 
 solvedir = '/home/rallured/solve_pzt/bin/'
 datadir = '/home/rallured/data/solve_pzt/'
+
+def flatSampleIF(filename,Nx,Ny,method='cubic'):
+    """Read in CSV data from Vanessa and form a 2D array
+    Interpolate onto grid of Nx and Ny points, where
+    x is axial and y is azimuthal
+    Axial is the 5mm cell direction
+    Returns 2D array
+    """
+    #Read in data
+    d = transpose(genfromtxt(filename,skip_header=1,delimiter=','))
+    x = d[2]+d[5]
+    y = d[3]+d[6]
+    z = d[4]+d[7]*1e6
+
+    #Interpolate onto appropriate grid
+    gx = linspace(y.min(),y.max(),Nx)
+    gy = linspace(x.min(),x.max(),Ny)
+    gx,gy = meshgrid(gx,gy)
+    
+    return transpose(griddata((x,y),z,(gy,gx),method=method))
+
+def flatDistortion(amp,freq,phase,filename):
+    """Similar to the original createDistortion, this introduces
+    a sinusoidal ripple to the flat figure control sample geometry.
+    """
+    #Create distortion array
+
+    return 0
+    
 
 #This function creates a distortion fits file and saves it to
 #solve_pzt directory
@@ -83,3 +113,14 @@ def ampScan(amp,freq,phase):
                 sys.stdout.write('Amp: %.2e, Freq: %.2e, Phase: %.2f' % (a,f,p))
 
     return corres,ripres
+
+def experimentalMTF(inp,out,win=1,dx=1.):
+    """Look at MTF based on input and output PSD of a distortion
+    This ends up being in_psd-out_psd/in_psd = 1 - out_psd/in_psd
+    """
+    fi,psdi = fourier.realPSD(inp-mean(inp),win=win,dx=dx)
+    fo,psdo = fourier.realPSD(out-mean(out),win=win,dx=dx)
+    #Need to cut out frequencies above Nyquist where ripple is introduced
+    
+    pdb.set_trace()
+    return fo[0],1-psdo[:,0]/psdi[:,0]
