@@ -184,6 +184,28 @@ def primaryLLtan(r0,z0,zmax,zmin,dphi,coeff,axial,az):
     transform(0,0,0,np.pi/2+alpha,0,0)
     return
 
+#Wrapper for Wolter-Schwarzschild Primary
+def wsPrimary(r0,z0,psi):
+    """Trace a W-S primary surface
+    Fortran function computes Chase parameters for an equivalent W-I
+    betas, f, g, and k computed from alpha and z0
+    """
+    global x,y,z,l,m,n,ux,uy,uz
+    a,p,d,e = conicsolve.woltparam(r0,z0)
+    tran.wsprimary(x,y,z,l,m,n,ux,uy,uz,a,z0,psi)
+    return
+
+#Wrapper for Wolter-Schwarzschild Secondary
+def wsSecondary(r0,z0,psi):
+    """Trace a W-S secondary surface
+    Fortran function computes Chase parameters for an equivalent W-I
+    betas, f, g, and k computed from alpha and z0
+    """
+    global x,y,z,l,m,n,ux,uy,uz
+    a,p,d,e = conicsolve.woltparam(r0,z0)
+    tran.wssecondary(x,y,z,l,m,n,ux,uy,uz,a,z0,psi)
+    return
+
 #Wrapper for radial grating
 def radgrat(hubdist,dpermm,order,wave):
     """Infinite radial grating. Assumes grating in x,y plane

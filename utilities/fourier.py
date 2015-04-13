@@ -27,14 +27,14 @@ def realPSD(d,win=1,dx=1.):
 
     #Reform into PSD
     if size(shape(c)) is 2:
-        f = [fft.fftfreq(shape(c)[0],d=dx)[:shape(c)[0]/2+1],\
-                   fft.fftfreq(shape(c)[1],d=dx)[:shape(c)[1]/2+1]]
-        c = c[:shape(c)[0]/2+1,:shape(c)[1]/2+1]
+        f = [fft.fftfreq(shape(c)[0],d=dx)[:shape(c)[0]/2],\
+                   fft.fftfreq(shape(c)[1],d=dx)[:shape(c)[1]/2]]
+        c = c[:shape(c)[0]/2,:shape(c)[1]/2]
         c[0,0] = 0.
     elif size(shape(c)) is 1:
         f = fft.fftfreq(size(c),d=dx)
-        f = f[:size(c)/2+1]
-        c = c[:size(c)/2+1]
+        f = f[:size(c)/2]
+        c = c[:size(c)/2]
         c[0] = 0.
 
     return f,abs(c*2)**2
