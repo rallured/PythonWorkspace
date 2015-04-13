@@ -1,0 +1,44 @@
+1
+
+
+
+            * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+            *                                                   *
+            *                    C O N M I N                    *
+            *                                                   *
+            *                FORTRAN PROGRAM FOR                *
+            *                                                   *
+            *         CONSTRAINED FUNCTION MINIMIZATION         *
+            *                                                   *
+            * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+
+
+
+     UNCONSTRAINED FUNCTION MINIMIZATION
+
+     CONTROL PARAMETERS
+
+     IPRINT  NDV    ITMAX    NCON    NSIDE  ICNDIR   NSCAL   NFDG
+       2       4   10000       0       0       5       0       1
+
+     LINOBJ  ITRM     N1      N2      N3      N4      N5
+       0       2       6       8       8       8      16
+
+         CT              CTMIN           CTL             CTLMIN
+     -0.10000E+00     0.40000E-02    -0.10000E-01     0.10000E-02
+
+         THETA           PHI             DELFUN          DABFUN
+      0.10000E+01     0.50000E+01     0.10000E-05     0.25250E-04
+
+         FDCH            FDCHM           ALPHAX          ABOBJ1
+      0.10000E-01     0.10000E-01     0.10000E+00     0.10000E+00
+
+
+     INITIAL FUNCTION INFORMATION
+
+     OBJ =   0.252500E+02
+
+     DECISION VARIABLES (X-VECTOR)
+       1)    0.15000E+01  0.15000E+01  0.15000E+01  0.15000E+01
+ 
