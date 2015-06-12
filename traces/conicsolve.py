@@ -85,20 +85,59 @@ def wsPrimFunction(r0,z0,psi,x,y,z):
     ind = beta<betas
     beta[ind] = betas
     kterm= (1/k)*tan(beta/2)**2 -1
+    pdb.set_trace()
     F = -z - ff*sin(betas/2)**2 + \
         ff**2*sin(beta)**2/(4*ff*sin(betas/2)**2) + \
         g*cos(beta/2)**4*kterm**(1-k)
     Fb = ff**2*sin(beta)*cos(beta)/(2*ff*sin(betas/2)**2) - \
            2*g*cos(beta/2)**3*sin(beta/2)*(kterm)**(1-k) + \
            g*(1-k)*cos(beta/2)*sin(beta/2)*(kterm)**(-k)*(1/k)
+    Fb[ind] = ff**2*sin(betas)*cos(betas)/(2*ff*sin(betas/2)**2) + \
+              g*(1-k)*cos(betas/2)*sin(betas/2)*(1/k)
     dbdx = x/sqrt(1-(x**2+y**2)/ff**2)/ff/sqrt(x**2+y**2)
     dbdy = y/sqrt(1-(x**2+y**2)/ff**2)/ff/sqrt(x**2+y**2)
     Fx = Fb * dbdx
     Fy = Fb * dbdy
-    Fx[ind] = 0.
-    Fy[ind] = 0.
+    pdb.set_trace()
+##    Fx[ind] = 0.
+##    Fy[ind] = 0.
     Fz = -1
     return F, Fx, Fy
+
+def wsPrimFunction2(r0,z0,psi,x,y,z):
+    a,p,d,e = woltparam(r0,z0)
+    betas = 4*a
+    ff = z0/np.cos(betas)
+    g = ff / psi
+    k = tan(betas/2)**2
+
+    beta = arcsin(sqrt(x**2+y**2)/ff)
+    ind = beta<betas
+    beta[ind] = betas
+    kterm= (1/k)*tan(beta/2)**2 -1
+    F = -z - ff*sin(betas/2)**2 + \
+        ff**2*sin(beta)**2/(4*ff*sin(betas/2)**2) + \
+        g*cos(beta/2)**4*kterm**(1-k)
+    r = sqrt(x**2 + y**2)
+    pdb.set_trace()
+    Fb = ff**2*sin(beta)*cos(beta)/(2*ff*sin(betas/2)**2) - \
+           2*g*cos(beta/2)**3*sin(beta/2)*(kterm)**(1-k) + \
+           g*(1-k)*cos(beta/2)*sin(beta/2)*(kterm)**(-k)*(1/k)
+    Fb[ind] = ff**2*sin(betas)*cos(betas)/(2*ff*sin(betas/2)**2) + \
+              g*(1-k)*cos(betas/2)*sin(betas/2)*(1/k)
+    F[ind] = F[ind] + (r[ind]-ff*sin(betas))*\
+             z[ind]/(r[ind]**2+z[ind]**2)*Fb[ind]
+    dbdx = x/sqrt(1-(x**2+y**2)/ff**2)/ff/sqrt(x**2+y**2)
+    dbdy = y/sqrt(1-(x**2+y**2)/ff**2)/ff/sqrt(x**2+y**2)
+    Fx = Fb * dbdx
+    Fy = Fb * dbdy
+    pdb.set_trace()
+##    Fx[ind] = 0.
+##    Fy[ind] = 0.
+    Fz = zeros(shape(x)) + 1.
+    Fz[ind] = Fz[ind] + (r[ind]-ff*sin(betas))*\
+              (r[ind]**2-z[ind]**2)/(r[ind]**2+z[ind]**2)**2*Fb[ind]
+    return F, Fx, Fy, Fz
 
 def wsSecFunction(r0,z0,psi,x,y,z):
     """Changed
@@ -141,3 +180,33 @@ def wsSecFunction(r0,z0,psi,x,y,z):
     Fy[ind] = -2./tan(betas)*y[ind]/sqrt(x[ind]**2+y[ind]**2)
     Fz[ind] = gam - 1.
     return F, Fx, Fy, Fz
+
+def wsRMS(psi,theta,alpha,L1,z0):
+    """Return RMS blur spot at optimum focal surface
+    as given by Chase & Van Speybroeck
+    """
+    return .135*(psi+1)*(tan(theta)**2/tan(alpha))*L1/z0
+
+
+def wsFoc(r,psi,L1,z0,alpha):
+    """Return optimum focal surface height at radius r
+    as given by Chase & Van Speybroeck
+    """
+    return .0625*(psi+1)*(r**2*L1/z0**2)/tan(alpha)**2
+
+##def wsPrimRad(z,psi,r0,z0):
+##    """Return the radius of a WS primary as a function of axial coordinate
+##    This is computed numerically by tracing a single ray in plane
+##    orthogonal to optical axis
+##    """
+##    #Set up source pointing toward +z
+##    PT.pointsource(0.,1)
+##    PT.transform(0,0,0,0,-np.pi/2,0) #Point ray to +x
+##    PT.transform(-r0,0,-z,0,0,0) #Go to proper axial location
+##
+##    #Trace to WS primary
+##    PT.wsPrimary(r0,z0,psi)
+##
+##    return PT.x[0]
+
+

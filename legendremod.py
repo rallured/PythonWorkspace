@@ -77,23 +77,24 @@ def imagematrix(x,y,xorder,yorder):
 #where twist is P_1(x)*P_1(y)
 def leg2dfit(data,xorder,yorder,reconstruct=False):
     #Create x,y,z fit vectors
-    x,y,z = unpackimage(data)
+    x,y,z = unpackimage(data,remove=False)
     x2,y2,z2 = unpackimage(data,remove=True)
 
     #Perform fit
-    A = imagematrix(x,y,xorder,yorder)
-    fit = lin.lstsq(A,z)
+    A = imagematrix(x2,y2,xorder,yorder)
+    fit = lin.lstsq(A,z2)
     coeff = reshape(fit[0],(xorder,yorder))
 
     #Compute RMS difference between fit and data
-    rms = sqrt(fit[1]/size(z))
+    rms = sqrt(fit[1]/size(z2))
 
     #Reconstruct image from coefficients
     #If NaNs are involved, the reconstructed image will not be rectangular,
     #so don't reconstruct in that case
     if reconstruct==True:
-        A = imagematrix(x2,y2,xorder,yorder)
+        A = imagematrix(x,y,xorder,yorder)
         fitimage = zeros(size(data))
+        pdb.set_trace()
         for i in range(size(fit[0])):
             fitimage += A[:,i]*fit[0][i]
         fitimage = reshape(fitimage,shape(data),order='C')

@@ -25,7 +25,7 @@ def flatSampleIF(filename,Nx,Ny,method='cubic'):
     d = transpose(genfromtxt(filename,skip_header=1,delimiter=','))
     x = d[2]+d[5]
     y = d[3]+d[6]
-    z = d[4]+d[7]*1e6
+    z = (d[4]+d[7])*1e6
 
     #Interpolate onto appropriate grid
     gx = linspace(y.min(),y.max(),Nx)
@@ -61,16 +61,17 @@ def flatCorrection(amp,freq,phase):
     d2 = stripnans(d2)
     d2 = d2 - nanmean(d2)
 
-##    #Run solver to create solution
-##    os.chdir(datadir+'parfiles')
-##    os.system(solvedir+'solve_pzt @FlatFigure.par '
-##              'premath=RoundMath.dat')
+    #Run solver to create solution
+    os.chdir(datadir+'parfiles')
+    os.system(solvedir+'solve_pzt @FlatFigure.par '
+              'premath=RoundMath.dat')
 
     #Run Python solver and get residual
     ifunc = pyfits.getdata(datadir+\
-                           'ifuncs/FlatFigureMirror/150319FlatIFs.fits')
-    r = sol.flatSlopeOptimizer(d,ifunc,shade)
-    resid = r[0]-d
+                           'ifuncs/FlatFigureMirror/150414ThreeShorted.fits')
+##    r = sol.flatSlopeOptimizer(d,ifunc,shade)
+    resid = pyfits.getdata(datadir+'parfiles/X-resid.fits')
+##    resid = r[0]-d
 
     #Load solution and ignore masked region
     resid[shade==0] = nan
@@ -129,15 +130,16 @@ def correctedPSD(amp,freq,phase):
     d2 = d2 - nanmean(d2)
 
     #Run solver to create solution
-##    os.chdir(datadir+'parfiles')
-##    os.system(solvedir+'solve_pzt @fit-5x10mm-gap02-flex.par '
-##              'premath=Math.dat')
+    os.chdir(datadir+'parfiles')
+    os.system(solvedir+'solve_pzt @fit-5x10mm-gap02-flex.par '
+              'premath=Math.dat')
 
-    #Load solution and ignore masked region
-    ifunc = pyfits.getdata(datadir+\
-                           'ifuncs/10+0flex_5x10mm-gap02/interp-ifunc.fits')
-    r = sol.flatSlopeOptimizer(d,ifunc,shade)
-    resid = r[0]-d
+##    #Load solution and ignore masked region
+##    ifunc = pyfits.getdata(datadir+\
+##                           'ifuncs/10+0flex_5x10mm-02gap/interp-ifunc.fits')
+##    r = sol.flatSlopeOptimizer(d,ifunc,shade)
+    resid = pyfits.getdata('X-resid.fits')
+##    resid = r[0]-d
 
     #Load solution and ignore masked region
     resid[shade==0] = nan
@@ -167,6 +169,7 @@ def correctedPSD(amp,freq,phase):
     
 ##    correction = sum((w**2*axpsdw)[f<.15])/sum(w**2*origpsdw)
     correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
+    pdb.set_trace()
     
     return correction
 
@@ -194,11 +197,3 @@ def experimentalMTF(inp,out,win=1,dx=1.):
     
     pdb.set_trace()
     return fo[0],1-psdo[:,0]/psdi[:,0]
-
-def plotFlatMask():
-    """Plot the mask over an image as a dashed black line
-    Indicates region of flat mirror that we are correcting
-    Does this for arbitrary mask
-    """
-
-    return

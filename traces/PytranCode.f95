@@ -1282,7 +1282,7 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
   integer, intent(in) :: num
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   real*8, intent(in) :: alpha,z0,psi
-  real*8 :: k,kterm,dbdx,dbdy,beta,betas,ff,g
+  real*8 :: k,kterm,dbdx,dbdy,beta,betas,ff,g,r
   real*8 :: F,Fx,Fy,Fz,Fp,delt,dum,Fb
   integer :: i, flag
 
@@ -1292,27 +1292,35 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
   g = ff / psi
   k = tan(betas/2)**2
 
-  Fz = -1.
   !Loop through rays and trace to mirror
-  !$omp parallel do private(delt,F,Fx,Fy,Fp,Fb,kterm,beta,dxdb,dydb)
+  !$omp parallel do private(i,delt,F,Fx,Fy,Fz,Fp,Fb,kterm,beta,dbdx,dbdy,flag,r)
   do i=1,num
     delt = 100.
     do while(abs(delt)>1.e-8)
       beta = asin(sqrt(x(i)**2 + y(i)**2)/ff)
       flag = 0
-      if (beta<betas) then
+      if (beta<=betas) then
         beta = betas
         flag = 1
+        kterm = 0.
+      else
+        kterm = (1/k)*tan(beta/2)**2 - 1
       end if
-      kterm = (1/k)*tan(beta/2)**2 - 1
       F = -z(i) - ff*sin(betas/2)**2 + &
           ff**2*sin(beta)**2/(4*ff*sin(betas/2)**2) + &
           g*cos(beta/2)**4*(kterm)**(1-k)
       Fb = ff**2*sin(beta)*cos(beta)/(2*ff*sin(betas/2)**2) - &
            2*g*cos(beta/2)**3*sin(beta/2)*(kterm)**(1-k) + &
            g*(1-k)*cos(beta/2)*sin(beta/2)*(kterm)**(-k)*(1/k)
+      Fz = -1.
       if (flag==1) then
-        Fb = 0.
+        r = sqrt(x(i)**2 + y(i)**2)
+        Fb = ff**2*sin(betas)*cos(betas)/(2*ff*sin(betas/2)**2) + &
+              g*(1-k)*cos(betas/2)*sin(betas/2)*(1/k)
+        F = F + (r - ff*sin(betas))*z(i)/(r**2+z(i)**2)*Fb
+        Fz = Fz + (r-ff*sin(betas))*(r**2-z(i)**2)/(r**2+z(i)**2)**2*Fb
+        !print *, Fb, F, Fz
+        !read *, dum
       end if
       dbdx = x(i)/sqrt(1-(x(i)**2+y(i)**2)/ff**2)/ff/sqrt(x(i)**2+y(i)**2)
       dbdy = y(i)/sqrt(1-(x(i)**2+y(i)**2)/ff**2)/ff/sqrt(x(i)**2+y(i)**2)
@@ -1320,18 +1328,18 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
       Fy = Fb * dbdy
       Fp = Fx*l(i) + Fy*m(i) + Fz*n(i)
       delt = -F/Fp
+      !print *, x(i),y(i),z(i)
+      !print *, F, Fx, Fy, Fz
+      !print *, kterm, Fb, flag,k,tan(beta/2)**2
       x(i) = x(i) + l(i)*delt
       y(i) = y(i) + m(i)*delt
       z(i) = z(i) + n(i)*delt
-      !print *, x(i),y(i),z(i)
-      !print *, F
-      !print * ,delt
       !read *, dum
     end do
     Fp = sqrt(Fx*Fx+Fy*Fy+Fz*Fz)
-    ux(i) = Fx/Fp
-    uy(i) = Fy/Fp
-    uz(i) = Fz/Fp
+    ux(i) = -Fx/Fp
+    uy(i) = -Fy/Fp
+    uz(i) = -Fz/Fp
     !print *, x(i),y(i),z(i)
     !print *, ux(i),uy(i),uz(i)
     !read *, dum
@@ -1364,21 +1372,23 @@ subroutine wssecondary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
   k = tan(betas/2)**2
 
   !Loop through rays and trace to mirror
-  !$omp parallel do private(delt,F,Fx,Fy,Fp,Fb,kterm,beta,dxdb,dydb)
+  !$omp parallel do private(i,delt,F,Fx,Fy,Fz,Fp,Fb,kterm,beta,dbdx,dbdy,dbdz,flag,c,a,dadbs,dbdzs,gam,dadb)
   do i=1,num
     delt = 100.
     c = 0
     do while(abs(delt)>1.e-8)
-      beta = atan(sqrt(x(i)**2 + y(i)**2)/z(i))
+      beta = atan2(sqrt(x(i)**2 + y(i)**2),z(i))
       flag = 0
-      if (beta<betas) then
+      if (beta<=betas) then
         beta = betas
+        kterm = 0
+        a = 1/ff
         flag = 1
-      end if
-      !Compute terms needed for either case (beta <> betas)
-      kterm = (1/k)*tan(beta/2)**2 - 1
-      a = (1-cos(beta))/(1-cos(betas))/ff + &
+      else
+        kterm = (1/k)*tan(beta/2)**2 - 1
+        a = (1-cos(beta))/(1-cos(betas))/ff + &
           (1+cos(beta))/(2*g)*(kterm)**(1+k)
+      end if
       F = -z(i) + cos(beta)/a
       !Add corrective term to F if beta was < betas
       if (flag==1) then

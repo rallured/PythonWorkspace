@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import PytranTrace as tran
 import zernikemod,pdb,time
 from utilities.plotting import nanmean
-import conicsolve
+import traces.conicsolve as con
 import reconstruct
 
 global x,y,z,l,m,n,ux,uy,uz
@@ -111,14 +111,14 @@ def woltersecondary(r0,z0):
 def wolterprimtan(r0,z0):
     global x,y,z,l,m,n,ux,uy,uz
     #Compute Wolter parameters
-    alpha,p,d,e = conicsolve.woltparam(r0,z0)
+    alpha,p,d,e = con.woltparam(r0,z0)
     transform(0,0,0,-np.pi/2-alpha,0,0)
     #Go to Wolter focus minus gap and half mirror length
-    transform(0,conicsolve.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
+    transform(0,con.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
     #Place Wolter surface
     wolterprimary(r0,z0)
     #Go back to original coordinate system
-    transform(0,-conicsolve.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
+    transform(0,-con.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
     transform(0,0,0,np.pi/2+alpha,0,0)
     return
 
@@ -136,14 +136,14 @@ def woltersine(r0,z0,amp,freq):
 def woltersinetan(r0,z0,amp,freq):
     global x,y,z,l,m,n,ux,uy,uz
     #Compute Wolter parameters
-    alpha,p,d,e = conicsolve.woltparam(r0,z0)
+    alpha,p,d,e = con.woltparam(r0,z0)
     transform(0,0,0,-np.pi/2-alpha,0,0)
     #Go to Wolter focus minus gap and half mirror length
-    transform(0,conicsolve.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
+    transform(0,con.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
     #Place Wolter surface
     woltersine(r0,z0,amp,freq)
     #Go back to original coordinate system
-    transform(0,-conicsolve.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
+    transform(0,-con.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
     transform(0,0,0,np.pi/2+alpha,0,0)
     return
 
@@ -171,16 +171,16 @@ def primaryLL(r0,z0,zmax,zmin,dphi,coeff,axial,az):
 def primaryLLtan(r0,z0,zmax,zmin,dphi,coeff,axial,az):
     global x,y,z,l,m,n,ux,uy,uz
     #Compute Wolter parameters
-    alpha,p,d,e = conicsolve.woltparam(r0,z0)
+    alpha,p,d,e = con.woltparam(r0,z0)
     transform(0,0,0,-np.pi/2-alpha,0,0)
     #Go to Wolter focus minus gap and half mirror length
-    transform(0,conicsolve.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
+    transform(0,con.primrad(z0+75.,r0,z0),-z0-75.,0,0,0)
     #Place Wolter surface
     transform(0,0,0,0,0,-np.pi/2)
     primaryLL(r0,z0,zmax,zmin,dphi,coeff,axial,az)
     transform(0,0,0,0,0,np.pi/2)
     #Go back to original coordinate system
-    transform(0,-conicsolve.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
+    transform(0,-con.primrad(z0+75.,r0,z0),z0+75.,0,0,0)
     transform(0,0,0,np.pi/2+alpha,0,0)
     return
 
@@ -191,7 +191,7 @@ def wsPrimary(r0,z0,psi):
     betas, f, g, and k computed from alpha and z0
     """
     global x,y,z,l,m,n,ux,uy,uz
-    a,p,d,e = conicsolve.woltparam(r0,z0)
+    a,p,d,e = con.woltparam(r0,z0)
     tran.wsprimary(x,y,z,l,m,n,ux,uy,uz,a,z0,psi)
     return
 
@@ -202,7 +202,7 @@ def wsSecondary(r0,z0,psi):
     betas, f, g, and k computed from alpha and z0
     """
     global x,y,z,l,m,n,ux,uy,uz
-    a,p,d,e = conicsolve.woltparam(r0,z0)
+    a,p,d,e = con.woltparam(r0,z0)
     tran.wssecondary(x,y,z,l,m,n,ux,uy,uz,a,z0,psi)
     return
 
@@ -229,7 +229,7 @@ def vignette(ind=None):
     global x,y,z,l,m,n,ux,uy,uz
     if ind==None:
         mag = l**2+m**2+n**2
-        ind = where(mag>.1) #Automatic vignetting
+        ind = np.where(mag>.1) #Automatic vignetting
                             #requires position vector set to 0.
     x = x[ind]
     y = y[ind]
@@ -479,15 +479,27 @@ def cylNull(reverse=False):
 
 
 #######  ANALYSES #########
-def rmsCentroid():
+def centroid(weights=None):
+    """Compute the centroid of the rays in the xy plane
+    """
+    cx = np.average(x,weights=weights)
+    cy = np.average(y,weights=weights)
+    return cx,cy
+
+def rmsCentroid(weights=None):
     """Compute the RMS of rays from centroid in xy plane
     """
-    cx = nanmean(x)
-    cy = nanmean(y)
+    cx,cy = centroid(weights=weights)
     rho = (x-cx)**2 + (y-cy)**2
-    return np.sqrt(np.mean(rho))
+    return np.sqrt(np.average(rho,weights=weights))
 
-def findimageplane(zscan,num):
+def hpd():
+    """Compute HPD by taking median of radii from centroid"""
+    cx,cy = centroid()
+    rho = np.sqrt((x-cx)**2 + (y-cy)**2)
+    return np.median(rho)*2.
+
+def findimageplane(zscan,num,weights=None):
     global x,y,z,l,m,n,ux,uy,uz
     rms = []
     zsteps = np.linspace(-zscan,zscan,num)
@@ -496,13 +508,14 @@ def findimageplane(zscan,num):
         transform(0,0,znow,0,0,0)
         #Trace rays to new plane
         flat()
-        rms.append(rmsCentroid())
+        rms.append(rmsCentroid(weights=weights))
         #Return to nominal plane
         transform(0,0,-znow,0,0,0)
     flat()
+    pdb.set_trace()
 
-    plt.clf()
-    plt.plot(zsteps,rms)
+##    plt.clf()
+##    plt.plot(zsteps,rms)
 
     return zsteps[np.where(rms==np.min(rms))]
 
@@ -552,6 +565,36 @@ def findimageplane2(zscan,num):
     plot(zsteps,hew)
 
     return zsteps[where(hew==min(hew))]
+
+def wsPrimRad(z,psi,r0,z0):
+    """Return the radius of a WS primary as a function of axial coordinate
+    This is computed numerically by tracing a single ray in plane
+    orthogonal to optical axis
+    """
+    #Set up source pointing toward +z
+    pointsource(0.,1)
+    transform(0,0,0,0,-np.pi/2,0) #Point ray to +x
+    transform(-r0,0,-z,0,0,0) #Go to proper axial location
+
+    #Trace to WS primary
+    wsPrimary(r0,z0,psi)
+
+    return x[0]
+
+def wsSecRad(z,psi,r0,z0):
+    """Return the radius of a WS primary as a function of axial coordinate
+    This is computed numerically by tracing a single ray in plane
+    orthogonal to optical axis
+    """
+    #Set up source pointing toward +z
+    pointsource(0.,1)
+    transform(0,0,0,0,-np.pi/2,0) #Point ray to +x
+    transform(-r0,0,-z,0,0,0) #Go to proper axial location
+
+    #Trace to WS primary
+    wsSecondary(r0,z0,psi)
+
+    return x[0]
 
 #Wrapper to create array of zernike values
 def zerntest(n,m):

@@ -24,7 +24,6 @@ def ampMeritFunction(voltages,distortion,ifuncs):
     """
     #Numpy way
     res = np.mean((np.dot(ifuncs,voltages)-distortion)**2)
-    print 'Merit function done'
     return res
 
 def ampMeritFunction2(voltages,**kwargs):
@@ -39,7 +38,6 @@ def ampMeritFunction2(voltages,**kwargs):
     distortion = kwargs['inp'][0]
     ifuncs = kwargs['inp'][1]
     res = np.mean((np.dot(ifuncs,voltages)-distortion)**2)
-    print 'Merit function done: ' + str(res)
     return res, [], 0
 
 def ampMeritDerivative(voltages,distortion,ifuncs):
@@ -48,7 +46,6 @@ def ampMeritDerivative(voltages,distortion,ifuncs):
     """
     res = np.dot(2*(np.dot(ifuncs,voltages)-distortion),ifuncs)/\
            np.size(distortion)
-    print 'Derivative function done'
     return res
 
 def ampMeritDerivative2(voltages,f,g,**kwargs):
@@ -59,13 +56,12 @@ def ampMeritDerivative2(voltages,f,g,**kwargs):
     ifuncs = kwargs['inp'][1]
     res = np.dot(2*(np.dot(ifuncs,voltages)-distortion),ifuncs)/\
            np.size(distortion)
-    print 'Derivative function done'
     return res.tolist(), [], 0
 
-def flatSlopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
+def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
                         distortionf=None,shadef=None,\
                         dx=100./150,azweight=.015,\
-                        smin=0.,smax=5.):
+                        smin=0.,smax=5.,bounds=None):
     """Format the arrays to matrices and vectors for
     the merit function. Then call fmin_slsqp to determine
     the optimal voltages to correct the mirror.
@@ -83,21 +79,25 @@ def flatSlopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
         ifuncs = pyfits.getdata(ifuncf)/(dx*1000)*180./np.pi*60**2
         distortion = pyfits.getdata(distortionf)/(dx*1000)*180./np.pi*60**2
         shade = pyfits.getdata(shadef)
+        pdb.set_trace()
         
         #Reshape ifuncs into 3D matrix
+        if ifuncs.ndim == 4:
+            ishape = np.shape(ifuncs)
+            ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
         ishape = np.shape(ifuncs)
-        ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
-        ifuncs = ifuncs.transpose(1,2,0)*1000. #Get to units of microns
+        ifuncs = ifuncs.transpose(1,2,0)*1.e6 #Get to units of microns
         axif = np.diff(ifuncs,axis=0) #Axial slopes
         axif = axif[:,:-1,:] #Get rid of last column
         azif = np.diff(ifuncs,axis=1) #Azimuthal slopes
         azif = azif[:-1,:,:] #Get rid of last row
+        pdb.set_trace()
         del ifuncs
         gc.collect()
 
         #Reshape IFs into 2D matrices
-        axif = axif.reshape(((ishape[2]-1)*(ishape[3]-1),ishape[0]*ishape[1]))
-        azif = azif.reshape(((ishape[2]-1)*(ishape[3]-1),ishape[0]*ishape[1]))
+        axif = axif.reshape(((ishape[1]-1)*(ishape[2]-1),ishape[0]))
+        azif = azif.reshape(((ishape[1]-1)*(ishape[2]-1),ishape[0]))
 
         #filter ifuncs array with shade mask
         shade = shade[:-1,:-1] #Get rid of last row and column
@@ -138,41 +138,39 @@ def flatSlopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
         gc.collect()
 
     #Create bounds list
-    bounds = []
-    for i in range(np.shape(ifslopes)[1]):
-        bounds.append((smin,smax))
+    if bounds is None:
+        bounds = []
+        for i in range(np.shape(ifslopes)[1]):
+            bounds.append((smin,smax))
 
     #Print initial merit function
     print ampMeritFunction(np.zeros(np.shape(ifslopes)[1]),dslopes,ifslopes)
-
-    return np.zeros(np.shape(ifslopes)[1]), dslopes, ifslopes
-    #Set up PyOpt optimization
-    opt_prob = pyOpt.Optimization('PZTOpt',ampMeritFunction2)
 
     #Call optimizer algorithm
     optv = fmin_slsqp(ampMeritFunction,np.zeros(np.shape(ifslopes)[1]),\
                       bounds=bounds,args=(dslopes,ifslopes),\
                       iprint=2,fprime=ampMeritDerivative,iter=200,\
-                      acc=1.e-4)
+                      acc=1.e-6)
 
     #Free up optimization memory
     del ifslopes
     del dslopes
     gc.collect()
 
-##    pdb.set_trace()
+    pdb.set_trace()
 
     #Construct solution image
     ifuncs = pyfits.getdata(ifuncf)
     ishape = np.shape(ifuncs)
-    ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
-    ifuncs = ifuncs.transpose(1,2,0)*1000. #Get to units of microns
+    if ifuncs.ndim == 4:
+        ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
+    ifuncs = ifuncs.transpose(1,2,0)#*1000. #Get to units of microns
     sol = np.dot(ifuncs,optv)
 
 ##    pyfits.writeto('Sol.fits',sol)
 ##    pyfits.writeto('SolVolt.fits',optv)
 
-    return #sol,optv
+    return sol,optv
 
 #Need a significantly faster merit function
 #Option 1: F2PY
