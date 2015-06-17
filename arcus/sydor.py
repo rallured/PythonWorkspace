@@ -36,7 +36,7 @@ def slopeStatistics(filename):
         sl = sl.flatten()
         sl = np.sort(sl)
         fom.append(sl[round(.875*np.size(sl))]-sl[round(.125*np.size(sl))])
-    return fom
+    return np.array(fom)
 
 #Loop through Sydor ascii files and plot FoM
 #for each one
@@ -47,11 +47,14 @@ def sydorPlot():
     ang = np.linspace(0.,180.,180)
     plt.ion()
     plt.figure()
-    for fi in f:
-        plt.plot(ang,slopeStatistics(fi),label=fi.split('.')[0])
+    largest = np.zeros(np.size(f))
+    for i in range(np.size(f)):
+        fom = slopeStatistics(f[i])
+        plt.plot(ang,fom,label=f[i].split('.')[0])
+        largest[i] = np.max(fom[fom.argmin()-5:fom.argmin()+6])
     #Plot requirement
-    plt.([0.,180],[17.7,17.7],'k--')
+    plt.plot([0.,180],[17.7,17.7],'k--')
     plt.title('Gaussian FWHM Equivalent Widths')
     plt.xlabel('Wafer Rotation Angle')
     plt.ylabel('Width (arcsec)')
-    
+    return largest

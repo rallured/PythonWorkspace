@@ -493,11 +493,19 @@ def rmsCentroid(weights=None):
     rho = (x-cx)**2 + (y-cy)**2
     return np.sqrt(np.average(rho,weights=weights))
 
-def hpd():
+def hpd(weights=None):
     """Compute HPD by taking median of radii from centroid"""
-    cx,cy = centroid()
+    cx,cy = centroid(weights=weights)
     rho = np.sqrt((x-cx)**2 + (y-cy)**2)
-    return np.median(rho)*2.
+    if weights is not None:
+        ind = np.argsort(rho)
+        weights = weights[ind]
+        rho = rho[ind]
+        cdf = np.cumsum(weights)
+        hpd = rho[np.argmin(np.abs(cdf-.5))] * 2.
+    else:
+        hpd = np.median(rho)*2.
+    return hpd
 
 def findimageplane(zscan,num,weights=None):
     global x,y,z,l,m,n,ux,uy,uz
@@ -512,7 +520,6 @@ def findimageplane(zscan,num,weights=None):
         #Return to nominal plane
         transform(0,0,-znow,0,0,0)
     flat()
-    pdb.set_trace()
 
 ##    plt.clf()
 ##    plt.plot(zsteps,rms)

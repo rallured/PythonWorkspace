@@ -8,16 +8,21 @@ import time
 import scipy.optimize
 
 #Load in flat mirror deformations
-foldfig = genfromtxt("/home/rallured/AXRO/Alignment/Simulation/"
+foldfig = genfromtxt("/home/rallured/Dropbox/AXRO/Alignment/Simulation/"
                         "NIST/141202FoldFigCoeffs.txt")
-foldsag = genfromtxt("/home/rallured/AXRO/Alignment/Simulation/"
+foldsag = genfromtxt("/home/rallured/Dropbox/AXRO/Alignment/Simulation/"
                         "141202FoldSagCoeffs.txt")*1000
 foldcoeffs = foldfig + foldsag
-retrofig = genfromtxt("/home/rallured/AXRO/Alignment/Simulation/"
+retrofig = genfromtxt("/home/rallured/Dropbox/AXRO/Alignment/Simulation/"
                       "NIST/141202RetroFigCoeffs.txt")
-retrosag = genfromtxt("/home/rallured/AXRO/Alignment/Simulation/"
+retrosag = genfromtxt("/home/rallured/Dropbox/AXRO/Alignment/Simulation/"
                       "141202RetroSagCoeffs.txt")*1000
 retrocoeffs = retrosag + retrosag
+
+#Load in primary deformations
+pcoeff,pax,paz = genfromtxt('/home/rallured/Dropbox/AXRO/'
+                        'Alignment/CoarseAlignment/150615_OP1S09Coeffs.txt')
+pcoeff = pcoeff/1000.
 
 #Set up Hartmann mask
 holewidth = arcsin(.3/220)
@@ -65,7 +70,8 @@ def primMaskTrace(fold,primary,woltVignette=True,foldrot=0.):
     PT.transform(0,-rt,75.,0,0,0)
     PT.transform(*primary)
     PT.transform(0,rt,-8475.,0,0,0)
-    PT.wolterprimary(220.,8400.)
+##    PT.wolterprimary(220.,8400.)
+    PT.primaryLL(220.,8400.,8525.,8425.,30.*np.pi/180.,pcoeff,pax,paz)
     if woltVignette is True:
         ind = logical_and(PT.z<8525.,PT.z>8425.)
         PT.vignette(ind=ind)
@@ -183,7 +189,11 @@ def fullMaskTrace(fold,prim,sec,woltVignette=True,foldrot=0.):
     PT.transform(0,-conicsolve.primrad(8425.,220.,8400.),8425.,0,0,0)
     PT.transform(*prim)
     PT.itransform(0,-conicsolve.primrad(8425.,220.,8400.),8425.,0,0,0)
-    PT.wolterprimary(220.,8400.)
+##    PT.transform(0,0,8475.,0,0,0)
+##    PT.flat()
+##    PT.itransform(0,0,8475.,0,0,0)
+##    PT.wolterprimary(220.,8400.)
+    PT.primaryLL(220.,8400.,8525.,8425.,30.*np.pi/180.,pcoeff,pax,paz)
 ##    pdb.set_trace()
     if woltVignette is True:
         ind = logical_and(PT.z<8525.,PT.z>8425.)
@@ -231,7 +241,9 @@ def fullFromMask(N,cda,fold,retro,prim,sec,foldrot=0.,retrorot=0.):
     PT.transform(0,-conicsolve.primrad(8425.,220.,8400.),8425.,0,0,0)
     PT.transform(*prim)
     PT.itransform(0,-conicsolve.primrad(8425.,220.,8400.),8425.,0,0,0)
-    PT.wolterprimary(220.,8400.)
+##    PT.wolterprimary(220.,8400.)
+    PT.primaryLL(220.,8400.,8525.,8425.,30.*np.pi/180.,pcoeff,pax,paz)
+    pdb.set_trace()
     ind = logical_and(PT.z<8525.,PT.z>8425.)
     PT.vignette(ind=ind)
     PT.transform(0,-conicsolve.primrad(8425.,220.,8400.),8425.,0,0,0)
@@ -292,7 +304,9 @@ def traceHoleFull(num,N,div,p,r,cda,fold,prim,sec,foldrot=0.):
     CDAbeam(num,div,p,r,cda)
     fullMaskTrace(fold,prim,sec,woltVignette=False,foldrot=foldrot)
     realx,realy = hartmannPosition(N)
-    return mean(sqrt((PT.x-realx)**2+(PT.y-realy)**2))
+    res = sqrt(mean((PT.x-realx)**2+(PT.y-realy)**2))
+    print str(N) + ': ' + str(res)
+    return res
 
 #Use minimization routine to aim ray bundle at proper hole
 def fullAim(num,N,div,cda,fold,prim,sec,foldrot=0.):
@@ -303,8 +317,10 @@ def fullAim(num,N,div,cda,fold,prim,sec,foldrot=0.):
     start = array(hartmannStartFull(N))
     if abs(start[1]) < .001:
         start[1] = .01
+    print 'Begin ' + str(N)
     res = scipy.optimize.minimize(fun,start,method='nelder-mead',\
-                  options={'ftol':1.e-2,'disp':False})
+                  options={'ftol':1.e-2,'disp':True})
+    print 'End ' +str(N)
 ##    traceHole2(num,N,numholes,div,res['x'][0],res['x'][1],cda,fold)
 
     return res['x']
@@ -333,17 +349,24 @@ def fullAlign(num,cda,fold,retro,prim,sec,p=None,r=None,\
     #Trace out holes, one by one
     xm = []
     ym = []
+    xstd = []
+    ystd = []
     for i in range(numholes):
         #Trace up to Hartmann mask
         CDAbeam(num,.001*pi/180,p[i],r[i],cda)
         fullMaskTrace(fold,prim,sec,woltVignette=True)
         fullFromMask(i+1,cda,fold,retro,prim,sec)
 
+        #Print out vignetting factor
+        print size(PT.x)/num
+
         #Evaluate mean spot position
         xm.append(mean(PT.x))
         ym.append(mean(PT.y))
+        xstd.append(std(PT.x))
+        ystd.append(std(PT.y))
 
-    return array(xm),array(ym)
+    return array(xm),array(ym),array(xstd),array(ystd)
 
 #Evaluate sensitivity of misalignment degree of freedom
 def dofSensitivityFull(num,obj,dof,step,criteria):

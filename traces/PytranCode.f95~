@@ -582,6 +582,8 @@ real*8 function legendrep(x,n)
     legendrep = 0.
   else if (n==1) then
     legendrep = 1.
+  else if (x==0. .and. mod(n,2)==0) then
+    legendrep = 0.
   else
     do i=0,floor(real(n)/2)
       legendrep = legendrep + (-1)**(i)*factorial(2*n-2*i)/factorial(i)/factorial(n-i)/factorial(n-2*i)/2**n*(n-2*i)*x**(n-2*i-1)
@@ -1163,21 +1165,17 @@ subroutine wolterprimLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,zmax,zmin,dphi,coeff,axia
       x(i) = x(i) + l(i)*delt
       y(i) = y(i) + m(i)*delt
       z(i) = z(i) + n(i)*delt
-      !print *, x(i),y(i),z(i)
-      !print *, F
-      !print * ,delt
-      !read *, dum
     end do
     Fp = sqrt(Fx*Fx+Fy*Fy+Fz*Fz)
     ux(i) = Fx/Fp
     uy(i) = Fy/Fp
     uz(i) = Fz/Fp
     !Set rays outside mirror definition to NaN
-    if (abs(zarg)>1 .or. abs(targ) > 1) then
-      x(i) = 0.
-      y(i) = 0.
-      z(i) = 0.
-    end if
+    !if (abs(zarg)>1 .or. abs(targ) > 1) then
+    !  x(i) = 0.
+    !  y(i) = 0.
+    !  z(i) = 0.
+    !end if
     !print *, x(i),y(i),z(i)
     !print *, ux(i),uy(i),uz(i)
     !read *, dum
@@ -1284,7 +1282,7 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
   real*8, intent(in) :: alpha,z0,psi
   real*8 :: k,kterm,dbdx,dbdy,beta,betas,ff,g,r
   real*8 :: F,Fx,Fy,Fz,Fp,delt,dum,Fb
-  integer :: i, flag
+  integer :: i, flag, c
 
   !Compute Chase parameters
   betas = 4*alpha
@@ -1296,6 +1294,7 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
   !$omp parallel do private(i,delt,F,Fx,Fy,Fz,Fp,Fb,kterm,beta,dbdx,dbdy,flag,r)
   do i=1,num
     delt = 100.
+    c = 0
     do while(abs(delt)>1.e-8)
       beta = asin(sqrt(x(i)**2 + y(i)**2)/ff)
       flag = 0
@@ -1334,12 +1333,19 @@ subroutine wsprimary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
       x(i) = x(i) + l(i)*delt
       y(i) = y(i) + m(i)*delt
       z(i) = z(i) + n(i)*delt
+      if (c > 10) then
+        delt = 0.
+        l(i) = 0.
+        m(i) = 0.
+        n(i) = 0.
+      end if
+      c = c + 1
       !read *, dum
     end do
     Fp = sqrt(Fx*Fx+Fy*Fy+Fz*Fz)
-    ux(i) = Fx/Fp
-    uy(i) = Fy/Fp
-    uz(i) = Fz/Fp
+    ux(i) = -Fx/Fp
+    uy(i) = -Fy/Fp
+    uz(i) = -Fz/Fp
     !print *, x(i),y(i),z(i)
     !print *, ux(i),uy(i),uz(i)
     !read *, dum
