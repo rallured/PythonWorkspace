@@ -79,7 +79,6 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
         ifuncs = pyfits.getdata(ifuncf)/(dx*1000)*180./np.pi*60**2
         distortion = pyfits.getdata(distortionf)/(dx*1000)*180./np.pi*60**2
         shade = pyfits.getdata(shadef)
-        pdb.set_trace()
         
         #Reshape ifuncs into 3D matrix
         if ifuncs.ndim == 4:
@@ -91,7 +90,6 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
         axif = axif[:,:-1,:] #Get rid of last column
         azif = np.diff(ifuncs,axis=1) #Azimuthal slopes
         azif = azif[:-1,:,:] #Get rid of last row
-        pdb.set_trace()
         del ifuncs
         gc.collect()
 
@@ -146,6 +144,7 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
     #Print initial merit function
     print ampMeritFunction(np.zeros(np.shape(ifslopes)[1]),dslopes,ifslopes)
 
+    pdb.set_trace()
     #Call optimizer algorithm
     optv = fmin_slsqp(ampMeritFunction,np.zeros(np.shape(ifslopes)[1]),\
                       bounds=bounds,args=(dslopes,ifslopes),\
