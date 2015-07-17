@@ -80,6 +80,15 @@ def zernsurfrot(coeff1,coeff2,rad,rot,\
 def sphere(rad):
     global x,y,z,l,m,n,ux,uy,uz
     tran.tracesphere(x,y,z,l,m,n,ux,uy,uz,rad)
+    return
+
+def conic(R,K):
+    """Wrapper for conic surface with radius of curvature R
+    and conic constant K
+    """
+    global x,y,z,l,m,n,ux,uy,uz
+    tran.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
+    return
 
 #Wrapper for cylindrical surface
 def cyl(rad):
@@ -331,8 +340,8 @@ def circularbeam(rad,num):
     global x,y,z,l,m,n,ux,uy,uz
     rho = np.sqrt(np.random.rand(num))*rad
     theta = np.random.rand(num)*2*np.pi
-    x = rho*cos(theta)
-    y = rho*sin(theta)
+    x = rho*np.cos(theta)
+    y = rho*np.sin(theta)
     z = np.repeat(0.,num)
     l = np.repeat(0.,num)
     m = np.repeat(0.,num)

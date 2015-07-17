@@ -102,7 +102,7 @@ def wsPrimFunction(r0,z0,psi,x,y,z):
 ##    Fx[ind] = 0.
 ##    Fy[ind] = 0.
     Fz = -1
-    return F, Fx, Fy
+    return F, Fx, Fy, Fz
 
 def wsPrimFunction2(r0,z0,psi,x,y,z):
     a,p,d,e = woltparam(r0,z0)
@@ -140,6 +140,48 @@ def wsPrimFunction2(r0,z0,psi,x,y,z):
     return F, Fx, Fy, Fz
 
 def wsSecFunction(r0,z0,psi,x,y,z):
+    """Changed
+    """
+    a,p,d,e = woltparam(r0,z0)
+    betas = 4*a
+    ff = z0/np.cos(betas)
+    g = ff / psi
+    k = tan(betas/2)**2
+    pdb.set_trace()
+
+    beta = arctan2(sqrt(x**2+y**2),z)
+    ind = beta<betas
+    beta[ind] = betas
+    kterm= (1/k)*tan(beta/2)**2 -1
+    pdb.set_trace()
+    a = (1-cos(beta))/(1-cos(betas))/ff + \
+        (1+cos(beta))/(2*g)*kterm**(1+k)
+    F = -z + cos(beta)/a
+    #Add correction term to beta<betas indices
+##    dadbs = sin(betas)/ff/(1-cos(betas))+\
+##            (k+1)*(cos(betas)+1)*tan(betas/2)/cos(betas/2)**2/2/g/k
+##    dbdzs = -sin(betas)**2/sqrt(x[ind]**2+y[ind]**2)
+##    gam = (-ff*sin(betas)-ff**2*cos(betas)*dadbs)*dbdzs
+##    F[ind] = F[ind] + gam*(z[ind]-sqrt(x[ind]**2+y[ind]**2)/tan(betas))
+    dadb = sin(beta)/ff/(1-cos(betas)) - \
+           sin(beta)/(2*g)*(kterm)**(1+k) + \
+           (k+1)*(cos(beta)+1)*tan(beta/2)*(kterm**k)/2/g/k/(cos(beta/2)**2)
+    Fb = -sin(beta)/a - cos(beta)/a**2*dadb
+##    dbdx = x/z/sqrt(x**2+y**2)/sqrt(1-(x**2+y**2)/z**2)
+##    dbdy = y/z/sqrt(x**2+y**2)/sqrt(1-(x**2+y**2)/z**2)
+##    dbdz = -sqrt(x**2+y**2)/z**2/sqrt(1-(x**2+y**2)/z**2)
+    dbdx = x*z/(x**2+y**2+z**2)/sqrt(x**2+y**2)
+    dbdy = y*z/(x**2+y**2+z**2)/sqrt(x**2+y**2)
+    dbdz = -sqrt(x**2+y**2)/(x**2+y**2+z**2)
+    Fx = Fb * dbdx
+    Fy = Fb * dbdy
+    Fz = -1. + Fb*dbdz
+##    Fx[ind] = -2./tan(betas)*x[ind]/sqrt(x[ind]**2+y[ind]**2)
+##    Fy[ind] = -2./tan(betas)*y[ind]/sqrt(x[ind]**2+y[ind]**2)
+##    Fz[ind] = gam - 1.
+    return F, Fx, Fy, Fz
+
+def wsSecFunction2(r0,z0,psi,x,y,z):
     """Changed
     """
     a,p,d,e = woltparam(r0,z0)

@@ -1527,27 +1527,61 @@ subroutine grat(x,y,l,m,n,num,d,order,wave)
 
 end subroutine grat
 
-!Test function to estimate speed of Huygens-Fresnel computations for
-!Wolter I geometries
-!Need ~ 10**6 points per axial slice to predict intensity at a given
-!point on the focal plane
-subroutine huygenstest(x,xp,zp,num,output)
+!Function to trace to a general conic
+!Vertex assumed at origin, opening up in the +z direction
+!Radius of curvature and conic constant are required parameters
+!Traces to solution closest to vertex
+subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
   !Declarations
+  implicit none
   integer, intent(in) :: num
-  real*8, intent(in) :: x, xp(num), zp(num)
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: R,K
+  real*8 :: s1,s2,s,z1,z2,denom,b,c,disc
   integer :: i
-  complex*8, intent(out) :: output
 
-  f = 8400.
-  wave = 1.e-6
-  dr = .5
-
-  !Loop through surface points, compute exponential, and sum
-  !$omp parallel do private(expon) reduction(+:output)
+  !Loop through rays and trace to the conic
   do i=1,num
-    expon = 2*pi/wave * (sqrt((x-xp(i))**2+zp(i)**2) - zp(i))
-    output = output + (1./f/wave/dr)*exp(complex(0.,-expon))
+    !Compute amount to move ray s
+    s = 0.
+    if (K .eq. -1 .and. abs(n(i))==1.) then
+      s = (x(i)**2 + y(i)**2 - 2*R*z(i)) / (2*R*n(i))
+    else
+      denom = l(i)**2 + m(i)**2 + (K+1)*n(i)**2
+      b = x(i)*l(i) + y(i)*m(i) + ((K+1)*z(i) - R)*n(i)
+      b = b/denom
+      c = x(i)**2 + y(i)**2 + (K+1)*z(i)**2 - 2*R*z(i)
+      c = c/denom
+      disc = b**2 - c
+      if (disc .ge. 0.) then
+        s1 = -b + sqrt(disc)
+        s2 = -b - sqrt(disc)
+        !Choose smallest positive resulting Z
+        z1 = z(i) + s1*n(i)
+        z2 = z(i) + s2*n(i)
+        if (abs(z1) .le. abs(z2)) then
+          s = s1
+        else
+          s = s2
+        end if
+      end if
+    end if
+    !Advance ray
+    if (s==0.) then
+      l(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
+    else
+      x(i) = x(i) + l(i)*s
+      y(i) = y(i) + m(i)*s
+      z(i) = z(i) + n(i)*s
+      !Compute normal derivative
+      denom = sqrt(R**2 - K*(x(i)**2+y(i)**2))
+      ux(i) = -x(i) / denom
+      uy(i) = -y(i) / denom
+      uz(i) = -R/abs(R) * sqrt(R**2 - (K+1)*(x(i)**2+y(i)**2))
+      uz(i) = -uz(i) / denom
+    end if
   end do
-  !$omp end parallel do
 
-end subroutine huygenstest
+end subroutine conic

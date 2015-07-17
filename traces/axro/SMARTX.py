@@ -114,7 +114,10 @@ def traceWSShell(num,theta,r0,z0,phigh,plow,shigh,slow,\
     #Find Chase focus
     delta = 0.
     if chaseFocus or bestFocus:
-        delta = .0625*(psi+1)*(r**2*L1/z0**2)*(1/np.tan(alpha))**2
+        cx,cy = PT.centroid()
+        r = np.sqrt(cx**2+cy**2)
+        delta = .0625*(1.+1)*(r**2*(phigh-plow)/10000.**2)\
+                *(1/np.tan(a))**2
         PT.transform(0,0,delta,0,0,0)
         PT.flat()
 
@@ -131,24 +134,28 @@ def traceWSShell(num,theta,r0,z0,phigh,plow,shigh,slow,\
             pdb.set_trace()
         PT.flat()
 
-    return refl1*refl2
+    #return refl1*refl2
+    return PT.hpd(), PT.rmsCentroid(), delta
 
-def evaluateShell(theta,r0):
+def evaluateShell(theta,alpha):
     """Compute vignetting factor and HPD as a function of
     pointing error. Supply pointing errors theta and intersection
     radius of shell. Assumption is 200 mm long segments.
     """
+    r0 = 10000.*np.tan(alpha)
     hpd = np.zeros(np.size(theta))
-    vign = np.copy(hpd)
-    refl = np.copy(hpd)
+    rms = np.copy(hpd)
+    delta = np.copy(hpd)
     a,p,d,e = con.woltparam(r0,10000.)
     for t in theta:
-        hpd[t==theta],vign[t==theta],refl[t==theta] = \
-            traceWSShell(1000,t,r0,10225.,10025.,9975.,9775.)
+        hpd[t==theta],rms[t==theta],delta[t==theta] = \
+            traceWSShell(10000,t,r0,10000.,11000.,\
+                         10000.,10000.,8000.,1000.,.5,\
+                         chaseFocus=True)
 
-    return hpd,vign,refl
+    return hpd,rms,delta
 
-def SXperformance(theta,energy,rough,bestsurface=False):
+def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
     """Go through a SMART-X prescription file and compute
     area weighted performance for a flat focal plane
     """
@@ -223,6 +230,9 @@ def SXperformance(theta,energy,rough,bestsurface=False):
             delta[t==theta] = PT.findimageplane(.5,201,weights=weights)
             PT.transform(0,0,delta[t==theta],0,0,0)
             PT.flat()
+        if optsurface:
+            PT.conic(1128.058314,-1.) #Emprically found best surface
+        
         #Compute FoM
         rmsTelescope[t==theta] = PT.rmsCentroid(weights=weights)/10000.
         hpdTelescope[t==theta] = PT.hpd(weights=weights)/10000.
@@ -230,7 +240,7 @@ def SXperformance(theta,energy,rough,bestsurface=False):
        
         pdb.set_trace()
 
-    return hpdTelescope,rmsTelescope,delta
+    return hpdTelescope,rmsTelescope
 
 def sphericalNodes(rin,z0,fov,Nshells,N):
     """This function will iteratively scan node positions
