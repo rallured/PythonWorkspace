@@ -1,0 +1,19 @@
+'''calcola riflettività per oggetto wolter con
+geometria ottenuta dal file imp_offAxis col nome passato per
+argomento. (per essere chiamato da VB)'''
+
+import sys
+from userKov.pyGeoShell.CsimpleCreaDiam import CSimpleCreaDiam
+import dislin
+
+
+#tel=CSimpleCreaDiam (sys.argv[1])
+a=CSimpleCreaDiam("imp_OffAxis.txt")
+a.calcGeo()
+ener=range(1,50)
+area=a.aeff(ener)
+dislin.plot(ener,area)
+dislin.disfin()
+open("results.txt","w").write("\n".join(["%s\t%s" %(ee,aa) for ee,aa in zip(ener, area)]))
+
+

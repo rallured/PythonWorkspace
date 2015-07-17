@@ -1,0 +1,2 @@
+integrare su energie per fov
+mettere fov e area a diverse energie

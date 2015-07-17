@@ -1,0 +1,24 @@
+plot 'F20_ff000_D60.txt' u 0:1 w lp,\
+'F20_ff000_D70.txt' u 0:1 w lp,\
+'F20_ff007_D60.txt' u 0:1 w lp,\
+'F20_ff007_D70.txt' u 0:1 w lp,\
+'F20_ff015_D60.txt' u 0:1 w lp,\
+'F20_ff015_D70.txt' u 0:1 w lp,\
+'F22_ff000_D60.txt' u 0:1 w lp,\
+'F22_ff000_D70.txt' u 0:1 w lp,\
+'F22_ff007_D60.txt' u 0:1 w lp,\
+'F22_ff007_D70.txt' u 0:1 w lp,\
+'F22_ff015_D60.txt' u 0:1 w lp,\
+'F22_ff015_D70.txt' u 0:1 w lp,\
+'F25_ff000_D60.txt' u 0:1 w lp,\
+'F25_ff000_D70.txt' u 0:1 w lp,\
+'F25_ff007_D60.txt' u 0:1 w lp,\
+'F25_ff007_D70.txt' u 0:1 w lp,\
+'F25_ff015_D60.txt' u 0:1 w lp,\
+'F25_ff015_D70.txt' u 0:1 w lp,\
+'F27_ff000_D60.txt' u 0:1 w lp,\
+'F27_ff000_D70.txt' u 0:1 w lp,\
+'F27_ff007_D60.txt' u 0:1 w lp,\
+'F27_ff007_D70.txt' u 0:1 w lp,\
+'F27_ff015_D60.txt' u 0:1 w lp,\
+'F27_ff015_D70.txt' u 0:1 w lp

@@ -1,0 +1,38 @@
+ &IMPDIR
+ DIRORIGIN = 'partenza                       '
+ WORKDIR = 'simX2006onAxis                        '
+ DIRRISULT = 'ML_ff007_20m_max70'
+ /
+
+
+ &PLOTPAR
+ EN_MIN =    1.000000000000000E-001
+ EN_MAX =       160.000000000000000
+ NPOINTS =         200
+ PLOTEPS =            0
+ PLOTGIF =            1
+ MATRIFTOT = 'iridio.dat          '
+ SPESSORERIFTOT =      1000.000000000000000
+ TOTROUGH =         3.000000000000000
+ /
+
+ &STARTPAR2
+ mat1odd= 'tungsten.dat'
+ mat2even = 'silicon.dat'
+ matsub= 'sub.dat'
+ matest1st='carbon.dat'
+ MatEst2nd='tungsten.dat'
+ transair= ''
+ oddrough=3.0
+ evenrough=3.0
+ subrough=3.0
+ esterno1st=00
+ esterno2nd=00
+ air=.false.
+ /
+
+&startpar3
+ diamfile='MLff00720mmax70.txt'
+ initgrup=1
+ forcemode=1
+/

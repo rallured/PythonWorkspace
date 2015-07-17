@@ -1,0 +1,18 @@
+from userKov.pyOffAxis import extractInfo
+import os
+
+folder=r"C:\Documents and Settings\studente\Desktop\best7_8_aeffRT_SX"
+listaFile="lista.txt"
+os.chdir(folder)
+
+for f in open(listaFile,"r").read().split():
+    aree=extractInfo.loadCol(f+".txt",2)
+    ener=extractInfo.loadEn(f+".txt")
+    out=open(f+"_spider.txt","w")
+    a=aree[:]
+    for k in range(len(a)):
+        a[k]=[area*0.9 for area in a[k]]
+    for aa in a:
+        for t in zip(ener,aa):out.write(str(t[0])+"\t"+str(t[1])+"\n")
+        out.write("\n"*2)        
+    out.close()        

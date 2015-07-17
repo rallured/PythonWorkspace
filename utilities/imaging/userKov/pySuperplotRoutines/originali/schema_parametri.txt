@@ -1,0 +1,70 @@
+ &IMPDIR
+ DIRRISULT = '                                   '
+ WORKDIR = '                  '
+ /
+ 
+ &setnum
+ nmaxset=1
+ /
+
+
+ &DIMENSIONI
+ NDIM =            4
+ /
+ 
+ &SPECCHIO
+ NGRUPPI =            100
+ NELEMENTI =            1
+ F_LENGTH =      2000.000000000000000
+ F_HEIGHT =        30.000000000000000
+ N_BILAYERS =          250
+ NPOINTS =          500
+ /
+ 
+ &STARTPAR
+ EN_MIN =        0.1000000000000000
+ EN_MAX =        70.000000000000000
+ NTRY =          1
+ ITMAX =          500
+ FTOL =    1.000000000000000E-006
+ /
+ 
+ 
+ &STARTPAR2
+ mat1odd= 'tungsten.dat'
+ mat2even = 'silicon.dat'
+ matsub= 'sub.dat'
+ matest1st='carbon.dat'
+ MatEst2nd='tungsten.dat'
+ transair= ''
+ oddrough=3
+ evenrough=3
+ subrough=3
+ esterno1st=00
+ esterno2nd=0
+ air=.false.
+ /
+ 
+ &startpar3
+ diamfile='xeusI.txt'
+ initgrup=1
+ /
+ 
+ 
+ '#coordrangerun'
+  .1000000000000000D+00  .8000000000000000D+06
+ -.4000000000000000D+06  .9999999900000000D+00
+  .2000000000000000D-03  .1000000000000000D+04
+  .5000000000000000D-01  .9500000000000000D+00
+  .5000000000000000D-01  .9500000000000000D+00
+ '#'
+ 
+ '#coordrange'
+  .1000000000000000D+00  .8000000000000000D+06
+ -.4000000000000000D+06  .9999999900000000D+00
+  .2000000000000000D-03  .1000000000000000D+04
+  .5000000000000000D-01  .9500000000000000D+00
+  .5000000000000000D-01  .9500000000000000D+00
+ '#'
+ 
+ 

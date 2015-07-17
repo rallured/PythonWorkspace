@@ -1,0 +1,12 @@
+Ir_ff015_30m_max60
+Ir_ff007_30m_max60
+Ir_ff000_30m_max60
+Ir_ff015_20m_max70
+Ir_ff007_20m_max70
+Ir_ff000_20m_max70
+Ir_ff015_20m_max60
+Ir_ff007_20m_max60
+Ir_ff000_20m_max60
+Ir_ff000_30m_max70
+Ir_ff007_30m_max70
+Ir_ff015_30m_max70

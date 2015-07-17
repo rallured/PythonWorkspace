@@ -1,0 +1,11 @@
+17-1-2007
+erano in 
+ufficiali\prog_superplotGen1\script\superplotRoutines
+
+contiene programmi per calcolare:
+- aree e pesi integrali shell per shell (areeIntegrali)
+- simulare diverse configurazioni in automatico
+- sommare risultati da punto precedente
+- script vari usa e getta
+
+non adattate, fatta copia in cartella 'originali' i quali copiati nella directory iniziale dovrebbero ancora funzionare.

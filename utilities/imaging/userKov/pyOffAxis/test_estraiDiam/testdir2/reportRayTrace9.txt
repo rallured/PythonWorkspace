@@ -1,0 +1,374 @@
+
+Ene concentration,vignetting and effective area
+ from ray tracing at   .0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  6.1"
+
+   40%.P.D. =   8.2"   60%.P.D. =  12.4"   80%.P.D. =  16.3"
+   Useful area in % of the mirror area = 70.9%
+   eff area in square cm = 1414.87 at  .10 KeV
+   eff area in square cm = 1329.46 at 1.32 KeV
+   eff area in square cm = 1256.08 at 2.54 KeV
+   eff area in square cm = 1185.00 at 3.77 KeV
+   eff area in square cm = 1214.47 at 4.99 KeV
+   eff area in square cm = 1231.79 at 6.21 KeV
+   eff area in square cm = 1243.33 at 7.43 KeV
+   eff area in square cm = 1250.57 at 8.66 KeV
+   eff area in square cm = 1251.93 at 9.88 KeV
+   eff area in square cm = 1217.15 at11.10 KeV
+   eff area in square cm =  985.04 at12.32 KeV
+   eff area in square cm =  889.56 at13.55 KeV
+   eff area in square cm =  876.47 at14.77 KeV
+   eff area in square cm =  884.46 at15.99 KeV
+   eff area in square cm =  863.46 at17.21 KeV
+   eff area in square cm =  783.56 at18.44 KeV
+   eff area in square cm =  762.51 at19.66 KeV
+   eff area in square cm =  763.01 at20.88 KeV
+   eff area in square cm =  753.38 at22.10 KeV
+   eff area in square cm =  688.39 at23.33 KeV
+   eff area in square cm =  619.07 at24.55 KeV
+   eff area in square cm =  569.76 at25.77 KeV
+   eff area in square cm =  526.54 at26.99 KeV
+   eff area in square cm =  470.93 at28.22 KeV
+   eff area in square cm =  434.43 at29.44 KeV
+   eff area in square cm =  390.35 at30.66 KeV
+   eff area in square cm =  373.81 at31.88 KeV
+   eff area in square cm =  359.37 at33.11 KeV
+   eff area in square cm =  353.52 at34.33 KeV
+   eff area in square cm =  353.90 at35.55 KeV
+   eff area in square cm =  328.53 at36.77 KeV
+   eff area in square cm =  306.80 at38.00 KeV
+   eff area in square cm =  299.41 at39.22 KeV
+   eff area in square cm =  277.17 at40.44 KeV
+   eff area in square cm =  269.98 at41.66 KeV
+   eff area in square cm =  248.68 at42.89 KeV
+   eff area in square cm =  238.20 at44.11 KeV
+   eff area in square cm =  262.54 at45.33 KeV
+   eff area in square cm =  248.72 at46.55 KeV
+   eff area in square cm =  244.36 at47.78 KeV
+   eff area in square cm =  248.79 at49.00 KeV
+   eff area in square cm =  246.58 at50.22 KeV
+   eff area in square cm =  231.21 at51.44 KeV
+   eff area in square cm =  233.30 at52.67 KeV
+   eff area in square cm =  230.09 at53.89 KeV
+   eff area in square cm =  229.58 at55.11 KeV
+   eff area in square cm =  224.18 at56.33 KeV
+   eff area in square cm =  209.33 at57.56 KeV
+   eff area in square cm =  220.31 at58.78 KeV
+   eff area in square cm =  211.27 at60.00 KeV
+      .0000
+
+Ene concentration,vignetting and effective area
+ from ray tracing at  2.0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  5.4"
+
+   40%.P.D. =   7.1"   60%.P.D. =  10.6"   80%.P.D. =  14.4"
+   Useful area in % of the mirror area = 63.4%
+   eff area in square cm = 1266.78 at  .10 KeV
+   eff area in square cm = 1189.69 at 1.32 KeV
+   eff area in square cm = 1123.42 at 2.54 KeV
+   eff area in square cm = 1059.26 at 3.77 KeV
+   eff area in square cm = 1085.72 at 4.99 KeV
+   eff area in square cm = 1101.18 at 6.21 KeV
+   eff area in square cm = 1111.30 at 7.43 KeV
+   eff area in square cm = 1117.21 at 8.66 KeV
+   eff area in square cm = 1110.52 at 9.88 KeV
+   eff area in square cm = 1078.40 at11.10 KeV
+   eff area in square cm =  880.34 at12.32 KeV
+   eff area in square cm =  785.42 at13.55 KeV
+   eff area in square cm =  768.60 at14.77 KeV
+   eff area in square cm =  754.16 at15.99 KeV
+   eff area in square cm =  720.56 at17.21 KeV
+   eff area in square cm =  706.09 at18.44 KeV
+   eff area in square cm =  674.65 at19.66 KeV
+   eff area in square cm =  633.66 at20.88 KeV
+   eff area in square cm =  581.08 at22.10 KeV
+   eff area in square cm =  518.65 at23.33 KeV
+   eff area in square cm =  482.61 at24.55 KeV
+   eff area in square cm =  432.01 at25.77 KeV
+   eff area in square cm =  401.95 at26.99 KeV
+   eff area in square cm =  364.98 at28.22 KeV
+   eff area in square cm =  341.26 at29.44 KeV
+   eff area in square cm =  313.08 at30.66 KeV
+   eff area in square cm =  295.13 at31.88 KeV
+   eff area in square cm =  268.78 at33.11 KeV
+   eff area in square cm =  262.11 at34.33 KeV
+   eff area in square cm =  246.91 at35.55 KeV
+   eff area in square cm =  239.73 at36.77 KeV
+   eff area in square cm =  238.20 at38.00 KeV
+   eff area in square cm =  224.93 at39.22 KeV
+   eff area in square cm =  223.29 at40.44 KeV
+   eff area in square cm =  215.67 at41.66 KeV
+   eff area in square cm =  213.02 at42.89 KeV
+   eff area in square cm =  208.18 at44.11 KeV
+   eff area in square cm =  206.99 at45.33 KeV
+   eff area in square cm =  203.28 at46.55 KeV
+   eff area in square cm =  199.39 at47.78 KeV
+   eff area in square cm =  195.69 at49.00 KeV
+   eff area in square cm =  195.47 at50.22 KeV
+   eff area in square cm =  187.69 at51.44 KeV
+   eff area in square cm =  182.09 at52.67 KeV
+   eff area in square cm =  181.70 at53.89 KeV
+   eff area in square cm =  172.68 at55.11 KeV
+   eff area in square cm =  169.56 at56.33 KeV
+   eff area in square cm =  163.63 at57.56 KeV
+   eff area in square cm =  156.36 at58.78 KeV
+   eff area in square cm =  153.25 at60.00 KeV
+      .0001
+
+Ene concentration,vignetting and effective area
+ from ray tracing at  4.0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  4.5"
+
+   40%.P.D. =   5.7"   60%.P.D. =   8.5"   80%.P.D. =  12.0"
+   Useful area in % of the mirror area = 55.0%
+   eff area in square cm = 1102.43 at  .10 KeV
+   eff area in square cm = 1035.07 at 1.32 KeV
+   eff area in square cm =  977.03 at 2.54 KeV
+   eff area in square cm =  920.86 at 3.77 KeV
+   eff area in square cm =  943.74 at 4.99 KeV
+   eff area in square cm =  956.87 at 6.21 KeV
+   eff area in square cm =  965.01 at 7.43 KeV
+   eff area in square cm =  967.07 at 8.66 KeV
+   eff area in square cm =  951.65 at 9.88 KeV
+   eff area in square cm =  935.51 at11.10 KeV
+   eff area in square cm =  763.86 at12.32 KeV
+   eff area in square cm =  668.63 at13.55 KeV
+   eff area in square cm =  630.17 at14.77 KeV
+   eff area in square cm =  617.33 at15.99 KeV
+   eff area in square cm =  605.74 at17.21 KeV
+   eff area in square cm =  581.55 at18.44 KeV
+   eff area in square cm =  533.96 at19.66 KeV
+   eff area in square cm =  478.10 at20.88 KeV
+   eff area in square cm =  436.28 at22.10 KeV
+   eff area in square cm =  405.97 at23.33 KeV
+   eff area in square cm =  366.56 at24.55 KeV
+   eff area in square cm =  332.60 at25.77 KeV
+   eff area in square cm =  305.75 at26.99 KeV
+   eff area in square cm =  290.52 at28.22 KeV
+   eff area in square cm =  270.99 at29.44 KeV
+   eff area in square cm =  259.85 at30.66 KeV
+   eff area in square cm =  238.56 at31.88 KeV
+   eff area in square cm =  234.63 at33.11 KeV
+   eff area in square cm =  216.62 at34.33 KeV
+   eff area in square cm =  215.69 at35.55 KeV
+   eff area in square cm =  212.04 at36.77 KeV
+   eff area in square cm =  200.69 at38.00 KeV
+   eff area in square cm =  196.24 at39.22 KeV
+   eff area in square cm =  191.56 at40.44 KeV
+   eff area in square cm =  189.18 at41.66 KeV
+   eff area in square cm =  183.10 at42.89 KeV
+   eff area in square cm =  179.13 at44.11 KeV
+   eff area in square cm =  173.47 at45.33 KeV
+   eff area in square cm =  169.96 at46.55 KeV
+   eff area in square cm =  168.38 at47.78 KeV
+   eff area in square cm =  161.61 at49.00 KeV
+   eff area in square cm =  155.76 at50.22 KeV
+   eff area in square cm =  152.16 at51.44 KeV
+   eff area in square cm =  148.83 at52.67 KeV
+   eff area in square cm =  137.26 at53.89 KeV
+   eff area in square cm =  136.20 at55.11 KeV
+   eff area in square cm =  128.95 at56.33 KeV
+   eff area in square cm =  119.80 at57.56 KeV
+   eff area in square cm =  114.96 at58.78 KeV
+   eff area in square cm =  106.92 at60.00 KeV
+      .0001
+
+Ene concentration,vignetting and effective area
+ from ray tracing at  6.0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  3.8"
+
+   40%.P.D. =   4.7"   60%.P.D. =   6.8"   80%.P.D. =   9.9"
+   Useful area in % of the mirror area = 43.3%
+   eff area in square cm =  884.57 at  .10 KeV
+   eff area in square cm =  830.15 at 1.32 KeV
+   eff area in square cm =  783.13 at 2.54 KeV
+   eff area in square cm =  737.64 at 3.77 KeV
+   eff area in square cm =  755.84 at 4.99 KeV
+   eff area in square cm =  765.98 at 6.21 KeV
+   eff area in square cm =  771.21 at 7.43 KeV
+   eff area in square cm =  763.06 at 8.66 KeV
+   eff area in square cm =  758.73 at 9.88 KeV
+   eff area in square cm =  746.69 at11.10 KeV
+   eff area in square cm =  595.31 at12.32 KeV
+   eff area in square cm =  502.84 at13.55 KeV
+   eff area in square cm =  486.28 at14.77 KeV
+   eff area in square cm =  477.55 at15.99 KeV
+   eff area in square cm =  449.76 at17.21 KeV
+   eff area in square cm =  411.69 at18.44 KeV
+   eff area in square cm =  375.21 at19.66 KeV
+   eff area in square cm =  340.27 at20.88 KeV
+   eff area in square cm =  311.12 at22.10 KeV
+   eff area in square cm =  287.23 at23.33 KeV
+   eff area in square cm =  265.63 at24.55 KeV
+   eff area in square cm =  242.66 at25.77 KeV
+   eff area in square cm =  229.39 at26.99 KeV
+   eff area in square cm =  212.72 at28.22 KeV
+   eff area in square cm =  201.97 at29.44 KeV
+   eff area in square cm =  195.93 at30.66 KeV
+   eff area in square cm =  185.32 at31.88 KeV
+   eff area in square cm =  177.93 at33.11 KeV
+   eff area in square cm =  172.64 at34.33 KeV
+   eff area in square cm =  165.49 at35.55 KeV
+   eff area in square cm =  164.83 at36.77 KeV
+   eff area in square cm =  156.97 at38.00 KeV
+   eff area in square cm =  153.85 at39.22 KeV
+   eff area in square cm =  148.34 at40.44 KeV
+   eff area in square cm =  145.81 at41.66 KeV
+   eff area in square cm =  141.14 at42.89 KeV
+   eff area in square cm =  132.75 at44.11 KeV
+   eff area in square cm =  131.29 at45.33 KeV
+   eff area in square cm =  124.54 at46.55 KeV
+   eff area in square cm =  121.79 at47.78 KeV
+   eff area in square cm =  114.49 at49.00 KeV
+   eff area in square cm =  111.20 at50.22 KeV
+   eff area in square cm =  108.12 at51.44 KeV
+   eff area in square cm =  103.09 at52.67 KeV
+   eff area in square cm =   94.16 at53.89 KeV
+   eff area in square cm =   90.23 at55.11 KeV
+   eff area in square cm =   85.37 at56.33 KeV
+   eff area in square cm =   79.90 at57.56 KeV
+   eff area in square cm =   78.54 at58.78 KeV
+   eff area in square cm =   69.91 at60.00 KeV
+      .0002
+
+Ene concentration,vignetting and effective area
+ from ray tracing at  8.0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  2.9"
+
+   40%.P.D. =   3.2"   60%.P.D. =   5.3"   80%.P.D. =   8.1"
+   Useful area in % of the mirror area = 30.7%
+   eff area in square cm =  671.78 at  .10 KeV
+   eff area in square cm =  630.34 at 1.32 KeV
+   eff area in square cm =  594.45 at 2.54 KeV
+   eff area in square cm =  559.72 at 3.77 KeV
+   eff area in square cm =  573.35 at 4.99 KeV
+   eff area in square cm =  580.34 at 6.21 KeV
+   eff area in square cm =  581.61 at 7.43 KeV
+   eff area in square cm =  579.38 at 8.66 KeV
+   eff area in square cm =  573.90 at 9.88 KeV
+   eff area in square cm =  559.19 at11.10 KeV
+   eff area in square cm =  432.79 at12.32 KeV
+   eff area in square cm =  375.45 at13.55 KeV
+   eff area in square cm =  357.83 at14.77 KeV
+   eff area in square cm =  340.93 at15.99 KeV
+   eff area in square cm =  318.24 at17.21 KeV
+   eff area in square cm =  294.04 at18.44 KeV
+   eff area in square cm =  265.11 at19.66 KeV
+   eff area in square cm =  244.87 at20.88 KeV
+   eff area in square cm =  225.12 at22.10 KeV
+   eff area in square cm =  207.50 at23.33 KeV
+   eff area in square cm =  192.59 at24.55 KeV
+   eff area in square cm =  176.44 at25.77 KeV
+   eff area in square cm =  167.14 at26.99 KeV
+   eff area in square cm =  153.20 at28.22 KeV
+   eff area in square cm =  145.33 at29.44 KeV
+   eff area in square cm =  142.25 at30.66 KeV
+   eff area in square cm =  132.90 at31.88 KeV
+   eff area in square cm =  132.93 at33.11 KeV
+   eff area in square cm =  126.02 at34.33 KeV
+   eff area in square cm =  120.26 at35.55 KeV
+   eff area in square cm =  114.31 at36.77 KeV
+   eff area in square cm =  109.80 at38.00 KeV
+   eff area in square cm =  110.29 at39.22 KeV
+   eff area in square cm =  106.55 at40.44 KeV
+   eff area in square cm =   99.88 at41.66 KeV
+   eff area in square cm =   97.83 at42.89 KeV
+   eff area in square cm =   95.29 at44.11 KeV
+   eff area in square cm =   88.74 at45.33 KeV
+   eff area in square cm =   89.92 at46.55 KeV
+   eff area in square cm =   84.98 at47.78 KeV
+   eff area in square cm =   81.03 at49.00 KeV
+   eff area in square cm =   75.56 at50.22 KeV
+   eff area in square cm =   74.17 at51.44 KeV
+   eff area in square cm =   69.89 at52.67 KeV
+   eff area in square cm =   69.33 at53.89 KeV
+   eff area in square cm =   63.54 at55.11 KeV
+   eff area in square cm =   59.31 at56.33 KeV
+   eff area in square cm =   54.96 at57.56 KeV
+   eff area in square cm =   52.26 at58.78 KeV
+   eff area in square cm =   51.70 at60.00 KeV
+      .0004
+
+Ene concentration,vignetting and effective area
+ from ray tracing at 10.0 arc minutes
+
+   ray tracing with   4776 points
+
+   Z of  the  best  focal plane =  19500.00
+    for minimum value for r.m.s.;  r.m.s. =  2.0"
+
+   40%.P.D. =   1.8"   60%.P.D. =   3.1"   80%.P.D. =   5.4"
+   Useful area in % of the mirror area = 22.9%
+   eff area in square cm =  598.31 at  .10 KeV
+   eff area in square cm =  562.15 at 1.32 KeV
+   eff area in square cm =  530.63 at 2.54 KeV
+   eff area in square cm =  500.10 at 3.77 KeV
+   eff area in square cm =  511.60 at 4.99 KeV
+   eff area in square cm =  516.33 at 6.21 KeV
+   eff area in square cm =  518.15 at 7.43 KeV
+   eff area in square cm =  511.97 at 8.66 KeV
+   eff area in square cm =  504.67 at 9.88 KeV
+   eff area in square cm =  489.75 at11.10 KeV
+   eff area in square cm =  382.02 at12.32 KeV
+   eff area in square cm =  323.06 at13.55 KeV
+   eff area in square cm =  303.92 at14.77 KeV
+   eff area in square cm =  294.89 at15.99 KeV
+   eff area in square cm =  276.15 at17.21 KeV
+   eff area in square cm =  251.17 at18.44 KeV
+   eff area in square cm =  226.58 at19.66 KeV
+   eff area in square cm =  211.65 at20.88 KeV
+   eff area in square cm =  196.53 at22.10 KeV
+   eff area in square cm =  174.45 at23.33 KeV
+   eff area in square cm =  161.17 at24.55 KeV
+   eff area in square cm =  152.43 at25.77 KeV
+   eff area in square cm =  143.30 at26.99 KeV
+   eff area in square cm =  135.98 at28.22 KeV
+   eff area in square cm =  127.54 at29.44 KeV
+   eff area in square cm =  120.84 at30.66 KeV
+   eff area in square cm =  117.83 at31.88 KeV
+   eff area in square cm =  115.57 at33.11 KeV
+   eff area in square cm =  108.81 at34.33 KeV
+   eff area in square cm =  105.85 at35.55 KeV
+   eff area in square cm =  103.92 at36.77 KeV
+   eff area in square cm =   95.42 at38.00 KeV
+   eff area in square cm =   92.87 at39.22 KeV
+   eff area in square cm =   92.97 at40.44 KeV
+   eff area in square cm =   90.52 at41.66 KeV
+   eff area in square cm =   85.58 at42.89 KeV
+   eff area in square cm =   82.55 at44.11 KeV
+   eff area in square cm =   80.52 at45.33 KeV
+   eff area in square cm =   75.74 at46.55 KeV
+   eff area in square cm =   73.10 at47.78 KeV
+   eff area in square cm =   70.17 at49.00 KeV
+   eff area in square cm =   66.69 at50.22 KeV
+   eff area in square cm =   61.54 at51.44 KeV
+   eff area in square cm =   59.62 at52.67 KeV
+   eff area in square cm =   56.91 at53.89 KeV
+   eff area in square cm =   55.66 at55.11 KeV
+   eff area in square cm =   51.76 at56.33 KeV
+   eff area in square cm =   49.04 at57.56 KeV
+   eff area in square cm =   45.53 at58.78 KeV
+   eff area in square cm =   41.95 at60.00 KeV
+      .0004
+   funzione di merito del sistema =    .0012
+   r.m.s. of the spot size over the whole field =  3.3"
