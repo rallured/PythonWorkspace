@@ -36,8 +36,8 @@ def CXCreflIr(ang,energy,rough):
     """
     #Get proper optical constants
     ind = np.argmin(abs(ener-energy/1000.))
-    b = beta[ind]
-    d = delta[ind]
+    b = beta[ind]*.95
+    d = delta[ind]*.95
     n = 1 - d + 1j*b
     n2 = abs(n)**2
     #Compute reflectivity in each polarization plane
@@ -134,8 +134,8 @@ def traceWSShell(num,theta,r0,z0,phigh,plow,shigh,slow,\
             pdb.set_trace()
         PT.flat()
 
-    #return refl1*refl2
-    return PT.hpd(), PT.rmsCentroid(), delta
+    return refl1*refl2
+    #return PT.hpd(), PT.rmsCentroid(), delta
 
 def evaluateShell(theta,alpha):
     """Compute vignetting factor and HPD as a function of
@@ -170,18 +170,20 @@ def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
                                      'geometric_transmission_102711.txt'))
     therm = np.transpose(np.genfromtxt('/home/rallured/Dropbox/AXRO/'
                                        'WSTracing/thermal_shield_transmission_102711.txt'))
+    
     f = np.sqrt(rx[1][-1]**2+10000.**2)
-    z = np.sqrt(f**2-rx[1]**2)
+    z = np.sqrt(f**2-rx[1]**2) #spherical
 ##    z = np.repeat(10000.,np.size(rx[1]))
 ##    ind = rx[0] > 210.
 ##    rx = rx[:,ind]
     Ns = np.shape(rx)[1]
-    pdb.set_trace() 
 
     #Loop through and compute a resolution and a weight for each shell
     hpdTelescope = np.zeros(np.size(theta))
     rmsTelescope = np.zeros(np.size(theta))
     delta = np.zeros(np.size(theta))
+    cent = np.zeros(np.size(theta))
+    platefrac =  np.zeros(np.size(theta))
     #fig = plt.figure()
     for t in theta[:]:
         xi = np.array([])
@@ -192,6 +194,7 @@ def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
         weights = np.array([])
         #plt.clf()
         tstart = time.time()
+        plate = np.zeros(Ns)
         for s in np.arange(0,Ns):
             if geo[1][s] > 0.:
                 sys.stdout.write('Shell: %03i \r' % s)
@@ -204,12 +207,15 @@ def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
                     r = r * therm[1][np.abs(energy/1000.-therm[0]).argmin()]
                 r = np.repeat(r,np.size(PT.x))
                 weights = np.append(weights,r)
+                PT.conic(1107.799202,-1.)
                 xi = np.append(xi,PT.x)
                 yi = np.append(yi,PT.y)
                 l = np.append(l,PT.l)
                 m = np.append(m,PT.m)
                 n = np.append(n,PT.n)
-                #plt.plot(PT.x,PT.y,'.')
+                if s%10==0:
+                    plt.plot(PT.x[:100],PT.y[:100],'.')
+                plate[s] = PT.centroid()[0]
         print time.time()-tstart
 
         #Have list of photon positions and weights
@@ -231,16 +237,19 @@ def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
             PT.transform(0,0,delta[t==theta],0,0,0)
             PT.flat()
         if optsurface:
-            PT.conic(1128.058314,-1.) #Emprically found best surface
+            PT.conic(1107.799202,-1.) #Emprically found best surface 1128.058314
         
         #Compute FoM
         rmsTelescope[t==theta] = PT.rmsCentroid(weights=weights)/10000.
         hpdTelescope[t==theta] = PT.hpd(weights=weights)/10000.
+        cx,cy = PT.centroid()
+        cent[t==theta] = cx
+        ind = geo[1] > 0.
+        platefrac[t==theta] = np.std(plate[ind]/1e4)/rmsTelescope[t==theta]
+        
         print hpdTelescope[t==theta],rmsTelescope[t==theta]
-       
-        pdb.set_trace()
 
-    return hpdTelescope,rmsTelescope
+    return hpdTelescope,rmsTelescope,delta,cent,plate
 
 def sphericalNodes(rin,z0,fov,Nshells,N):
     """This function will iteratively scan node positions

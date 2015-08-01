@@ -85,7 +85,7 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
             ishape = np.shape(ifuncs)
             ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
         ishape = np.shape(ifuncs)
-        ifuncs = ifuncs.transpose(1,2,0)*1.e6 #Get to units of microns
+        ifuncs = ifuncs.transpose(1,2,0)#*1.e3 #Get to units of microns
         axif = np.diff(ifuncs,axis=0) #Axial slopes
         axif = axif[:,:-1,:] #Get rid of last column
         azif = np.diff(ifuncs,axis=1) #Azimuthal slopes
@@ -160,7 +160,7 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
     ishape = np.shape(ifuncs)
     if ifuncs.ndim == 4:
         ifuncs = ifuncs.reshape((ishape[0]*ishape[1],ishape[2],ishape[3]))
-    ifuncs = ifuncs.transpose(1,2,0)*1.e6 #Get to units of microns
+    ifuncs = ifuncs.transpose(1,2,0)#*1.e3 #Get to units of microns
     sol = np.dot(ifuncs,optv)
 
 ##    pyfits.writeto('Sol.fits',sol)

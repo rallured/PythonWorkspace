@@ -42,7 +42,7 @@ def slopeStatistics(filename):
 #for each one
 def sydorPlot():
     #Get filenames
-    f = glob.glob('/home/rallured/Dropbox/Arcus/Sydor/*.asc.txt')
+    f = glob.glob('/home/rallured/Dropbox/Arcus/Sydor/2015_07_22_150mm_flat_wafers/*.txt')
     #Loop through and plot FoM vs. rotation
     ang = np.linspace(0.,180.,180)
     plt.ion()
@@ -51,10 +51,10 @@ def sydorPlot():
     for i in range(np.size(f)):
         fom = slopeStatistics(f[i])
         plt.plot(ang,fom,label=f[i].split('.')[0])
-        largest[i] = np.max(fom[fom.argmin()-5:fom.argmin()+6])
+        #largest[i] = np.max(fom[fom.argmin()-5:fom.argmin()+6])
     #Plot requirement
     plt.plot([0.,180],[17.7,17.7],'k--')
     plt.title('Gaussian FWHM Equivalent Widths')
     plt.xlabel('Wafer Rotation Angle')
     plt.ylabel('Width (arcsec)')
-    return largest
+    return None#largest

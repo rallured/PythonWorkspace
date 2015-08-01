@@ -1,6 +1,7 @@
 #This submodule contains image analysis routines
 from matplotlib.pyplot import *
 from numpy import *
+from matplotlib.colors import LogNorm
 
 def findMoments(d):
     x,y = meshgrid(arange(shape(d)[1]),arange(shape(d)[0]))
@@ -16,14 +17,17 @@ class pointGetter:
     accumulate a list of x,y coords by right clicking on them.
     When done, the user can press the space key.
     """
-    def __init__(self,img):
+    def __init__(self,img,log=False):
         self.fig = figure()
         self.x = zeros(0)
         self.y = zeros(0)
         self.con = self.fig.canvas.mpl_connect('key_press_event',\
                                                 self.keyEvent)
         ax = self.fig.add_subplot(111)
-        ax.imshow(img)
+        if log is False:
+            ax.imshow(img)
+        else:
+            ax.imshow(img,norm=LogNorm())
     def keyEvent(self,event):
         if event.key==' ':
             self.x = append(self.x,event.xdata)
@@ -92,13 +96,13 @@ class peakInformation:
         print self.rmsy
         close(self.fig)
 
-def getPoints(img):
+def getPoints(img,log=False):
     """This function will bring up the image, wait for the user to
-    right click on any number of points, then wait for the user to
-    end with the 'q' key, and then return a list of x,y coords
+    press space while hovering over points, then wait for the user to
+    end by pressing enter in command line, and then return a list of x,y coords
     """
     #Create instance of pointGetter class
-    p = pointGetter(img)
+    p = pointGetter(img,log=log)
 
     #When user presses enter, close the pointGetter class and
     #return the list of coordinates

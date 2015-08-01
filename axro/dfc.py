@@ -5,6 +5,30 @@ import pyfits
 import pdb
 from zernikemod import stripnans
 from utilities import fourier
+import scipy.interpolate as interp
+from astropy.modeling import models, fitting
+
+def flatSampleIF(filename,Nx,Ny,method='cubic'):
+    """Read in CSV data from Vanessa and form a 2D array
+    Interpolate onto grid of Nx and Ny points, where
+    x is axial and y is azimuthal
+    Axial is the 5mm cell direction
+    Returns 2D array
+    """
+    #Read in data
+    d = np.transpose(np.genfromtxt(filename,skip_header=1,delimiter=','))
+    x = d[2]+d[5]
+    y = d[3]+d[6]
+    z = (d[4]+d[7])*1e6
+
+    #Interpolate onto appropriate grid
+    gx = np.linspace(y.min(),y.max(),Nx)
+    gy = np.linspace(x.min(),x.max(),Ny)
+    gx,gy = np.meshgrid(gx,gy)
+    d = np.transpose(interp.griddata((x,y),z,(gy,gx),method=method))
+    d[np.isnan(d)] = 0.
+    
+    return d
 
 #Global directory variables for problem
 datadir = '/home/rallured/data/solve_pzt/'
@@ -15,11 +39,13 @@ def createDist(amp,freq,phase,filename):
     """
     #Create distortion array
     y,x = np.mgrid[0:128,0:128]
-    x,y = x*(100./124),y*(100./124)
+    x,y = x*(100./128),y*(100./128)
     d = amp*np.sin(2*np.pi*freq*y+phase)
 
     #Save as fits file
-    pyfits.writeto(datadir+'distortions/'+filename,d,clobber=True)
+    pyfits.writeto(filename,d,clobber=True)
+
+    return d
 
 def runSolver(ifuncf,distortionf,shadef,vfile,pfile,iterate=None):
     """Runs the Python solver and formulates the
@@ -65,15 +91,15 @@ def createDistSim(amp,freq,phase,filename):
     d = amp*np.sin(2*np.pi*freq*y+phase)
 
     #Save as fits file
-    pyfits.writeto(datadir+'distortions/'+filename,d,clobber=True)
+    pyfits.writeto(filename,d,clobber=True)
 
     return d
 
-def flatCorrection(amp,freq,phase):
+def flatCorrection(amp,freq,phase,dx=100./128):
     """Use this function to investigate DFC MTF"""
     #Set distortion array
-    d = createDistSim(amp,freq,phase,'dfcdist.fits')
-    shade = pyfits.getdata(datadir+'shademasks/roundmask3.fits')
+    d = createDist(amp,freq,phase,'dfcdist.fits')
+    shade = pyfits.getdata(datadir+'shademasks/DFCmask2.fits')
     d2 = np.copy(d)
     d2[shade==0] = np.nan
     d2 = stripnans(d2)
@@ -83,11 +109,12 @@ def flatCorrection(amp,freq,phase):
 ##    os.chdir(datadir+'parfiles')
 ##    os.system(solvedir+'solve_pzt @FlatFigure.par '
 ##              'premath=RoundMath.dat')
-    distortionf = datadir+'distortions/dfcdist.fits'
-    shadef = datadir+'shademasks/roundmask3.fits'
-    ifuncf = datadir+'ifuncs/FlatFigureMirror/150715_TwoShorted.fits'
+    distortionf = 'dfcdist.fits'#datadir+'distortions/dfcdist.fits'
+    shadef = datadir+'shademasks/DFCmask2.fits'
+    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150715IFs/150728_RescaledOrigNoAvg.fits'
+##    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
     res = slv.slopeOptimizer2(ifuncf=ifuncf,distortionf=distortionf,\
-                              shadef=shadef,dx=100./150)
+                              shadef=shadef,dx=dx,smax=5.)
 
 
     #Load solution and ignore masked region
@@ -97,12 +124,12 @@ def flatCorrection(amp,freq,phase):
     resid = resid - np.nanmean(resid)
 
     #Get windowed PSDs
-    f,axpsdw = fourier.realPSD(resid,win=np.hanning,dx=100./150)
+    f,axpsdw = fourier.realPSD(resid,win=np.hanning,dx=dx)
     f = f[0] #Select only axial frequencies
     w = 2*np.pi*f/1000.
     axpsdw = axpsdw[:,0] #Select only axial frequencies
 
-    f,origpsdw = fourier.realPSD(d2,win=np.hanning,dx=100./150)
+    f,origpsdw = fourier.realPSD(d2,win=np.hanning,dx=dx)
     f = f[0]
     origpsdw = origpsdw[:,0]
     
@@ -119,5 +146,102 @@ def flatCorrection(amp,freq,phase):
     
 ##    correction = sum((w**2*axpsdw)[f<.15])/sum(w**2*origpsdw)
     correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
+    pdb.set_trace()
     
     return correction
+
+def toleranceEffect(shade=False):
+    """Analyze effects of bonding misalignments on DFC IFs"""
+    tx45 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_45_2mmX.csv',150,150)
+    ty45 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_45_2mmY.csv',150,150)
+    tr45 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_45_2degCW.csv',150,150)
+    tx32 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_32_2mmX.csv',150,150)
+    ty32 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_32_2mmY.csv',150,150)
+    tr32 = flatSampleIF(datadir+'ifuncs/FlatFigureMirror/Tolerances/'
+                      '5mmx1cm_IF_Act_32_2degCW.csv',150,150)
+
+    if shade==True:
+        shade = pyfits.getdata(datadir+'shademasks/roundmask3.fits')
+        tx45[shade==0] = np.nan
+        ty45[shade==0] = np.nan
+        tr45[shade==0] = np.nan
+        tx32[shade==0] = np.nan
+        ty32[shade==0] = np.nan
+        tr32[shade==0] = np.nan
+        
+
+    ifunc = pyfits.getdata(datadir+'ifuncs/FlatFigureMirror/'
+                           '150319FlatIFs.fits')*1e3
+
+    #Make plots
+    fig = plt.figure()
+    fig.add_subplot(231)
+    plt.imshow(tx45-ifunc[44,0])
+    plt.colorbar()
+    plt.title('2mm X Trans - Cell 45')
+    fig.add_subplot(232)
+    plt.imshow(ty45-ifunc[44,0])
+    plt.colorbar()
+    plt.title('2mm Y Trans - Cell 45')
+    fig.add_subplot(233)
+    plt.imshow(tr45-ifunc[44,0])
+    plt.colorbar()
+    plt.title('2 deg Rot - Cell 45')
+    fig.add_subplot(234)
+    plt.imshow(tx32-ifunc[31,0])
+    plt.colorbar()
+    plt.title('2mm X Trans - Cell 32')
+    fig.add_subplot(235)
+    plt.imshow(ty32-ifunc[31,0])
+    plt.colorbar()
+    plt.title('2mm Y Trans - Cell 32')
+    fig.add_subplot(236)
+    plt.imshow(tr32-ifunc[31,0])
+    plt.colorbar()
+    plt.title('2 deg Rot - Cell 32')
+
+def interpolatedFilter(model,dmodel,measurement,dmeas):
+    """Interpolate log of FEA FFT component magnitudes onto measured
+    IF frequency grid. Take the ratio as a 2D frequency filter. Fit this
+    to a low order 2D polynomial and use this model as a filter."""
+    #Normalize model to measurement
+    model = model * (measurement.max()-measurement.min())/\
+            (model.max()-model.min())
+    #Generate Fourier magnitudes of model and measurement
+    modelFFT = np.abs(fourier.continuousComponents(model,dmodel))
+    measFFT = np.abs(fourier.continuousComponents(measurement,dmeas))
+    #Construct frequency grids
+    modelfx,modelfy = fourier.freqgrid(model)
+    measfx,measfy = fourier.freqgrid(measurement)
+    #Use griddata to interpolate the log of the model onto the
+    #frequency grid of the measurement
+    #Linear method is good enough given that we will
+    #fit the filter with a low order polynomial
+    newmodel = interp.griddata((modelfx.flatten(),modelfy.flatten()),\
+                        np.log10(modelFFT.flatten()),\
+                        (measfx,measfy),method='linear')
+
+    #Select positive frequency region of FFT
+    #Set constant term to 0., and normalize to a maximum
+    #log ratio of 0.
+    lograt = newmodel - np.log10(measFFT)
+    lograt[0,0] = 0.
+    lograt[lograt>0.] = 0.
+    sh = np.shape(lograt)
+    lograt = lograt[:sh[0]/2,:sh[1]/2]
+    fxsub = measfx[:sh[0]/2,:sh[1]/2]
+    fysub = measfy[:sh[0]/2,:sh[1]/2]
+    #Perform quadratic fit to the log ratio
+    p_init = models.Polynomial2D(degree=2)
+    fit_p = fitting.LevMarLSQFitter()
+    p = fit_p(p_init,fxsub,fysub,lograt)
+    #Form a function covering full frequency range
+    lograt = p(np.abs(measfx),np.abs(measfy))
+    ratio = 10**lograt
+    
+    return measFFT,ratio

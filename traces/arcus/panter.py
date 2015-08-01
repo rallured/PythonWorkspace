@@ -9,7 +9,7 @@ import traces.PyTrace as PT
 import pdb
 
 def setupSource(wave,N,radius=450.,focal=8000.,scatter=50e-6,\
-                gwidth=25.,glength=32.):
+                gwidth=25.,glength=32.,pitch=0.,yaw=0.,roll=0.):
     """Set up converging beam with some scatter.
     Idea is to place a grating at radius and focal length
     with an incidence angle of 1.5 degrees
@@ -42,13 +42,20 @@ def setupSource(wave,N,radius=450.,focal=8000.,scatter=50e-6,\
     hubdist = np.sqrt(radius**2+focal**2)*np.cos(1.5*np.pi/180)
     PT.flat()
     PT.reflect()
+    PT.transform(0,0,0,pitch,roll,yaw)
     PT.radgrat(hubdist,160./hubdist,1,wave)
+    PT.itransform(0,0,0,pitch,roll,yaw)
     #Go to focal plane
     PT.transform(0,0,0,np.pi/2,0,0)
     PT.transform(0,0,-hubdist,0,0,0)
     PT.transform(0,0,27.27727728-.04904905,0,0,0)
     PT.flat()
 
-    plt.plot(PT.x,PT.y,'.')
+    #plt.plot(PT.x,PT.y,'.')
     
-    return 
+    return PT.centroid()
+
+def computeYawShift(wave,order,yaw1,yaw2):
+    cx1,cy1 = setupSource(wave*order,1000,focal=8052,yaw=yaw1)
+    cx2,cy2 = setupSource(wave*order,1000,focal=8052,yaw=yaw2)
+    return cy2-cy1
