@@ -45,9 +45,9 @@ def alignTrace(inc,impact,grating,detector,order=0):
     PT.itransform(*grating)
     #Go to detector depending on order
     if order is not 0:
-        PT.transform(-800.,0,0,0,0,0)
+        PT.transform(-200.,0,0,0,0,0)
     else:
-        PT.transform(800.,0,0,0,0,0)
+        PT.transform(200.,0,0,0,0,0)
     #Trace to detector
     PT.transform(0,0,0,0,-np.pi/2,0)
     PT.transform(*detector)

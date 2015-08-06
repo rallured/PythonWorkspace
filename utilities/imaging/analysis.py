@@ -3,6 +3,10 @@ from matplotlib.pyplot import *
 from numpy import *
 from matplotlib.colors import LogNorm
 
+def ptov(d):
+    """Return the peak to valley of an image"""
+    return nanmax(d)-nanmin(d)
+
 def findMoments(d):
     x,y = meshgrid(arange(shape(d)[1]),arange(shape(d)[0]))
     cx = nansum(x*d)/nansum(d)
@@ -115,3 +119,8 @@ def getPoints(img,log=False):
     p.close()
 
     return x,y
+
+def getSubApp(img,log=False):
+    """Return a subarray defined by rectangle enclosed by two points"""
+    x,y = getPoints(img,log=log)
+    return img[y.min():y.max(),x.min():x.max()]

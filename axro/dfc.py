@@ -111,8 +111,8 @@ def flatCorrection(amp,freq,phase,dx=100./128):
 ##              'premath=RoundMath.dat')
     distortionf = 'dfcdist.fits'#datadir+'distortions/dfcdist.fits'
     shadef = datadir+'shademasks/DFCmask2.fits'
-    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150715IFs/150728_RescaledOrigNoAvg.fits'
-##    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
+##    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150624IFs/150804_RescaledIFs.fits'
+    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
     res = slv.slopeOptimizer2(ifuncf=ifuncf,distortionf=distortionf,\
                               shadef=shadef,dx=dx,smax=5.)
 
@@ -146,7 +146,6 @@ def flatCorrection(amp,freq,phase,dx=100./128):
     
 ##    correction = sum((w**2*axpsdw)[f<.15])/sum(w**2*origpsdw)
     correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
-    pdb.set_trace()
     
     return correction
 
