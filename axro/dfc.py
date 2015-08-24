@@ -7,6 +7,8 @@ from zernikemod import stripnans
 from utilities import fourier
 import scipy.interpolate as interp
 from astropy.modeling import models, fitting
+import os
+from utilities.imaging.analysis import rms
 
 def flatSampleIF(filename,Nx,Ny,method='cubic'):
     """Read in CSV data from Vanessa and form a 2D array
@@ -244,3 +246,63 @@ def interpolatedFilter(model,dmodel,measurement,dmeas):
     ratio = 10**lograt
     
     return measFFT,ratio
+
+def spiePlot():
+    """Make up ripple induction plot for SPIE 2015 slides"""
+    #Load data
+    os.chdir('/Users/ryanallured/Dropbox/WFS/'
+             'SystemAlignment/DFC2/Iteration_0_3/ForAlexey')
+    dist = pyfits.getdata('dfcdist_0_3.fits')
+    shade = pyfits.getdata('Shademask.fits')
+    pred = np.genfromtxt('Predict.txt')
+    p2 = np.genfromtxt('Phase02.txt')
+
+    #Apply shademask
+    dist[shade==0] = np.nan
+    pred[shade==0] = np.nan
+    p2[shade==0] = np.nan
+
+    #Create residual arrays
+    preresid = dist-pred
+    achresid = dist-p2
+    indresid = pred-p2
+
+    #Convert to axial slope
+    dist = np.diff(dist,axis=0)/1000./(100./124)*180/np.pi*60**2
+    preresid = np.diff(preresid,axis=0)/1000./(100./124)*180/np.pi*60**2
+    achresid = np.diff(achresid,axis=0)/1000./(100./124)*180/np.pi*60**2
+    indresid = np.diff(indresid,axis=0)/1000./(100./124)*180/np.pi*60**2
+
+    #Remove nans
+    dist = stripnans(dist)
+    preresid = stripnans(preresid)
+    achresid = stripnans(achresid)
+    indresid = stripnans(indresid)
+
+    #Make plots
+    plt.figure()
+    plt.subplot(141)
+    plt.imshow(dist)
+    plt.title('Desired')
+    plt.subplot(142)
+    plt.imshow(preresid,vmax=dist.max(),vmin=dist.min())
+    plt.title('Predicted')
+    plt.subplot(143)
+    plt.imshow(achresid,vmax=dist.max(),vmin=dist.min())
+    plt.title('Achieved')
+    plt.subplot(144)
+    plt.imshow(indresid,vmax=dist.max(),vmin=dist.min())
+    plt.title('Predicted-Achieved')
+
+    #Print out RMS axial slopes
+    print rms(dist)
+    print rms(preresid)
+    print rms(achresid)
+    print rms(indresid)
+
+    #Look at PSD of residual
+    f,p = fourier.realPSD(indresid,dx=100./124)
+    f = f[0]
+    plt.figure()
+    plt.semilogy(f,p[:,0])
+    return indresid

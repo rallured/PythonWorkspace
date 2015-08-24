@@ -1,19 +1,19 @@
 import numpy as np
-from numbapro.cudalib import cublas
+#from numbapro.cudalib import cublas
 import pdb
 from scipy.optimize import fmin_slsqp
-from numbapro import guvectorize
-from axro.merit import merit
+#from numbapro import guvectorize
+#from axro.merit import merit
 import pyfits
 import gc
-import pyOpt
+#import pyOpt
 
 #Need to write merit function calculator for set of influence
 #functions and distortion array
 #Then, write a function that uses fmin_sqslp to minimize
 #sum of square of residuals
 
-blas = cublas.Blas()
+#blas = cublas.Blas()
 def ampMeritFunction(voltages,distortion,ifuncs):
     """Simple merit function calculator.
     voltages is 1D array of weights for the influence functions

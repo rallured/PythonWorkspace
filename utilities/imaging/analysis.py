@@ -7,6 +7,10 @@ def ptov(d):
     """Return the peak to valley of an image"""
     return nanmax(d)-nanmin(d)
 
+def rms(d):
+    """Return the RMS of an image"""
+    return sqrt(nanmean((d-nanmean(d))**2))
+
 def findMoments(d):
     x,y = meshgrid(arange(shape(d)[1]),arange(shape(d)[0]))
     cx = nansum(x*d)/nansum(d)
