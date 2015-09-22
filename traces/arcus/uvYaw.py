@@ -104,3 +104,11 @@ def dofSensitivity(inc,alignvector,obj='beam',dof=0):
     #Return
     return xr,yr,xd,yd
 
+def diffractionAngle(inc):
+    """Return the diffraction angle for the UV yaw system
+    Input graze angle in degrees
+    Output diffraction graze angle in degrees"""
+    alpha0 = np.sin((90.-inc)*np.pi/180)
+    alpha1 = alpha0 - 266e-9/160e-9
+    dang = 90 - np.arcsin(np.abs(alpha1))*180/np.pi
+    return dang

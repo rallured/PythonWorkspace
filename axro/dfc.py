@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import axro.solver as slv
 import pyfits
 import pdb
@@ -9,6 +10,10 @@ import scipy.interpolate as interp
 from astropy.modeling import models, fitting
 import os
 from utilities.imaging.analysis import rms
+import utilities.imaging.man as man
+import utilities.imaging.fitting as ufit
+from reconstruct import reconstruct
+import utilities.imaging.analysis as anal
 
 def flatSampleIF(filename,Nx,Ny,method='cubic'):
     """Read in CSV data from Vanessa and form a 2D array
@@ -28,9 +33,54 @@ def flatSampleIF(filename,Nx,Ny,method='cubic'):
     gy = np.linspace(x.min(),x.max(),Ny)
     gx,gy = np.meshgrid(gx,gy)
     d = np.transpose(interp.griddata((x,y),z,(gy,gx),method=method))
-    d[np.isnan(d)] = 0.
+    #d[np.isnan(d)] = 0.
     
     return d
+
+def simWFSSmooth(ifs):
+    """Simulate the resolution effect of the WFS. Take the
+    derivatives of the IFs, rebin to the WFS lenslet size,
+    integrate the slopes into a reconstructed wavefront with
+    the Southwell algorithm, then run these new IFs through
+    the CTF code
+    """
+    #Compute slopes, rebin to 128 x 128 pixels, integrate
+    #to get new IF
+    N = np.shape(ifs)[0]
+    newifs = np.zeros((N,128,128))
+    for i in range(N):
+        #Get slopes
+        xang = np.diff(ifs[i],axis=0)/(100./513*1000)
+        xang = xang[:,:512]
+        yang = np.diff(ifs[i],axis=1)/(100./513*1000)
+        yang = yang[:512,:]
+        #Logical or NaN indices
+        ind = np.logical_or(np.isnan(xang),np.isnan(yang))
+        xang[ind] = np.nan
+        yang[ind] = np.nan
+        #Rebin appropriately
+        xang = man.rebin(xang,(128,128))
+        yang = man.rebin(yang,(128,128))
+        #Pad with NaNs
+        xang = man.padRect(xang)
+        yang = man.padRect(yang)
+        #Create phase array
+        ph = np.zeros(np.shape(xang))
+        ph[np.isnan(xang)] = 100.
+        xang[np.isnan(xang)] = 100.
+        yang[np.isnan(yang)] = 100.
+        #Format for Fortran
+        ph = np.array(ph,order='F')
+        xang = np.array(xang,order='F')
+        yang = np.array(yang,order='F')
+        #Reconstruct into phase
+        ph2 = reconstruct(xang,yang,1e-12,100./128*1000,ph)
+        ph2[ph2==100] = np.nan
+        newifs[i] = stripnans(ph2)
+
+    return newifs
+
+    
 
 #Global directory variables for problem
 datadir = '/home/rallured/data/solve_pzt/'
@@ -41,7 +91,7 @@ def createDist(amp,freq,phase,filename):
     """
     #Create distortion array
     y,x = np.mgrid[0:128,0:128]
-    x,y = x*(100./128),y*(100./128)
+    x,y = x*(100./125),y*(100./125)
     d = amp*np.sin(2*np.pi*freq*y+phase)
 
     #Save as fits file
@@ -113,10 +163,10 @@ def flatCorrection(amp,freq,phase,dx=100./128):
 ##              'premath=RoundMath.dat')
     distortionf = 'dfcdist.fits'#datadir+'distortions/dfcdist.fits'
     shadef = datadir+'shademasks/DFCmask2.fits'
-##    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150624IFs/150804_RescaledIFs.fits'
-    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
+    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150730IFs/150917_Gauss5.fits'#150917_Gauss2.fits'
+##    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
     res = slv.slopeOptimizer2(ifuncf=ifuncf,distortionf=distortionf,\
-                              shadef=shadef,dx=dx,smax=5.)
+                              shadef=shadef,dx=dx,smax=100.)
 
 
     #Load solution and ignore masked region
@@ -137,17 +187,18 @@ def flatCorrection(amp,freq,phase,dx=100./128):
     
 ##    ripple = sum((w**2*axpsdw)[f>.15])/sum(w**2*origpsdw)
 
-##    #Get unwindowed PSDs for input reduction
-##    f,axpsd = fourier.realPSD(resid,dx=.5)
-##    f = f[0] #Select only axial frequencies
-##    axpsd = axpsd[:,0] #Select only axial frequencies
-##
-##    f,origpsd = fourier.realPSD(d,dx=.5)
-##    f = f[0]
-##    origpsd = origpsd[:,0]
+    #Get unwindowed PSDs for input reduction
+    f,axpsd = fourier.realPSD(resid,dx=dx)
+    f = f[0] #Select only axial frequencies
+    axpsd = axpsd[:,0] #Select only axial frequencies
+
+    f,origpsd = fourier.realPSD(d2,dx=dx)
+    f = f[0]
+    origpsd = origpsd[:,0]
     
 ##    correction = sum((w**2*axpsdw)[f<.15])/sum(w**2*origpsdw)
-    correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
+##    correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
+    correction = (anal.rms(np.diff(resid,axis=0))/anal.rms(np.diff(d2,axis=0)))**2
     
     return correction
 
@@ -306,3 +357,119 @@ def spiePlot():
     plt.figure()
     plt.semilogy(f,p[:,0])
     return indresid
+
+#Examine peak locations
+def peakLocations(fileIF):
+    """This examines the IFs measured on DFC2 to determine
+    if there is an offset in the peak locations. This could
+    potentially explain the low frequency distortions we are
+    seeing in the corrections."""
+    #Load in influence functions
+    d = pyfits.getdata(fileIF)
+
+    #Loop through and get indices of max pixel
+    N = np.shape(d)[0]
+    cx = np.zeros(N)
+    cy = np.zeros(N)
+    for i in range(N):
+        cy[i],cx[i] = np.where(d[i]==np.nanmax(d[i]))
+
+    #Plot up the peak locations
+    fig = plt.figure()
+    plt.plot(cx,cy,'*')
+
+#Examine locality of measured vs. FEA IFs
+def locality():
+    """Examine the locality of the IFs for DFC2. IFs should
+    be in (N,128,128) shape, where first index matches cell
+    to cell for each IF.
+    Power spectra are computed for each cell, with nearest
+    neighbor interpolation for the measured IFs.
+    The PSDs are then normalized to sum to unity and then
+    the expected value for frequency taking the PSD to be
+    a distribution is taken as the locality figure of merit.
+    A large figure of merit indicates a well-localized IF.
+    Return FoM ratios for each cell.
+    """
+    #Load in the IFs
+    fea = pyfits.getdata('/home/rallured/data/solve_pzt/ifuncs/'
+                         'FlatFigureMirror/150916_128binswithNaNs.fits')
+    meas = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/'
+                          'DFC2/150730IFs/150914_RescaledIFs.fits')
+    N = np.shape(meas)[0]
+
+    #Fill in NaNs
+    #Loop through, compute PSDs, compute widths
+    measwidth = []
+    feawidth = []
+    for i in range(N):
+##        meas[i] = man.nearestNaN(meas[i])
+##        measf,measp = fourier.realPSD(meas[i],dx=100./125)
+##        measp = np.sqrt(measp)
+##        measp = measp/np.sum(measp)
+##        fx,fy = np.meshgrid(measf[1],measf[0])
+##        fr = np.sqrt(fx**2+fy**2)
+##        fr = fr.flatten()
+##        measp = measp.flatten()
+##        measwidth.append(np.average(fr,weights=measp))
+##        feaf,feap = fourier.realPSD(fea[i],dx=100./128)
+##        feap = np.sqrt(feap)
+##        feap = feap/np.sum(feap)
+##        fx,fy = np.meshgrid(feaf[1],feaf[0])
+##        fr = np.sqrt(fx**2+fy**2)
+##        fr = fr.flatten()
+##        feap = feap.flatten()
+##        feawidth.append(np.average(fr,weights=feap))
+        #Compute using image moments
+        fea[i] = fea[i] - np.median(fea[i][np.invert(np.isnan(fea[i]))])
+        cx,cy,stdx,stdy = anal.findMoments(fea[i]**2)
+        feawidth.append(np.sqrt(stdx**2+stdy**2))
+        meas[i] = meas[i] - np.median(meas[i][np.invert(np.isnan(meas[i]))])
+        cx,cy,stdx,stdy = anal.findMoments(meas[i]**2)
+        measwidth.append(np.sqrt(stdx**2+stdy**2))
+        pdb.set_trace()
+
+    return np.array(measwidth),np.array(feawidth)
+    
+def localizationEx():
+    #Load in the IFs
+    fea = pyfits.getdata('/home/rallured/data/solve_pzt/ifuncs/'
+                         'FlatFigureMirror/150728_Resampled.fits')
+    meas = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/'
+                          'DFC2/150730IFs/150914_RescaledIFs.fits')
+    meas[43] = man.nearestNaN(meas[43])
+
+    #PSDs
+    fm,pm = fourier.realPSD(meas[43],dx=100./125)
+    ff,pf = fourier.realPSD(fea[43],dx=100./128)
+
+    #Make plot
+    fig = plt.figure()
+    fig.add_subplot(121)
+    plt.imshow(pf,interpolation='none',norm=LogNorm(),\
+               extent=[ff[0][0],ff[0][-1],ff[0][-1],ff[0][0]])
+    plt.title('Modeled IF - Cell 45')
+    plt.xlabel('Azimuthal Frequency (1/mm)')
+    plt.ylabel('Axial Frequency (1/mm)')
+    plt.colorbar()
+    fig.add_subplot(122)
+    plt.imshow(pm,interpolation='none',norm=LogNorm(),\
+               extent=[fm[0][0],fm[0][-1],fm[0][-1],fm[0][0]])
+    plt.title('Measured IF - Cell 45')
+    plt.xlabel('Azimuthal Frequency (1/mm)')
+    plt.ylabel('Axial Frequency (1/mm)')
+    plt.colorbar()
+
+    fig = plt.figure()
+    sl = meas[43][:,70]
+    fsl = fea[43][:,70]
+    fsl = fsl*(np.nanmax(sl)-np.nanmin(sl))/(np.nanmax(fsl)-np.nanmin(fsl))
+    fsl = fsl - np.nanmax(fsl) + np.nanmax(sl)
+    plt.plot(sl,label='Measured')
+    plt.plot(np.arange(128)+3,fsl,label='Modeled')
+    plt.legend(loc='upper right')
+    plt.title('Central Slice of Cell 45')
+
+    fig = plt.figure()
+    plt.plot(np.diff(sl))
+    plt.plot(np.arange(127)+3,np.diff(fsl))

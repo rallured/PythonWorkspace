@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import PytranTrace as tran
 import zernikemod,pdb,time
-from utilities.plotting import nanmean
+##from utilities.plotting import nanmean
 import traces.conicsolve as con
 import reconstruct
 
@@ -28,14 +28,28 @@ def reflect(ind=None):
     """Reflect rays based on surface normal
     """
     global l,m,n,ux,uy,uz
-    tran.reflect(l,m,n,ux,uy,uz)
+    if ind is not None:
+        tl,tm,tn,tux,tuy,tuz = l[ind],m[ind],n[ind],ux[ind],uy[ind],uz[ind]
+        tran.reflect(tl,tm,tn,tux,tuy,tuz)
+        l[ind],m[ind],n[ind],ux[ind],uy[ind],uz[ind] = tl,tm,tn,tux,tuy,tuz
+    else:
+        tran.reflect(l,m,n,ux,uy,uz)
     return
 
-def flat():
+def flat(ind=None):
     """Trace rays to the XY plane
     """
     global x,y,z,l,m,n,ux,uy,uz
-    tran.flat(x,y,z,l,m,n,ux,uy,uz)
+    if ind is not None:
+        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
+                                        l[ind],m[ind],n[ind],\
+                                        ux[ind],uy[ind],uz[ind]
+        tran.flat(tx,ty,tz,tl,tm,tn,tux,tuy,tuz)
+        x[ind],y[ind],z[ind],\
+        l[ind],m[ind],n[ind],\
+        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+    else:
+        tran.flat(x,y,z,l,m,n,ux,uy,uz)
     return
 
 def refract(n1,n2):
@@ -52,8 +66,9 @@ def refract(n1,n2):
 def zernsurf(coeff,rad,rorder=None,aorder=None):
     global x,y,z,l,m,n,ux,uy,uz
     if rorder is None:
-        rorder,aorder = zernikemod.zmodes(size(coeff))
-    tran.tracezern(x,y,z,l,m,n,ux,uy,uz,coeff,array(rorder),array(aorder),rad)
+        rorder,aorder = zernikemod.zmodes(np.size(coeff))
+    tran.tracezern(x,y,z,l,m,n,ux,uy,uz,coeff,\
+                   np.array(rorder),np.array(aorder),rad)
     rho = np.sqrt(x**2+y**2)
     ind = np.where(rho<=rad)
     vignette(ind=ind)
@@ -215,14 +230,63 @@ def wsSecondary(r0,z0,psi):
     tran.wssecondary(x,y,z,l,m,n,ux,uy,uz,a,z0,psi)
     return
 
+#Wrapper for SPO surface
+def spoCone(R0,tg,ind=None):
+    """Trace rays to an SPO cone with intersection radius
+    R0 and slope angle tg.
+    XY plane should be at SPO intersection plane
+    """
+    global x,y,z,l,m,n,ux,uy,uz
+    if ind is not None:
+        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
+                                        l[ind],m[ind],n[ind],\
+                                        ux[ind],uy[ind],uz[ind]
+        tran.spocone(tx,ty,tz,tl,tm,tn,tux,tuy,tuz,R0,tg)
+        x[ind],y[ind],z[ind],\
+        l[ind],m[ind],n[ind],\
+        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+    else:
+        tran.spocone(x,y,z,l,m,n,ux,uy,uz,R0,tg)
+    return
+
+#Wrapper for SPO as function of radius and focal length
+def spoPrimary(R0,F,d=.605,ind=None):
+    """Trace rays to an SPO primary with intersection radius
+    R0 and focal length F.
+    XY plane should be at SPO intersection plane
+    """
+    #Convert F to tg
+    tg = .25*np.arctan((R0+d/2)/F)
+    #Call SPO wrapper
+    spoCone(R0,tg,ind=ind)
+    return
+
+#Wrapper for SPO as function of radius and focal length
+def spoSecondary(R0,F,d=.605,ind=None):
+    """Trace rays to an SPO secondary with intersection radius
+    R0 and focal length F.
+    XY plane should be at SPO intersection plane
+    """
+    #Convert F to tg
+    tg = .75*np.arctan((R0+d/2)/F)
+    #Call SPO wrapper
+    spoCone(R0,tg,ind=ind)
+    return
+
 #Wrapper for radial grating
-def radgrat(hubdist,dpermm,order,wave):
+def radgrat(hubdist,dpermm,order,wave,ind=None):
     """Infinite radial grating. Assumes grating in x,y plane
     with grooves converging at hubdist in positive y direction
     dpermm is nm/mm
     wave is in nm
     """
-    tran.radgrat(x,y,l,m,n,hubdist,dpermm,order,wave)
+    global x,y,l,m,n
+    if ind is not None:
+        tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
+        tran.radgrat(tx,ty,tl,tm,tn,hubdist,dpermm,order,wave)
+        x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
+    else:
+        tran.radgrat(x,y,l,m,n,hubdist,dpermm,order,wave)
     return
 
 def grat(d,order,wave):
@@ -264,8 +328,8 @@ def lens(r1,r2,thick,d,nl,reverse=False):
         transform(0.,0.,r1,0.,0.,0.) #Go to first
                                      #center of curvature, r1>0->convex
         sphere(abs(r1)) #Trace to first spherical surface
-    rho = sqrt(x**2 + y**2)/(d/2)
-    ind = where(rho<=1.) #Remove rays with radius beyond that of lens
+    rho = np.sqrt(x**2 + y**2)/(d/2)
+    ind = np.where(rho<=1.) #Remove rays with radius beyond that of lens
     vignette(ind=ind)
     refract(1.,nl) #Refract into lens
 
@@ -275,8 +339,8 @@ def lens(r1,r2,thick,d,nl,reverse=False):
     if r2 != 0:
         transform(0.,0.,r2,0,0,0) #Go to center of curvature
         sphere(abs(r2)) #Trace to second spherical surface
-    rho = sqrt(x**2 + y**2)/(d/2)
-    ind = where(rho<=1.) #Remove rays with radius beyond that of lens
+    rho = np.sqrt(x**2 + y**2)/(d/2)
+    ind = np.where(rho<=1.) #Remove rays with radius beyond that of lens
     vignette(ind=ind)
     refract(nl,1.) #Refract out of lens
     transform(0.,0.,-r2,0,0,0) #Transform to xy plane tangent to

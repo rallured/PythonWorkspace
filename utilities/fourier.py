@@ -92,9 +92,30 @@ def realPSD(d,win=1,dx=1.):
         
     elif np.size(np.shape(c)) is 1:
         f = np.fft.fftfreq(np.size(c),d=dx)
-        f = f[:size(c)/2]
-        c = c[:size(c)/2]
+        f = f[:np.size(c)/2]
+        c = c[:np.size(c)/2]
         c[0] = 0.
         c = c*np.sqrt(2.)
 
     return f,np.abs(c)**2
+
+def lowpass(d,dx,fcut):
+    """Apply a low pass filter to a 1 or 2 dimensional array.
+    Supply the bin size and the cutoff frequency in the same units.
+    """
+    #Get shape of array
+    sh = np.shape(d)
+    #Take FFT and form frequency arrays
+    f = np.fft.fftn(d)
+    fx = np.fft.fftfreq(sh[0],d=dx)
+    fy = np.fft.fftfreq(sh[1],d=dx)
+    fa = np.meshgrid(fy,fx)
+    fr = np.sqrt(fa[0]**2+fa[1]**2)
+    #Apply cutoff
+    f[fr>fcut] = 0.
+    #Inverse FFT
+    filtered = np.fft.ifftn(f)
+    return filtered
+
+
+                     

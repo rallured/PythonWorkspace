@@ -7,7 +7,7 @@ subroutine reconstruct(xang,yang,xdim,ydim,criteria,h,phase,phasec)
     real*8, dimension(xdim,ydim), intent(out) :: phasec
     real*8 :: pi, w, bk, psum, rms, goodpix
     real*8 :: xplus,xneg,yplus,yneg,pxplus,pxneg,pyplus,pyneg
-    integer :: xi,yi,compute,nannum
+    integer :: xi,yi,compute,nannum,counter
     real*8 :: dum
 
     pi = 3.1415926535897931
@@ -20,6 +20,7 @@ subroutine reconstruct(xang,yang,xdim,ydim,criteria,h,phase,phasec)
     !yang = yang2
 
     !Enter reconstruction loop, only loop through non-nan elements
+    counter = 0
     do
         !Loop through phase array and update in Gauss-Seidel fashion
         rms = 0. !Reset RMS squared norm accumulator
@@ -112,6 +113,11 @@ subroutine reconstruct(xang,yang,xdim,ydim,criteria,h,phase,phasec)
         phase = phasec !Copy new phase array to old phase array
 
         if (rms < criteria) then
+            exit
+        end if
+
+        counter = counter + 1
+        if (counter > 1000) then
             exit
         end if
 

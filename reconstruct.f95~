@@ -1,16 +1,15 @@
-subroutine reconstruct(xang,yang,xdim,ydim,criteria,phase,phasec)
+subroutine reconstruct(xang,yang,xdim,ydim,criteria,h,phase,phasec)
     !Declarations
     integer, intent(in) :: xdim,ydim
     real*8, dimension(xdim,ydim), intent(inout) :: xang,yang,phase
     !real*8, dimension(xdim,ydim) :: xang,yang,phaseo
-    real*8, intent(in) :: criteria
+    real*8, intent(in) :: criteria,h
     real*8, dimension(xdim,ydim), intent(out) :: phasec
-    real*8 :: h, pi, w, bk, psum, rms, goodpix
+    real*8 :: pi, w, bk, psum, rms, goodpix
     real*8 :: xplus,xneg,yplus,yneg,pxplus,pxneg,pyplus,pyneg
-    integer :: xi,yi,compute,nannum
+    integer :: xi,yi,compute,nannum,counter
     real*8 :: dum
 
-    h = 114.
     pi = 3.1415926535897931
     w = 2/(1+sin(pi/(sqrt(dble(xdim)*dble(ydim))+1)))
 
@@ -107,7 +106,9 @@ subroutine reconstruct(xang,yang,xdim,ydim,criteria,phase,phasec)
         end do
 
         !Determine rms improvement
+        print *, rms, nannum
         rms = sqrt(rms/nannum)
+        print *, rms
         phase = phasec !Copy new phase array to old phase array
 
         if (rms < criteria) then

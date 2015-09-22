@@ -1,5 +1,8 @@
 #This submodule includes routines to manipulate image arrays
 from numpy import *
+from scipy.interpolate import griddata
+
+import pdb
 
 def unpackimage(data,xlim=[-1,1],ylim=[-1,1],remove=True):
     """Convert a 2D image into x,y,z coordinates.
@@ -9,6 +12,12 @@ def unpackimage(data,xlim=[-1,1],ylim=[-1,1],remove=True):
     """
     y,x = meshgrid(linspace(xlim[0],xlim[1],shape(data)[1]),\
                    linspace(ylim[0],ylim[1],shape(data)[0]))
+##    y = y.flatten()
+##    x = x.flatten()
+    
+    if remove is True:
+        ind = invert(isnan(data.flatten()))
+        return x.flatten()[ind],y.flatten()[ind],data.flatten()[ind]
 
     return x.flatten(),y.flatten(),data.flatten()
 
@@ -42,11 +51,20 @@ def padNaN(img,n=1,axis=0):
         ins = repeat(nan,abs(n)*shape(img)[1]).reshape(abs(n),shape(img)[1])
     else:
         ins = repeat(nan,abs(n)*shape(img)[0]).reshape(abs(n),shape(img)[0])
+        ins = transpose(ins)
     #If direction=0, shift to positive
     if n < 0:
-        img = insert(img,0,ins,axis=axis)
+        img = concatenate((ins,img),axis=axis)
     else:
-        img = insert(img,-1,ins,axis=axis)
+        img = concatenate((img,ins),axis=axis)
+    return img
+
+def padRect(img):
+    """Pads an image with an outer NaN rectangle"""
+    img = padNaN(img,n=1,axis=0)
+    img = padNaN(img,n=-1,axis=0)
+    img = padNaN(img,n=1,axis=1)
+    img = padNaN(img,n=-1,axis=1)
     return img
 
 def tipTiltPiston(img,piston,tip,tilt,tx=None,ty=None):
@@ -64,6 +82,21 @@ def tipTiltPiston(img,piston,tip,tilt,tx=None,ty=None):
 
     return img + piston + tip*tx + tilt*ty
 
+def nearestNaN(arr,method='nearest'):
+    """Fill the NaNs in a 2D image array with the griddata
+    nearest neighbor interpolation"""
+    ishape = shape(arr)
+    #Unpack image both with and without removing NaNs
+    x0,y0,z0 = unpackimage(arr,remove=False)
+    x1,y1,z1 = unpackimage(arr,remove=True)
 
+    #Interpolate onto x0,y0 grid
+    newarr = griddata((x1,y1),z1,(x0,y0),method=method)
+
+    return newarr.reshape(ishape)
+
+def rebin(a,shape):
+    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
+    return nanmean(nanmean(a.reshape(sh),axis=3),axis=1)
 
     

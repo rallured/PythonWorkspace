@@ -1,22 +1,22 @@
-import PyTrace as PT
+import traces.PyTrace as PT
 from numpy import *
 from matplotlib.pyplot import *
 import pdb,time,reconstruct
-from plotting import mycontour,nanmean
+##from utilities.plotting import mycontour,nanmean
 import zernikemod as zmod
-import conicsolve
+import traces.conicsolve as conicsolve
 
 #Import RNR283 figure Zernike coefficients
-rnr283coeff = genfromtxt('/Users/ryanallured/AXRO/Alignment/WFS/Simulation/'
+rnr283coeff = genfromtxt('/home/rallured/Dropbox/AXRO/Alignment/WFS/Simulation/'
                          '140217RNR283Zernikes.txt')
 rnr283coeff = rnr283coeff[1:]/1000.
 #Import influence Zernike coefficients
-infcoeff = genfromtxt('/Users/ryanallured/AXRO/Alignment/WFS/Simulation/'
+infcoeff = genfromtxt('/home/rallured/Dropbox/AXRO/Alignment/WFS/Simulation/'
                       '140217Influence18Zernikes.txt')
 infcoeff = infcoeff[1:]/1000.
 
 #Import RNR283 + influence Zernikes
-rnrinfcoeff = genfromtxt('/Users/ryanallured/AXRO/Alignment/WFS/Simulation/'
+rnrinfcoeff = genfromtxt('/home/rallured/Dropbox/AXRO/Alignment/WFS/Simulation/'
                          '140217Influence18RNR.txt')
 rnrinfcoeff = rnrinfcoeff[1:173]/1000.
 ##rorderri,aorderri = zmod.zmodes(size(rnrinfcoeff))
@@ -162,6 +162,7 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
     xanginf = xang2-xang
     yanginf = copy(yang)
     yanginf = yang2-yang
+    pdb.set_trace()
     xanginf[ind] = 100
     yanginf[ind] = 100
 
@@ -181,7 +182,7 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
         phaseinf[98:,98:] = 100.
 
     #Reconstruct influence wavefront
-    influence = reconstruct.reconstruct(xanginf,yanginf,1.e-12,phaseinf)
+    influence = reconstruct.reconstruct(xanginf,yanginf,1.e-12,.114,phaseinf)
 
     #Make invalid pixels NaNs
     ind = where(influence==100)

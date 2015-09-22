@@ -1459,6 +1459,56 @@ subroutine wssecondary(x,y,z,l,m,n,ux,uy,uz,num,alpha,z0,psi)
 
 end subroutine wssecondary
 
+!Intersection with SPO Cone
+subroutine spoCone(x,y,z,l,m,n,ux,uy,uz,num,R0,tg)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: R0,tg
+!  real*8 :: k,kterm,dbdx,dbdy,dbdz,dadb,beta,betas,ff,g,d,a
+!  real*8 :: gam,dbdzs,dadbs
+!  real*8 :: F,Fx,Fy,Fz,Fp,delt,dum,Fb
+  integer :: i
+  real*8 :: A,B,C,sl,det,t1,t2
+
+  !Loop through rays and trace to mirror
+  sl = tan(tg)
+  !$omp parallel do private(i,A,B,C,det,t1,t2)
+  do i=1,num
+    !Solve quadratic equation for ray advancement distance
+    A = n(i)**2*sl**2 - m(i)**2 - l(i)**2
+    B = 2*n(i)*sl*R0 + 2*z(i)*sl**2*n(i) - 2*x(i)*l(i) - 2*y(i)*m(i)
+    C = R0**2 + 2*sl*R0*z(i) + z(i)**2*sl**2 - x(i)**2 - y(i)**2
+    det = B**2 - 4*A*C
+    if (det .ge. 0) then
+      t1 = (-B + sqrt(det))/(2*A)
+      t2 = (-B - sqrt(det))/(2*A)
+      if (abs(t2) < abs(t1)) then
+        t1 = t2
+      end if
+      !Set new ray position
+      x(i) = x(i) + t1*l(i)
+      y(i) = y(i) + t1*m(i)
+      z(i) = z(i) + t1*n(i)
+      !Set up surface normal
+      ux(i) = -x(i)/sqrt(x(i)**2+y(i)**2)*cos(tg)
+      uy(i) = -y(i)/sqrt(x(i)**2+y(i)**2)*cos(tg)
+      uz(i) = sin(tg)!*abs(z(i))/z(i)
+    else
+      l(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
+    end if
+    !print *, x(i),y(i),z(i)
+    !print *, ux(i),uy(i),uz(i)
+    !print *, F, Fx, Fy, Fz
+    !read *, dum
+  end do
+  !$omp end parallel do
+
+end subroutine spoCone
+
 
 !Radially grooved grating diffraction
 !Assumes grating in x y plane, with grooves converging at 

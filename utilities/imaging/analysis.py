@@ -2,6 +2,7 @@
 from matplotlib.pyplot import *
 from numpy import *
 from matplotlib.colors import LogNorm
+import pdb
 
 def ptov(d):
     """Return the peak to valley of an image"""
@@ -17,6 +18,7 @@ def findMoments(d):
     cy = nansum(y*d)/nansum(d)
     rmsx = nansum((x-cx)**2*d)/nansum(d)
     rmsy = nansum((y-cy)**2*d)/nansum(d)
+    pdb.set_trace()
     
     return cx,cy,sqrt(rmsx),sqrt(rmsy)
 
