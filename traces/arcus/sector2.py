@@ -123,30 +123,18 @@ def gratArray(outerrad,hubdist,angle,inc,l=95.):
     #Next
     PT.flat()
     ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
-    ind2 = np.copy(ind)
-    ang = l*sin(inc)/hubdist*.95
+    ang = l*sin(inc)/hubdist
     i = 0
-    prev = np.repeat(False,np.size(PT.y))
-    while np.sum(ind2)>0:
+    while np.sum(ind)>0:
         i = i+1
-        PT.reflect(ind=ind2)
-        #PT.radgrat(0.,160./hubdist,0,1.,ind=ind2)
+        PT.reflect(ind=ind)
+        PT.radgrat(0.,160./hubdist,0,1.,ind=ind)
         PT.transform(0,0,0,ang,0,0)
         PT.flat()
-        #pdb.set_trace()
-        prev = np.logical_or(prev,ind) #Add rays hitting new grating
         ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
-        ind2 = np.logical_and(np.invert(prev),ind) #Remove previous rays
         sys.stdout.write('%i \r' % i)
         sys.stdout.flush()
     pdb.set_trace()
-
-    #Go to focal plane
-    PT.transform(0,0,0,-ang*i+pi/2+angle-inc,0,0)
-    PT.transform(0,0,0,0,0,pi/2)
-    PT.flat()
-    pdb.set_trace()
-    #Find focus
     
 
 
