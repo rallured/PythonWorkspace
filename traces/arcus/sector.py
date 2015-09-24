@@ -130,7 +130,7 @@ def gratArray(outerrad,hubdist,angle,inc,l=95.):
     while np.sum(ind2)>0:
         i = i+1
         PT.reflect(ind=ind2)
-        #PT.radgrat(0.,160./hubdist,0,1.,ind=ind2)
+        PT.radgrat(0.,160./hubdist,1,2.6,ind=ind2)
         PT.transform(0,0,0,ang,0,0)
         PT.flat()
         #pdb.set_trace()
