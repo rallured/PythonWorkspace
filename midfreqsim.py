@@ -1,10 +1,10 @@
-import PyTrace as PT
+import traces.PyTrace as PT
 from numpy import *
 from matplotlib.pyplot import *
 import pdb,time,reconstruct
-from plotting import mycontour,nanmean
+from utilities.plotting import mycontour,nanmean
 import zernikemod as zmod
-import conicsolve
+import traces.conicsolve as conicsolve
 
 #Trace rays from test optic plane through lens system to WFS
 def tracefromtest(fieldx=0.,fieldy=0.,fieldz=0.,imgx=0.,imgy=0.,imgz=0.,\
@@ -44,18 +44,59 @@ def centralpointsource(num,testx=0.,testy=0.,testz=0.,**kwgs):
 
 #Define circular beam and bounce off reference flat
 def reference(num,pitch=0.,yaw=0.,roll=0.,**kwgs):
-    PT.rectbeam(2.,12.5,num)
+    PT.circularbeam(12.5,num)
     PT.transform(0,0,0,pi,0,0)
     PT.transform(0,0,-100,0,0,0)
 
     PT.transform(0,0,0,pitch,yaw,roll)
     PT.flat()
     PT.reflect()
-    PT.transform(0,0,0,-pitch,-yaw,-roll)
+    PT.itransform(0,0,0,pitch,yaw,roll)
 
     tracefromtest(**kwgs)
 
+#Test retrace error
+def retrace(num,pitch=0.,yaw=0.,roll=0.,**kwgs):
+    #Trace reference flat
+    reference(10**6,**kwgs)
+    #Move to center of image plane
+    PT.x = PT.x - nanmean(PT.x)
+    PT.y = PT.y - nanmean(PT.y)
+    #Save reference slopes
+    xang,yang,phase = reconstruct.southwellbin(PT.x,PT.y,PT.l,PT.m,.114,130,130)
 
+    #Repeat with tilted test optic
+    reference(10**6,pitch=pitch,yaw=yaw,roll=roll,**kwgs)
+    #Move to center of image plane
+    PT.x = PT.x - nanmean(PT.x)
+    PT.y = PT.y - nanmean(PT.y)
+    #Save reference slopes
+    xang2,yang2,phase2 = reconstruct.southwellbin(PT.x,PT.y,PT.l,PT.m,.114,130,130)
+
+    #Construct phase and angle arrays for reconstruction of influence
+    phaseinf = copy(phase)
+    phaseinf[:,:] = 0.
+    ind = logical_or(phase==100,phase2==100)
+    phaseinf[ind] = 100
+    xanginf = copy(xang)
+    xanginf = xang2-xang
+    yanginf = copy(yang)
+    yanginf = yang2-yang
+    xanginf[ind] = 100
+    yanginf[ind] = 100
+
+    #Subtract average tip and tilt
+    xanginf[invert(ind)] = xanginf[invert(ind)] - nanmean(xanginf[invert(ind)])
+    yanginf[invert(ind)] = yanginf[invert(ind)] - nanmean(yanginf[invert(ind)])
+
+    #Reconstruct influence wavefront
+    influence = reconstruct.reconstruct(xanginf,yanginf,1.e-12,.114,phaseinf)
+
+    #Make invalid pixels NaNs
+    ind = where(influence==100)
+    influence[ind] = NaN
+
+    return influence
 
 #Define annulus, trace perfect alignment, trace pitch and yaw
 #Determine figure of merit based on edge shift
@@ -85,6 +126,7 @@ def edgetest(num,pitch=0.,yaw=0.,roll=0.,**kwgs):
     diff = sqrt(mean((refx-PT.x)**2+(refy-PT.y)**2))
 
     return diff
+
 #Define circular beam and bounce off Wolter primary with sinusoid
 def wolterripple(num,amp,freq,pitch=0.,yaw=0.,roll=0.,\
                  testx=0.,testy=0.,testz=0.,**kwgs):

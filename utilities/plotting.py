@@ -2,7 +2,18 @@ from numpy import *
 import numpy as np
 from matplotlib.pyplot import *
 from matplotlib import ticker,colors
-import pickle
+import pickle,pdb
+from mpl_toolkits.mplot3d import Axes3D
+
+def scatter3d(x,y,z,**args):
+    """Make a 3d scatter plot"""
+    fig = figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.scatter(x,y,z)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    return ax
 
 #Make iso plot
 def isoplot(*args,**kargs):
@@ -33,6 +44,27 @@ def pltd(x1,y1,x2,y2,xlabel='',ylabel1='',ylabel2='',title='',\
         ax2.set_ylim(ylim2)
     ax1.set_title(title)
 
+    return ax1,ax2
+
+#Make temp and data double plot
+def pltd2(x1,y1,fn,xlabel='',ylabel1='',ylabel2='',title='',\
+         ystyle1='b-',ystyle2='r-',ylim1='',ylim2='',label1='',label2=''):
+    fig = figure()
+    ax1 = fig.add_subplot(111)
+    ax1.plot(x1,y1,ystyle1,label=label1)
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(ylabel1)
+    #Get x tick positions
+    b = ax1.get_xticks()
+    newb = fn(b)
+    #newb = newb.astype('str')
+    for i in range(size(newb)):
+        newb[i] = '%.2f' % newb[i]
+    #Create second axis
+    ax2 = ax1.twiny()
+    ax2.set_xticks(b)
+    ax2.set_xticklabels(newb.astype('str'))
+    
     return ax1,ax2
 
 #Print a number in scientific notation

@@ -10,7 +10,7 @@ def unpackimage(data,xlim=[-1,1],ylim=[-1,1],remove=True):
     y will relate to 1st index in order to correspond to oordinate in imshow
     if remove is True, NaNs will not be returned in the list of coordinates
     """
-    y,x = meshgrid(linspace(xlim[0],xlim[1],shape(data)[1]),\
+    x,y = meshgrid(linspace(xlim[0],xlim[1],shape(data)[1]),\
                    linspace(ylim[0],ylim[1],shape(data)[0]))
 ##    y = y.flatten()
 ##    x = x.flatten()
@@ -99,4 +99,15 @@ def rebin(a,shape):
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return nanmean(nanmean(a.reshape(sh),axis=3),axis=1)
 
-    
+def stripnans(d):
+    newsize = shape(d)[1]
+    while sum(isnan(d[0]))==newsize:
+        d = d[1:]
+    while sum(isnan(d[-1]))==newsize:
+        d = d[:-1]
+    newsize = shape(d)[0]
+    while sum(isnan(d[:,0]))==newsize:
+        d = d[:,1:]
+    while sum(isnan(d[:,-1]))==newsize:
+        d = d[:,:-1]
+    return d

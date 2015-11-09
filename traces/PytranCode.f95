@@ -1520,7 +1520,7 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
   real*8, intent(inout) :: l(num),m(num),n(num)
   real*8, intent(in) :: hubdist,dpermm,wave,order
   integer :: i
-  real*8 :: d, yaw, pi, dum
+  real*8 :: d, yaw, pi, dum, det
 
   pi = acos(-1.)
 
@@ -1532,17 +1532,14 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
     yaw = pi/2 + atan(x(i)/(hubdist-y(i)))
     !print *, x(i),y(i),d,yaw
     !print *, l(i),m(i),n(i)
-    !Compute new direction cosines
-    l(i) = l(i) + sin(yaw)*order*wave/d
-    m(i) = m(i) - cos(yaw)*order*wave/d
-    n(i) = sqrt(1 - l(i)**2 - m(i)**2)
-    !print *, l(i),m(i),n(i)
-    !read *, dum
+
     !Evanescence?
-    d = l(i)**2+m(i)**2
-    if (d>1) then
-      m(i) = n(i)
-      l(i) = n(i)
+    det = l(i)**2+m(i)**2
+    if (det<1) then
+      !Compute new direction cosines
+      l(i) = l(i) + sin(yaw)*order*wave/d
+      m(i) = m(i) - cos(yaw)*order*wave/d
+      n(i) = sqrt(1. - l(i)**2 - m(i)**2)
     end if
   end do
 

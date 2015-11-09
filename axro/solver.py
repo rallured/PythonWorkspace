@@ -168,6 +168,76 @@ def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
 
     return sol,optv
 
+def slopeOptimizer3(ifuncfx,ifuncfy,distortionf,shadef,\
+                        azweight=.015,\
+                        smin=0.,smax=5.,bounds=None):
+    """Assumes IFs and distortion are in slope form in arcsec.
+    """
+    if dslopes is None:
+        #Load in distortion, ifuncs, and shade from filenames
+        axif = pyfits.getdata(ifuncfx)
+        ayif = pyfits.getdata(ifuncfy)
+        shade = pyfits.getdata(shadef)
+        
+        #Reshape ifuncs into 3D matrix
+        ishape = np.shape(axif)
+        axif = ifuncx.transpose(1,2,0)
+        ayif = ifuncy.transpose(1,2,0)
+
+        #Reshape IFs into 2D matrices
+        axif = axif.reshape(((ishape[1]-1)*(ishape[2]-1),ishape[0]))
+        azif = azif.reshape(((ishape[1]-1)*(ishape[2]-1),ishape[0]))
+
+        #filter ifuncs array with shade mask
+        shade = shade.astype('bool')
+        shade = shade.flatten()
+        axif = axif[shade,:]
+        azif = azif[shade,:]*azweight
+
+        #Merge slopes into 2D optimization matrix
+        ifslopes = np.concatenate((axif,azif),axis=0)
+
+        #Create distortion slope arrays
+        axd = pyfits.getdata(distortionfx)
+        ayd = pyfits.getdata(distortionfy)
+        
+        #Flatten distortion arrays
+        axd = axd.flatten()
+        ayd = ayd.flatten()
+        axd = axd[shade]
+        ayd = ayd[shade]*azweight
+
+        #Create 1D distortion slope target
+        dslopes = np.concatenate((axd,ayd))
+
+    #Create bounds list
+    if bounds is None:
+        bounds = []
+        for i in range(np.shape(ifslopes)[1]):
+            bounds.append((smin,smax))
+
+    #Print initial merit function
+##    print ampMeritFunction(np.zeros(np.shape(ifslopes)[1]),dslopes,ifslopes)
+
+    #Call optimizer algorithm
+    optv = fmin_slsqp(ampMeritFunction,np.zeros(np.shape(ifslopes)[1]),\
+                      bounds=bounds,args=(dslopes,ifslopes),\
+                      iprint=2,fprime=ampMeritDerivative,iter=200,\
+                      acc=1.e-6)
+
+    #Construct solution image
+    axif = pyfits.getdata(ifuncfx)
+    ayif = pyfits.getdata(ifuncfy)
+    axif = axif.transpose(1,2,0)
+    ayif = ayif.transpose(1,2,0)
+    solx = np.dot(axif,optv)
+    soly = np.dot(ayif,optv)
+
+##    pyfits.writeto('Sol.fits',sol)
+##    pyfits.writeto('SolVolt.fits',optv)
+
+    return solx,soly,optv
+
 #Need a significantly faster merit function
 #Option 1: F2PY
 #Option 2: Numba jit

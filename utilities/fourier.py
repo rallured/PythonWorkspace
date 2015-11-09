@@ -1,4 +1,5 @@
 import numpy as np
+import pdb
 
 #This module contains Fourier analysis routine
 
@@ -39,7 +40,7 @@ def continuousComponents(d,dx,win=1):
             win = win/np.sqrt(np.mean(win**2))
 
     #Compute Fourier components
-    return np.fft.fftn(d*win)*dx**2
+    return np.fft.fftn(d*win)*dx
     
 
 def freqgrid(d,dx=1.):
@@ -71,13 +72,37 @@ def ellipsoidalHighFrequencyCutoff(d,fxmax,fymax,dx=1.,win=1):
     #Invert the FFT and return the filtered image
     return fft.ifftn(fftcomp)
 
-def realPSD(d,win=1,dx=1.):
+def meanPSD(d,win=1,dx=1.,axis=0):
+    """Return the 1D PSD averaged over a surface.
+    Axis indicates the axis over which to FFT"""
+    if win is not 1:
+        win = win(np.shape(d)[axis])/\
+              np.sqrt(np.mean(win(np.shape(d)[axis])**2))
+        win = np.repeat(win,np.shape(d)[axis-1])
+        win = np.reshape(win,(np.shape(d)[axis],np.shape(d)[axis-1]))
+        if axis is 1:
+            win = np.transpose(win)
+    c = np.abs(np.fft.fft(d*win,axis=axis)/np.shape(d)[axis])**2
+    c = np.mean(c,axis=axis-1)
+    f = np.fft.fftfreq(np.size(c),d=dx)
+    f = f[:np.size(c)/2]
+    c = c[:np.size(c)/2]
+    c[1:] = 2*c[1:]
+    return f,c
+    
+
+def realPSD(d,win=1,dx=1.,axis=None):
     """This function returns the PSD of a real function
     Gets rid of zero frequency and puts all power in positive frequencies
     Returns only positive frequencies
     """
     #Get Fourier components
     c = components(d,win=win)
+    #Handle collapsing to 1D PSD if axis keyword is set
+    if axis==0:
+        c = c[:,0]
+    elif axis==1:
+        c = c[0,:]
 
     #Reform into PSD
     if np.size(np.shape(c)) is 2:
@@ -107,15 +132,110 @@ def lowpass(d,dx,fcut):
     sh = np.shape(d)
     #Take FFT and form frequency arrays
     f = np.fft.fftn(d)
-    fx = np.fft.fftfreq(sh[0],d=dx)
-    fy = np.fft.fftfreq(sh[1],d=dx)
-    fa = np.meshgrid(fy,fx)
-    fr = np.sqrt(fa[0]**2+fa[1]**2)
+    if np.size(np.shape(d)) > 1:
+        fx = np.fft.fftfreq(sh[0],d=dx)
+        fy = np.fft.fftfreq(sh[1],d=dx)
+        fa = np.meshgrid(fy,fx)
+        fr = np.sqrt(fa[0]**2+fa[1]**2)
+    else:
+        fr = np.fft.fftfreq(sh[0],d=dx)
     #Apply cutoff
     f[fr>fcut] = 0.
     #Inverse FFT
     filtered = np.fft.ifftn(f)
     return filtered
 
+def randomizePh(d):
+    """Create a randomized phase array that maintains a real
+    inverse Fourier transform. This requires that F(-w1,-w2)=F*(w1,w2)
+    """
+    #Initialize random phase array
+    sh = np.shape(d)
+    ph = np.zeros(sh,dtype='complex')+1.
+    
+    #Handle 1D case first
+    if np.size(sh) == 1:
+        if np.size(d) % 2 == 0:        
+            ph[1:sh[0]/2] = np.exp(1j*np.random.rand(sh[0]/2-1)*2*np.pi)
+            ph[sh[0]/2+1:] = np.conjugate(np.flipud(ph[1:sh[0]/2]))
+        else:
+            ph[1:sh[0]/2+1] = np.exp(1j*np.random.rand(sh[0]/2)*2*np.pi)
+            ph[sh[0]/2+1:] = np.conjugate(np.flipud(ph[1:sh[0]/2+1]))
+    else:
+        #Handle zero frequency column/rows
+        ph[:,0] = randomizePh(ph[:,0])
+        ph[0,:] = randomizePh(ph[0,:])
+        #Create quadrant
+        if sh[0] % 2 == 0 and sh[1] % 2 == 0:
+            #Handle intermediate Nyquist
+            ph[sh[0]/2,:] = randomizePh(ph[sh[0]/2,:])
+            ph[:,sh[1]/2] = randomizePh(ph[:,sh[1]/2])
+            #Form quadrant
+            ph[1:sh[0]/2,1:sh[1]/2] = \
+                np.exp(1j*np.random.rand(sh[0]/2-1,sh[1]/2-1)*2*np.pi)
+            ph[sh[0]/2+1:,sh[1]/2+1:] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2,1:sh[1]/2])))
+            ph[1:sh[0]/2,sh[1]/2+1:] = \
+                np.exp(1j*np.random.rand(sh[0]/2-1,sh[1]/2-1)*2*np.pi)
+            ph[sh[0]/2+1:,1:sh[1]/2] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2,sh[1]/2+1:])))
+        elif sh[0] % 2 == 0 and sh[1] % 2 == 1:
+            #Handle intermediate Nyquist
+            ph[sh[0]/2,:] = randomizePh(ph[sh[0]/2,:])
+            #Form quadrant
+            ph[1:sh[0]/2,1:sh[1]/2+1] = \
+                np.exp(1j*np.random.rand(sh[0]/2-1,sh[1]/2)*2*np.pi)
+            ph[sh[0]/2+1:,sh[1]/2+1:] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2,1:sh[1]/2+1])))
+            ph[1:sh[0]/2,sh[1]/2+1:] = \
+                np.exp(1j*np.random.rand(sh[0]/2-1,sh[1]/2)*2*np.pi)
+            ph[sh[0]/2+1:,1:sh[1]/2+1] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2,sh[1]/2+1:])))
+        elif sh[0] % 2 == 1 and sh[1] % 2 == 0:
+            #Handle intermediate Nyquist
+            ph[:,sh[1]/2] = randomizePh(ph[:,sh[1]/2])
+            #Form quadrant
+            ph[1:sh[0]/2+1,1:sh[1]/2] = \
+                np.exp(1j*np.random.rand(sh[0]/2,sh[1]/2-1)*2*np.pi)
+            ph[sh[0]/2+1:,sh[1]/2+1:] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2+1,1:sh[1]/2])))
+            ph[1:sh[0]/2+1,sh[1]/2+1:] = \
+                np.exp(1j*np.random.rand(sh[0]/2,sh[1]/2-1)*2*np.pi)
+            ph[sh[0]/2+1:,1:sh[1]/2+1] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2+1,sh[1]/2:])))
+        else:
+            #Form quadrant
+            ph[1:sh[0]/2+1,1:sh[1]/2+1] = \
+                np.exp(1j*np.random.rand(sh[0]/2,sh[1]/2)*2*np.pi)
+            ph[sh[0]/2+1:,sh[1]/2+1:] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2+1,1:sh[1]/2+1])))
+            ph[1:sh[0]/2+1,sh[1]/2+1:] = \
+                np.exp(1j*np.random.rand(sh[0]/2,sh[1]/2)*2*np.pi)
+            ph[sh[0]/2+1:,1:sh[1]/2+1] = \
+                np.conjugate(np.flipud(np.fliplr(ph[1:sh[0]/2+1,sh[1]/2+1:])))
+            
+        
+##        if np.size(d) % 2 == 1:
+##            ph[1:sh[0]/2] = np.random.rand(sh[0]/2-1)*2*np.pi
+##            pdb.set_trace()
+##            ph[sh[0]/2+1:] = np.conjugate(np.flipud(ph[1:sh[0]/2]))
+##        else:
+##            ph[1:(sh[0]-1)/2] = np.random.rand((sh[0]-1)/2-1)*2*np.pi
+##            pdb.set_trace()
+##            ph[(sh[0]+1)/2:] = np.conjugate(np.flipud(ph[1:(sh[0]-1)/2]))
 
-                     
+            
+##    #Fill in positive x frequencies with random phases
+##    ind = freqx >= 0.
+##    ph[ind] = np.exp(1j*np.random.rand(np.sum(ind))*2*np.pi)
+##    #Fill in negative x frequencies with complex conjugates
+##    ph[np.ceil(sh[0]/2.):,0] = np.conjugate(\
+##        np.flipud(ph[:np.floor(sh[0]/2.),0]))
+##    ph[0,np.ceil(sh[1]/2.):] = np.conjugate(\
+##        np.flipud(ph[0,:np.floor(sh[1]/2.)]))
+
+    return ph
+    
+
+
+    

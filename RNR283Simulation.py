@@ -60,7 +60,7 @@ def tracefromtest(fieldx=0.,fieldy=0.,fieldz=0.,imgx=0.,imgy=0.,imgz=0.):
     PT.transform(imgx,imgy,imgz,0,0,0) #Include WFS misalignment
     PT.flat()
 
-def fullbeam(num,coeffs,perfect=False,**kwgs):
+def fullbeam(num,coeffs,perfect=False,tiltx=0.,tilty=0.,tiltz=0.,**kwgs):
     PT.circularbeam(50.,num) #Define circular beam
     PT.transform(0,0,0,pi,0,0) #Flip beam direction to -z
     PT.transform(0,0,-100,0,0,0) #Move to test optic location
@@ -75,11 +75,13 @@ def fullbeam(num,coeffs,perfect=False,**kwgs):
 ##    aorder = aorder[ind]
 
     #Trace to RNR283 Zernike
+    PT.transform(0,0,0,tiltx,tilty,tiltz)
     if perfect==False:
         PT.zernsurf(coeffs,50.,rorder=rorder,aorder=aorder)
     else:
         PT.flat()
     PT.reflect()
+    PT.itransform(0,0,0,tiltx,tilty,tiltz)
 
     #Trace through rest of system
     tracefromtest(**kwgs)
@@ -118,7 +120,8 @@ def chiefandmarginalrays(**kwgs):
 
     tracefromtest(**kwgs)
 
-def computeinfluence(num,perfect=False,block=False,**kwgs):
+def computeinfluence(num,perfect=False,block=False,tiltx=0.,tilty=0.,\
+                     tiltz=0.,**kwgs):
     tstart = time.time()
     #Figure out nominal radius
     chiefandmarginalrays()
@@ -131,7 +134,8 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
     rad = mean(sqrt((PT.x[:-1]-cx)**2+(PT.y[:-1]-cy)**2))
 
     #Perform actual raytrace without actuator influence
-    fullbeam(num,rnr283coeff,perfect=perfect,**kwgs)
+    fullbeam(num,rnr283coeff,perfect=perfect,tiltx=tiltx,tilty=tilty,\
+             tiltz=tiltz,**kwgs)
     
     #Subtract off center image coordinate
     PT.x = PT.x - cx
@@ -143,7 +147,7 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
     xang,yang,phase = reconstruct.southwellbin(PT.x,PT.y,PT.l,PT.m,.114,130,130)
 
     #Perform actual raytrace with actuator influence
-    fullbeam(num,rnrinfcoeff,**kwgs)
+    fullbeam(num,rnrinfcoeff,perfect=perfect,**kwgs)
     
     #Subtract off center image coordinate
     PT.x = PT.x - cx
@@ -156,7 +160,7 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
     #Construct phase and angle arrays for reconstruction of influence
     phaseinf = copy(phase)
     phaseinf[:,:] = 0.
-    ind = where(logical_or(phase==100,phase2==100))
+    ind = logical_or(phase==100,phase2==100)
     phaseinf[ind] = 100
     xanginf = copy(xang)
     xanginf = xang2-xang
@@ -165,6 +169,10 @@ def computeinfluence(num,perfect=False,block=False,**kwgs):
     pdb.set_trace()
     xanginf[ind] = 100
     yanginf[ind] = 100
+
+    #Subtract average tilts
+    xanginf[invert(ind)] = xanginf[invert(ind)] - nanmean(xanginf[invert(ind)])
+    yanginf[invert(ind)] = yanginf[invert(ind)] - nanmean(yanginf[invert(ind)])
 
     #Remove portions of measurement to determine effect of alignment marks
     if block is True:

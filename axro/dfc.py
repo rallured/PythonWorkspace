@@ -14,6 +14,8 @@ import utilities.imaging.man as man
 import utilities.imaging.fitting as ufit
 from reconstruct import reconstruct
 import utilities.imaging.analysis as anal
+import utilities.imaging.fitting as fitting
+from scipy.interpolate import griddata
 
 def flatSampleIF(filename,Nx,Ny,method='cubic'):
     """Read in CSV data from Vanessa and form a 2D array
@@ -473,3 +475,108 @@ def localizationEx():
     fig = plt.figure()
     plt.plot(np.diff(sl))
     plt.plot(np.arange(127)+3,np.diff(fsl))
+
+#Need to compare repeatability and ultimate correction PSDs
+#Are we matching low frequency repeatability limit? Or is there
+#residual low frequency distortions that we are unable to correct?
+#If there are, then can these be explained with the CTF?
+def compareResidual(resid,rep,shade,dx=100./125.*1000.,win=1):
+    """Create averaged slope PSDs of both the residual
+    and the repeatability data. Do this both ways: using diff
+    and using w**2 weighting"""
+    resid[shade==0] = np.nan
+    resid = man.stripnans(resid)
+    resd = np.diff(resid,axis=0)
+    resd = resd-np.nanmean(resd)
+    
+    rep[shade==0] = np.nan
+    rep = man.stripnans(rep)
+    repd = np.diff(rep,axis=0)
+    repd = repd-np.nanmean(repd)
+
+    #Create PSDs
+    f,p = fourier.meanPSD(resid,dx=dx,win=win)
+    fsl,psl = fourier.meanPSD(resd/dx,\
+                              dx=dx,win=win)
+    frep,prep = fourier.meanPSD(rep,dx=dx,win=win)
+    fslrep,pslrep = fourier.meanPSD(repd/dx,\
+                              dx=dx,win=win)
+    p = p * (2*np.pi*f)**2
+    prep = prep * (2*np.pi*frep)**2
+
+    pdb.set_trace()
+
+    #Make plots
+    plt.figure()
+    plt.loglog(fsl,psl/fsl[1],label='Resid, BF')
+    print np.sqrt(np.sum(psl))
+    print np.sqrt(np.sum(p))
+    print np.sqrt(np.sum(pslrep))
+    print np.sqrt(np.sum(prep))
+    plt.loglog(f,p/f[1],label='Resid, W')
+    plt.loglog(fslrep,pslrep/fslrep[1],label='Rep, BF')
+    plt.loglog(frep,prep/frep[1],label='Rep, W')
+
+    return [f,p],[fsl,psl],[frep,prep],[fslrep,pslrep]
+
+def applySG(ifs,shade2,n,m):
+    """Apply a Savitzky-Golay filter to a set of IFs
+    Shade2 should be a shade mask slightly bigger than
+    the intended shade mask in order to contain all
+    needed data rows when taking the slopes
+    n is the window size (odd)
+    and m is the filter order
+    """
+    #Apply shade mask and SG filter
+    sh = np.shape(ifs)
+    for i in range(1,sh[0]):
+        ifs[i][shade2==0] = np.nan
+        ifs[i][shade2==1] = fitting.sgolay2d(\
+            man.stripnans(ifs[i]),n,m)[0].flatten()
+
+    return ifs
+
+def SGexperiment(d,dx,shade2,n,m,noise,ndx):
+    """Conduct an experiment to determine optimal SG filter.
+    Need a theoretical (no noise) IF and a noise model (metrology data).
+    SG filter cannot handle NaNs, so shade mask is required.
+    Add noise model to data, Apply SG filter, compare result to original
+    IF. Continue applying SG filter and determine how many repetitions
+    produce the best result.
+    Just take one instance of repeatability data as noise
+    Metric should be RMS deviation from result and original.
+    This can then be repeated for varying n,m to determine the optimal
+    SG filter parameters."""
+    #Apply shademask to input data
+    d = np.copy(d)
+    noise = np.copy(noise)
+    d[shade2==0] = np.nan
+    d = man.stripnans(d)
+    noise[shade2==0] = np.nan
+    noise = man.stripnans(noise)
+
+    #Load in noise model
+    nfreqx,nfreqy = fourier.freqgrid(noise,dx=ndx)
+    noisef = fourier.continuousComponents(noise,ndx)
+
+    #Interpolate noise model to data frequency grid
+    newx,newy = fourier.freqgrid(d,dx=dx)
+    noisef2 = griddata((nfreqx.flatten(),nfreqy.flatten()),noisef.flatten(),\
+                     (newx,newy),\
+                     method='linear',fill_value=0.)
+    #Add noise to input
+    noisef2 = noisef2/dx
+    newnoise = np.real(np.fft.ifftn(noisef2))
+    d2 = d + newnoise
+
+    #Apply SG Filter
+    df = fitting.sgolay2d(d2,n,m)[0]
+
+    pdb.set_trace()
+
+    #Compare with original
+    print anal.rms(df-d)
+    
+    pdb.set_trace()
+    
+    return None

@@ -2,19 +2,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 import PytranTrace as tran
 import zernikemod,pdb,time
-##from utilities.plotting import nanmean
 import traces.conicsolve as con
 import reconstruct
 
 global x,y,z,l,m,n,ux,uy,uz
 
-def transform(tx,ty,tz,rx,ry,rz):
+def transform(tx,ty,tz,rx,ry,rz,ind=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
     """
     global x,y,z,l,m,n,ux,uy,uz
-    tran.transform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+    if ind is not None:
+        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
+                                        l[ind],m[ind],n[ind],\
+                                        ux[ind],uy[ind],uz[ind]
+        tran.transform(tx,ty,tz,tl,tm,tn,tux,tuy,tuz,-tx,-ty,-tz,-rx,-ry,-rz)
+        x[ind],y[ind],z[ind],\
+        l[ind],m[ind],n[ind],\
+        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+    else:
+        tran.transform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
     return
+
 
 def itransform(tx,ty,tz,rx,ry,rz):
     """Inverse of coordinate transformations. -rz,-ry,-rx then
@@ -494,8 +503,8 @@ def convergingbeam2(zset,xmin,xmax,ymin,ymax,num,lscat):
 #Rectangular beam pointing in +z direction
 def rectbeam(xhalfwidth,yhalfwidth,num):
     global x,y,z,l,m,n,ux,uy,uz
-    x = (random.rand(num)-.5)*2*xhalfwidth
-    y = (random.rand(num)-.5)*2*yhalfwidth
+    x = (np.random.rand(num)-.5)*2*xhalfwidth
+    y = (np.random.rand(num)-.5)*2*yhalfwidth
     z = np.repeat(0.,num)
     n = np.repeat(1.,num)
     l = np.copy(z)
@@ -566,10 +575,36 @@ def rmsCentroid(weights=None):
     rho = (x-cx)**2 + (y-cy)**2
     return np.sqrt(np.average(rho,weights=weights))
 
+def rmsX(weights=None):
+    """RMS from centroid in the X direction"""
+    cx = np.average(x,weights=weights)
+    rmsx = np.sqrt(np.average((x-cx)**2,weights=weights))
+    return rmsx
+
+def rmsY(weights=None):
+    """RMS from centroid in the Y direction"""
+    cy = np.average(y,weights=weights)
+    rmsy = np.sqrt(np.average((y-cy)**2,weights=weights))
+    return rmsy
+
 def hpd(weights=None):
     """Compute HPD by taking median of radii from centroid"""
     cx,cy = centroid(weights=weights)
     rho = np.sqrt((x-cx)**2 + (y-cy)**2)
+    if weights is not None:
+        ind = np.argsort(rho)
+        weights = weights[ind]
+        rho = rho[ind]
+        cdf = np.cumsum(weights)
+        hpd = rho[np.argmin(np.abs(cdf-.5))] * 2.
+    else:
+        hpd = np.median(rho)*2.
+    return hpd
+
+def hpdY(weights=None):
+    """Compute HPD in y direction by taking median of radii from centroid"""
+    cy = np.average(PT.y,weights=weights)
+    rho = y-cy
     if weights is not None:
         ind = np.argsort(rho)
         weights = weights[ind]
@@ -599,28 +634,22 @@ def findimageplane(zscan,num,weights=None):
 
     return zsteps[np.where(rms==np.min(rms))]
 
-def findlineplane(zscan,num):
+def findlineplane(zscan,num,weights=None):
     global x,y,z,l,m,n,ux,uy,uz
     rms = []
-    zsteps = linspace(-zscan,zscan,num)
-    for znow in linspace(-zscan,zscan,num):
+    zsteps = np.linspace(-zscan,zscan,num)
+    for znow in zsteps:
         #Transform to offset
         transform(0,0,znow,0,0,0)
         #Trace rays to new plane
         flat()
         #Determine centroid
-        cx = nanmean(x)
-        #Compute RMS image size
-        rho2 = (x-cx)**2
-        rms.append(sqrt(mean(rho2)))
+        rms.append(rmsY(weights=weights))
         #Return to nominal plane
         transform(0,0,-znow,0,0,0)
     flat()
 
-    clf()
-    plot(zsteps,rms)
-
-    return zsteps[where(rms==min(rms))]
+    return zsteps[np.where(rms==min(rms))]
 
 def findimageplane2(zscan,num):
     global x,y,z,l,m,n,ux,uy,uz
@@ -645,6 +674,29 @@ def findimageplane2(zscan,num):
     plot(zsteps,hew)
 
     return zsteps[where(hew==min(hew))]
+
+def analyticImagePlane():
+    """Find the image plane using the analytic method from
+    Ron Elsner's paper
+    """
+    bx = np.average(x*l/n)-np.average(x)*np.average(l/n)
+    ax = np.average((l/n)**2)-np.average(l/n)**2
+    by = np.average(y*m/n)-np.average(y)*np.average(m/n)
+    ay = np.average((m/n)**2)-np.average(m/n)**2
+    dz = -(bx+by)/(ax+ay)
+    
+    return dz
+
+def analyticYPlane(weights=None):
+    """Find the line plane using analytic method from
+    Ron Elsner's paper"""
+    by = np.average(y*m/n,weights=weights)-np.average(y,weights=weights)\
+         *np.average(m/n,weights=weights)
+    ay = np.average((m/n)**2,weights=weights)\
+         -np.average(m/n,weights=weights)**2
+    dz = -by/ay
+    return dz
+
 
 def wsPrimRad(z,psi,r0,z0):
     """Return the radius of a WS primary as a function of axial coordinate
