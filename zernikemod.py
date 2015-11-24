@@ -117,7 +117,7 @@ def zmodes(N):
                 radial.append(r)
             m = m + 2
         r = r + 1 #Increment radial order
-    return radial, azimuthal
+    return radial[:N], azimuthal[:N]
 
 #Formulate Zernike least squares fitting matrix
 #Requires rho and theta vectors, normalized to rhomax=1
@@ -183,6 +183,8 @@ def zernsurf(x,y,cx,cy,rad,coeff,r=None,m=None):
 
     if r is None:
         r,m = zmodes(size(coeff))
+
+    pdb.set_trace()
 
     for i in range(size(r)):
         heights = heights + coeff[i]*zernike(r[i],m[i],rho,theta)

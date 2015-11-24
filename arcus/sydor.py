@@ -40,9 +40,9 @@ def slopeStatistics(filename):
 
 #Loop through Sydor ascii files and plot FoM
 #for each one
-def sydorPlot():
+def sydorPlot(f):
     #Get filenames
-    f = glob.glob('/home/rallured/Dropbox/Arcus/Sydor/2015_07_22_150mm_flat_wafers/*.txt')
+##    f = glob.glob('/home/rallured/Dropbox/Arcus/Sydor/2015_07_22_150mm_flat_wafers/*.txt')
     #Loop through and plot FoM vs. rotation
     ang = np.linspace(0.,180.,180)
     plt.ion()

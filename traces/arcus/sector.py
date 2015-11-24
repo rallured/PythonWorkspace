@@ -22,7 +22,14 @@ eff = np.genfromtxt('/home/rallured/Dropbox/'
                     'Arcus/Raytrace/Eff.txt')
 def gratEff(order):
     return interpolate.interp1d(w,eff[:,o==order],kind='linear',axis=0)
-    
+
+##How to investigate background?
+##Turn wavelength into a vector. Draw from distribution Andy sent you.
+##Also apply random wavevector kick. But how big? This should be limited by
+##geometric stray light approximations. Then trace things through and
+##return list of background photons at the focal plane. This shouldn't
+##be too bad.
+
 
 def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
                 inc=1.5*pi/180,l=95.,\

@@ -433,6 +433,53 @@ subroutine tracezern(x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad)
 
 end subroutine tracezern
 
+!Trace a Zernike standard phase surface as in ZEMAX
+subroutine zernphase(x,y,z,l,m,n,ux,uy,uz,opd,num,coeff,rorder,aorder,arrsize,rad,wave)
+  !Declarations
+  implicit none
+  integer, intent(in) :: arrsize, num
+  real*8, intent(in) :: coeff(arrsize),rad,wave
+  real*8, intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num),opd(num)
+  integer, intent(in) :: rorder(arrsize),aorder(arrsize)
+  real*8 :: zern(arrsize),rhoder(arrsize),thetader(arrsize)
+  real*8 :: F,Frho,Ftheta,Frhox,Frhoy,Fthetax,Fthetay,Fx,Fy
+  real*8 :: pi,theta,rho,dum
+  integer :: i,c
+
+  pi = acos(-1.)
+
+  do i=1,num
+    !Compute the set of Zernike polynomials
+    rho = sqrt(x(i)**2+y(i)**2)
+    theta = atan2(y(i),x(i))
+    call zernset(rho/rad,theta,rorder,aorder,arrsize,zern,rhoder,thetader)
+    !Sum derivatives
+    F = 0.
+    Frho = 0.
+    Ftheta = 0.
+    do c=1,arrsize
+      F = F + coeff(c)*zern(c)
+      Frho = Frho + coeff(c)*rhoder(c)/rad
+      Ftheta = Ftheta + coeff(c)*thetader(c)
+    end do
+    !Convert to Cartesian coordinates
+    Frhox = (x(i)/rho) * Frho
+    Frhoy = (y(i)/rho) * Frho
+    Fthetax = (-y(i)/rho) * Ftheta/rho
+    Fthetay = (x(i)/rho) * Ftheta/rho
+    Fx = Frhox + Fthetax
+    Fy = Frhoy + Fthetay
+    !print *, rho,theta,Frho, Ftheta,Fx,Fy,wave
+    !read *, dum
+    !Add appropriate perturbations to ray wavevector
+    l(i) = l(i) + Fx*wave!/2/pi
+    m(i) = m(i) + Fy*wave!/2/pi
+    n(i) = sign(sqrt(1.-l(i)**2-m(i)**2),n(i))
+    opd(i) = opd(i) + F*wave
+  end do
+
+end subroutine zernphase
+
 !Function to trace set of rays to Zernike surface
 !Inputs are position and cosines of rays
 !Array of Zernike coefficients
@@ -805,6 +852,30 @@ subroutine flat(x,y,z,l,m,n,ux,uy,uz,num)
   !$omp end parallel do
 
 end subroutine flat
+
+!Trace rays to local XY plane
+subroutine flatOPD(x,y,z,l,m,n,ux,uy,uz,opd,num,nr)
+  !Declarations
+  integer, intent(in) :: num
+  real*8, intent(in) :: l(num),m(num),n(num),nr
+  real*8, intent(inout) :: x(num),y(num),z(num),ux(num),uy(num),uz(num),opd(num)
+  integer :: i
+
+  !Loop through rays
+  !$omp parallel do private(delta)
+  do i=1,num
+    delta = -z(i)/n(i)
+    z(i) = 0.
+    x(i) = x(i) + delta*l(i)
+    y(i) = y(i) + delta*m(i)
+    ux(i) = 0.
+    uy(i) = 0.
+    uz(i) = 1.
+    opd(i) = opd(i) + delta/nr
+  end do
+  !$omp end parallel do
+
+end subroutine flatOPD
 
 !Trace rays to spherical surface, center assumed to be at origin
 !Intersection taken to be the closest point to ray
@@ -1535,11 +1606,7 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
 
     !Evanescence?
     det = l(i)**2+m(i)**2
-    if (det>1) then
-      n(i) = 0.
-      m(i) = 0.
-      l(i) = 0.
-    else
+    if (det<1) then
       !Compute new direction cosines
       l(i) = l(i) + sin(yaw)*order*wave/d
       m(i) = m(i) - cos(yaw)*order*wave/d
@@ -1548,6 +1615,41 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
   end do
 
 end subroutine radgrat
+
+!Radially grooved grating diffraction with wavelength vector
+!Assumes grating in x y plane, with grooves converging at 
+!hubdist in positive y direction
+subroutine radgratW(x,y,l,m,n,wave,num,hubdist,dpermm,order)
+  !Declarations
+  integer, intent(in) :: num
+  real*8, intent(in) :: x(num),y(num)
+  real*8, intent(inout) :: l(num),m(num),n(num),wave(num)
+  real*8, intent(in) :: hubdist,dpermm,order
+  integer :: i
+  real*8 :: d, yaw, pi, dum, det
+
+  pi = acos(-1.)
+
+  !Loop through rays, compute new diffracted ray direction
+  do i=1,num
+    !Compute local d spacing in nm
+    d = dpermm * sqrt((hubdist-y(i))**2 + x(i)**2)
+    !Compute local yaw
+    yaw = pi/2 + atan(x(i)/(hubdist-y(i)))
+    !print *, x(i),y(i),d,yaw
+    !print *, l(i),m(i),n(i)
+
+    !Evanescence?
+    det = l(i)**2+m(i)**2
+    if (det<1) then
+      !Compute new direction cosines
+      l(i) = l(i) + sin(yaw)*order*wave(num)/d
+      m(i) = m(i) - cos(yaw)*order*wave(num)/d
+      n(i) = sqrt(1. - l(i)**2 - m(i)**2)
+    end if
+  end do
+
+end subroutine radgratW
 
 !Linear grating with groove period d
 !Wavelength wave

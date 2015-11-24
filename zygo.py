@@ -10,7 +10,9 @@ def readzygo(filename):
     #Read third line to get intensity shape
     for i in range(3):
         l = f.readline()
+    pdb.set_trace()
     l = l.split(' ')
+    pdb.set_trace()
     iwidth = int(l[2])
     iheight = int(l[3])
 

@@ -4,8 +4,17 @@ import PytranTrace as tran
 import zernikemod,pdb,time
 import traces.conicsolve as con
 import reconstruct
+import math
+from numbapro import cuda
 
-global x,y,z,l,m,n,ux,uy,uz
+global x,y,z,l,m,n,ux,uy,uz,opd
+
+##Get rid of global variables. Use ray vectors as input to all functions.
+##Use a flag to indicate whether arrays are on the host or the GPU.
+##This will break all currently written traces. Clean up how subarrays are
+##handled by coding functions to create the temporary arrays.
+##OPD is only needed for visible optics simulations.
+##Get OPD working first, then get rid of the global variables.
 
 def transform(tx,ty,tz,rx,ry,rz,ind=None):
     """Coordinate transformation. translations are done first,
@@ -45,7 +54,7 @@ def reflect(ind=None):
         tran.reflect(l,m,n,ux,uy,uz)
     return
 
-def flat(ind=None):
+def flat(ind=None,nr=None):
     """Trace rays to the XY plane
     """
     global x,y,z,l,m,n,ux,uy,uz
@@ -57,6 +66,8 @@ def flat(ind=None):
         x[ind],y[ind],z[ind],\
         l[ind],m[ind],n[ind],\
         ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+    elif nr is not None:
+        tran.flatopd(x,y,z,l,m,n,ux,uy,uz,opd,nr)
     else:
         tran.flat(x,y,z,l,m,n,ux,uy,uz)
     return
@@ -78,6 +89,19 @@ def zernsurf(coeff,rad,rorder=None,aorder=None):
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
     tran.tracezern(x,y,z,l,m,n,ux,uy,uz,coeff,\
                    np.array(rorder),np.array(aorder),rad)
+    rho = np.sqrt(x**2+y**2)
+    ind = np.where(rho<=rad)
+    vignette(ind=ind)
+    return
+
+def zernphase(coeff,rad,wave,rorder=None,aorder=None):
+    """Wrapper for standard Zernike phase surface. Supply
+    wavelength in mm, radius in mm, coeff in mm."""
+    global x,y,z,l,m,n,ux,uy,uz
+    if rorder is None:
+        rorder,aorder = zernikemod.zmodes(np.size(coeff))
+    tran.zernphase(x,y,z,l,m,n,ux,uy,uz,opd,coeff,\
+                   np.array(rorder),np.array(aorder),rad,wave)
     rho = np.sqrt(x**2+y**2)
     ind = np.where(rho<=rad)
     vignette(ind=ind)
@@ -298,6 +322,28 @@ def radgrat(hubdist,dpermm,order,wave,ind=None):
         tran.radgrat(x,y,l,m,n,hubdist,dpermm,order,wave)
     return
 
+#Trying CUDA
+@cuda.jit('void(double,double,double,double,'
+          'double[:],double[:],double[:],double[:],double[:],double[:])')
+def radgratC(hubdist,dpermm,order,wave,x,y,z,l,m,n):
+    """Test
+    """
+    i = cuda.grid(1)
+
+    if i >= x.shape[0]:
+        return
+
+    d = dpermm * math.sqrt((hubdist-y[i])**2 + x[i]**2)
+    yaw = math.pi/2 + math.atan(x[i]/(hubdist-y[i]))
+
+    det = l[i]**2 + m[i]**2
+
+    if det<1:
+        l[i] = l[i] + math.sin(yaw)*order*wave/d
+        m[i] = m[i] - math.cos(yaw)*order*wave/d
+        n[i] = math.sqrt(1.-l[i]**2-m[i]**2)
+    
+
 def grat(d,order,wave):
     """Linear grating with groove direction in +y
     Evanescence results in position vector set to zero
@@ -406,11 +452,12 @@ def pointsource(ang,num):
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
+    opd = np.repeat(0.,num)
     return
 
 #Define uniform, circular beam of radius rad, pointing in +z direction
 def circularbeam(rad,num):
-    global x,y,z,l,m,n,ux,uy,uz
+    global x,y,z,l,m,n,ux,uy,uz,opd
     rho = np.sqrt(np.random.rand(num))*rad
     theta = np.random.rand(num)*2*np.pi
     x = rho*np.cos(theta)
@@ -422,6 +469,7 @@ def circularbeam(rad,num):
     ux = np.copy(l)
     uy = np.copy(l)
     uz = np.copy(l)
+    opd = np.copy(l)
     return
 
 #Define annulus of rays pointing in +z direction
@@ -438,6 +486,7 @@ def annulus(rin,rout,num):
     ux = np.copy(l)
     uy = np.copy(l)
     uz = np.copy(l)
+    opd = np.copy(l)
     return
 
 def subannulus(rin,rout,dphi,num):
@@ -456,6 +505,7 @@ def subannulus(rin,rout,dphi,num):
     ux = np.copy(l)
     uy = np.copy(l)
     uz = np.copy(l)
+    opd = np.copy(l)
     return
 
 #Converging beam
@@ -477,6 +527,7 @@ def convergingbeam(zset,rin,rout,tmin,tmax,num,lscat):
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
+    opd = np.repeat(0.,num)
     return
 
 #Converging beam
@@ -498,11 +549,12 @@ def convergingbeam2(zset,xmin,xmax,ymin,ymax,num,lscat):
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
+    opd = np.repeat(0.,num)
     return
 
 #Rectangular beam pointing in +z direction
 def rectbeam(xhalfwidth,yhalfwidth,num):
-    global x,y,z,l,m,n,ux,uy,uz
+    global x,y,z,l,m,n,ux,uy,uz,opd
     x = (np.random.rand(num)-.5)*2*xhalfwidth
     y = (np.random.rand(num)-.5)*2*yhalfwidth
     z = np.repeat(0.,num)
@@ -512,6 +564,7 @@ def rectbeam(xhalfwidth,yhalfwidth,num):
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
+    opd = np.repeat(0.,num)
     return
     
 ####### Lenses ##########
@@ -761,3 +814,29 @@ def referencedWavefront(xang,yang,phase,xang2,yang2,phase2):
     influence[ind] = NaN
 
     return influence
+
+##############CUDA ROUTINES################3
+def transferToGPU():
+    """Get rays transfered to the GPU shared memory"""
+    xg = cuda.to_device(x)
+    yg = cuda.to_device(y)
+    zg = cuda.to_device(z)
+    lg = cuda.to_device(l)
+    mg = cuda.to_device(m)
+    ng = cuda.to_device(n)
+    uxg = cuda.to_device(ux)
+    uyg = cuda.to_device(uy)
+    uzg = cuda.to_device(uz)
+    return [xg,yg,zg,lg,mg,ng,uxg,uyg,uzg]
+
+def returnFromGPU(xg,yg,zg,lg,mg,ng,uxg,uyg,uzg):
+    """Get rays from GPU shared memory back to host"""
+    xg.copy_to_host(x)
+    yg.copy_to_host(y)
+    zg.copy_to_host(z)
+    lg.copy_to_host(l)
+    mg.copy_to_host(m)
+    ng.copy_to_host(n)
+    uxg.copy_to_host(ux)
+    uyg.copy_to_host(uy)
+    uzg.copy_to_host(uz)
