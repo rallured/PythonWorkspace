@@ -1,4 +1,0 @@
-recursive-include Lib *
-recursive-include Doc *
-include MANIFEST.in
-include COPYING

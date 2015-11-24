@@ -1,1 +1,0 @@
-plot 'kov.txt' u 1:2 w l

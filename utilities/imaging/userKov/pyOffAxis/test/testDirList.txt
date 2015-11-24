@@ -1,2 +1,0 @@
-testdir1
-testdir2
