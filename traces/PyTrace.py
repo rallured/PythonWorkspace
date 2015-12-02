@@ -16,11 +16,11 @@ global x,y,z,l,m,n,ux,uy,uz,opd
 ##OPD is only needed for visible optics simulations.
 ##Get OPD working first, then get rid of the global variables.
 
-def transform(tx,ty,tz,rx,ry,rz,ind=None):
+def transform(rays,tx,ty,tz,rx,ry,rz,ind=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
     """
-    global x,y,z,l,m,n,ux,uy,uz
+    x,y,z,l,m,n,ux,uy,uz = rays[1:]
     if ind is not None:
         tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
                                         l[ind],m[ind],n[ind],\
@@ -34,18 +34,18 @@ def transform(tx,ty,tz,rx,ry,rz,ind=None):
     return
 
 
-def itransform(tx,ty,tz,rx,ry,rz):
+def itransform(rays,tx,ty,tz,rx,ry,rz):
     """Inverse of coordinate transformations. -rz,-ry,-rx then
     translations.
     """
-    global x,y,z,l,m,n,ux,uy,uz
+    x,y,z,l,m,n,ux,uy,uz = rays[1:]
     tran.itransform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
     return
 
-def reflect(ind=None):
+def reflect(rays,ind=None):
     """Reflect rays based on surface normal
     """
-    global l,m,n,ux,uy,uz
+    l,m,n,ux,uy,uz = rays[4:]
     if ind is not None:
         tl,tm,tn,tux,tuy,tuz = l[ind],m[ind],n[ind],ux[ind],uy[ind],uz[ind]
         tran.reflect(tl,tm,tn,tux,tuy,tuz)
@@ -54,10 +54,10 @@ def reflect(ind=None):
         tran.reflect(l,m,n,ux,uy,uz)
     return
 
-def flat(ind=None,nr=None):
+def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
     """
-    global x,y,z,l,m,n,ux,uy,uz
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
     if ind is not None:
         tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
                                         l[ind],m[ind],n[ind],\
