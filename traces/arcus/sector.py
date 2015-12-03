@@ -157,66 +157,56 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     tux = np.zeros(M*N)
     tuy = np.zeros(M*N)
     tuz = np.zeros(M*N)
+    trays = [tx,ty,tz,tl,tm,tn,tux,tuy,tuz]
 
     #Loop through shell radii and collect rays
     ref = np.zeros(M*N)
     for i in range(M):
         #Set up source annulus
-        PT.subannulus(R[i],R[i]+d,spanv[i],N)
+        rays = PT.subannulus(R[i],R[i]+d,spanv[i],N)
+        x,y,z,l,m,n,ux,uy,uz = rays[1:]
         #Transform rays to be above xy plane
-        PT.n = -PT.n
-        PT.transform(0,0,-100.,0,0,0)
+        n = -n
+        PT.transform(rays,0,0,-100.,0,0,0)
         #Trace to primary
-        PT.spoPrimary(R[i],F)
-        PT.reflect()
+        PT.spoPrimary(rays,R[i],F)
+        PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz)
+        inc = np.arcsin(l*ux+m*uy+n*uz)
         refl = CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(PT.z<=L[i],PT.z>=0.)
+        ind  = np.logical_and(z<=L[i],z>=0.)
         if np.sum(ind) < N:
             pdb.set_trace()
-        PT.vignette(np.logical_and(PT.z<=L[i],PT.z>=0.))
+        PT.vignette(rays,np.logical_and(z<=L[i],z>=0.))
         #Trace to secondary
-        PT.spoSecondary(R[i],F)
-        PT.reflect()
+        PT.spoSecondary(rays,R[i],F)
+        PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz)
+        inc = np.arcsin(l*ux+m*uy+n*uz)
         ref[i*N:(i+1)*N] = refl * CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(PT.z<=0.,PT.z>=-L[i])
+        ind  = np.logical_and(z<=0.,z>=-L[i])
         if np.sum(ind) < N:
             pdb.set_trace()
-        PT.vignette(ind)
+        PT.vignette(rays,ind)
         #Collect rays
         try:
-            tx[i*N:(i+1)*N] = PT.x
-            ty[i*N:(i+1)*N] = PT.y
-            tz[i*N:(i+1)*N] = PT.z
-            tl[i*N:(i+1)*N] = PT.l
-            tm[i*N:(i+1)*N] = PT.m
-            tn[i*N:(i+1)*N] = PT.n
-            tux[i*N:(i+1)*N] = PT.ux
-            tuy[i*N:(i+1)*N] = PT.uy
-            tuz[i*N:(i+1)*N] = PT.uz
+##            tx[i*N:(i+1)*N] = PT.x
+##            ty[i*N:(i+1)*N] = PT.y
+##            tz[i*N:(i+1)*N] = PT.z
+##            tl[i*N:(i+1)*N] = PT.l
+##            tm[i*N:(i+1)*N] = PT.m
+##            tn[i*N:(i+1)*N] = PT.n
+##            tux[i*N:(i+1)*N] = PT.ux
+##            tuy[i*N:(i+1)*N] = PT.uy
+##            tuz[i*N:(i+1)*N] = PT.uz
+            for i in range(1,7):
+                trays[i][i*N:(i+1)*N] = rays[i]
         except:
             pdb.set_trace()
 
-    #Set to PT rays
-    try:
-        PT.x = tx
-        PT.y = ty
-        PT.z = tz
-        PT.l = tl
-        PT.m = tm
-        PT.n = tn
-        PT.ux = tux
-        PT.uy = tuy
-        PT.uz = tuz
-    except:
-        pdb.set_trace()
-
-    return ref
+    return trays,ref
 
 def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
               order=0,blazeYaw=0.,wave=1.):
