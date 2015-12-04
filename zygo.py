@@ -2,6 +2,15 @@ from numpy import *
 from matplotlib.pyplot import *
 import pdb
 
+def removeCarriageReturn(filename):
+    f = open(filename)
+    fh = open(filename.split('.')[0]+'.rmv',mode='w')
+    for line in f:
+        line = line.rstrip()
+        fh.write(line+'\n')
+    f.close()
+    fh.close()
+
 #Read in Zygo ASCII file
 def readzygo(filename):
     #Open file
@@ -10,9 +19,7 @@ def readzygo(filename):
     #Read third line to get intensity shape
     for i in range(3):
         l = f.readline()
-    pdb.set_trace()
     l = l.split(' ')
-    pdb.set_trace()
     iwidth = int(l[2])
     iheight = int(l[3])
 
@@ -52,6 +59,7 @@ def readzygo(filename):
     while (l[0]!='#'):
         #Convert to array of floats
         l = array(l.split(' '))
+        pdb.set_trace()
         l = l[:-1].astype('float')
         #Merge into intensity array
         try:
@@ -70,9 +78,12 @@ def readzygo(filename):
     #Read phase array
     l = f.readline()
     while (l!=''):
-        #Convert to array of floats
-        l = array(l.split(' '))
-        l = l[:-1].astype('float')
+        try:
+            #Convert to array of floats
+            l = array(l.split(' '))
+            l = l[:-1].astype('float')
+        except:
+            pdb.set_trace()
         #Merge into intensity array
         try:
             phase = concatenate((phase,l))

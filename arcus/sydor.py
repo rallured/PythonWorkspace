@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.ndimage import rotate
-from zygo import readzygo
+import zygo
 import pdb,glob
 import matplotlib.pyplot as plt
 
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 def slopeStatistics(filename):
     #Load image
-    i,phase,lat = readzygo(filename)
+    i,phase,lat = zygo.readzygo(filename)
     lat = lat*1000.
     #Fill missing values with mean value of image
     phase[np.isnan(phase)] = np.nanmean(phase)
