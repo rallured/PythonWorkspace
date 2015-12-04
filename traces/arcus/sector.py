@@ -148,16 +148,7 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     radius is less than Rout.
     """
     #Ray bookkeeping arrays
-    tx = np.zeros(M*N)
-    ty = np.zeros(M*N)
-    tz = np.zeros(M*N)
-    tl = np.zeros(M*N)
-    tm = np.zeros(M*N)
-    tn = np.zeros(M*N)
-    tux = np.zeros(M*N)
-    tuy = np.zeros(M*N)
-    tuz = np.zeros(M*N)
-    trays = [tx,ty,tz,tl,tm,tn,tux,tuy,tuz]
+    trays = [np.zeros(M*N)]*10
 
     #Loop through shell radii and collect rays
     ref = np.zeros(M*N)
@@ -208,33 +199,31 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
 
     return trays,ref
 
-def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
-              order=0,blazeYaw=0.,wave=1.):
+def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
+              weights=None,order=0,blazeYaw=0.,wave=1.):
     """Trace rays leaving SPO petal to the fanned grating array.
     Start with outermost radius and rotate grating array about
     the hub. Define outermost grating position by max ray radius
     at desired axial height.
     Rays have been traced to bottom of outermost grating.
     """
-    x0 = np.copy(PT.x)
-    y0 = np.copy(PT.y)
+    x,y = rays[1:3]
     #Put origin at bottom of outermost grating
-    PT.transform(outerrad,0,0,0,0,0)
+    PT.transform(rays,outerrad,0,0,0,0,0)
     #Go to proper incidence angle of grating
-    PT.transform(0,0,0,0,0,-pi/2)
-    PT.transform(0,0,0,-pi/2-angle+inc,0,0)
+    PT.transform(rays,0,0,0,0,0,-pi/2)
+    PT.transform(rays,0,0,0,-pi/2-angle+inc,0,0)
     #Go to hub
-    PT.transform(0,0,0,0,0,blazeYaw) #Put in blaze
-    PT.transform(0,hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,0,0,blazeYaw) #Put in blaze
+    PT.transform(rays,0,hubdist,0,0,0,0)
     #Trace out gratings until no rays hit a grating
     #Flat
     #Indices
     #Reflect
     #Apply Grating
     #Next
-    PT.flat()
+    PT.flat(rays)
     rho = -sqrt(PT.x**2+PT.y**2)*np.sign(PT.y)
-    #ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
     ind = np.logical_and(rho>hubdist,rho<l+hubdist)
     ind2 = np.copy(ind)
     ang = l*sin(inc)/hubdist*.95
@@ -243,11 +232,11 @@ def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
     prev = np.copy(ind)
     while np.sum(ind2)>0:
         i = i+1
-        PT.reflect(ind=ind2)
-        PT.radgrat(0.,160./hubdist,order,wave,ind=ind2)
-        PT.transform(0,0,0,ang,0,0)
-        PT.flat()
-        rho = -sqrt(PT.x**2+PT.y**2)*np.sign(PT.y)
+        PT.reflect(rays,ind=ind2)
+        PT.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
+        PT.transform(rays,0,0,0,ang,0,0)
+        PT.flat(rays)
+        rho = -sqrt(x**2+y**2)*np.sign(y)
         prev = np.logical_or(prev,ind) #Add rays hitting new grating
         ind = np.logical_and(rho>hubdist,rho<l+hubdist)
         #ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
@@ -256,27 +245,27 @@ def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
         #sys.stdout.flush()
 
     #Go to focal plane
-    PT.transform(0,-hubdist,0,0,0,0)
-    PT.transform(0,0,0,0,0,-blazeYaw) #Reverse blaze
-    PT.transform(0,hubdist,0,0,0,0)
-    PT.transform(0,0,0,-ang*i+pi/2+angle-inc,0,0)
-    PT.transform(0,0,0,0,0,pi/2)
-    PT.flat()
+    PT.transform(rays,0,-hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,0,0,-blazeYaw) #Reverse blaze
+    PT.transform(rays,0,hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,-ang*i+pi/2+angle-inc,0,0)
+    PT.transform(rays,0,0,0,0,0,pi/2)
+    PT.flat(rays)
     
     #Find focus
     if bestFocus is None:
         #Close analytic answer
-        an = PT.analyticYPlane(weights=weights)
-        PT.transform(0,0,an,0,0,0)
-        PT.flat()
+        an = PT.analyticYPlane(rays,weights=weights)
+        PT.transform(rays,0,0,an,0,0,0)
+        PT.flat(rays)
         #Scanned answer
         #sc = PT.findlineplane(5.,100,weights=weights)
         return an#+sc
         
 
     #Focus already found, tracing diffracted line
-    PT.transform(0,0,bestFocus,0,0,0)
-    PT.flat()
+    PT.transform(rays,0,0,bestFocus,0,0,0)
+    PT.flat(rays)
 
     return None
     
