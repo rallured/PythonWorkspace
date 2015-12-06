@@ -17,6 +17,13 @@ def blazeAngle(inc,wave,m,d):
     alpha1 = cos(inc)*sin(psi)-m*wave/d
     return np.arcsin(alpha1/cos(np.arcsin(beta1)))
 
+def litBetaAlpha(inc,wave,m,d):
+    """Determine the cone angle (gamma) at the Littrow condition"""
+    psi = blazeYaw(inc,wave,m,d)
+    beta1 = cos(inc)*cos(psi)
+    alpha1 = cos(inc)*sin(psi)-m*wave/d
+    return beta1,alpha1
+
 def blazeAngle2(inc,wave,m,d):
     a = m*wave/2/d
     return np.arcsin(a/sqrt(1-cos(inc)**2+a**2))
