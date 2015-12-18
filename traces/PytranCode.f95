@@ -434,7 +434,7 @@ subroutine tracezern(x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad)
 end subroutine tracezern
 
 !Trace a Zernike standard phase surface as in ZEMAX
-subroutine zernphase(x,y,z,l,m,n,ux,uy,uz,opd,num,coeff,rorder,aorder,arrsize,rad,wave)
+subroutine zernphase(opd,x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad,wave)
   !Declarations
   implicit none
   integer, intent(in) :: arrsize, num
@@ -929,6 +929,55 @@ subroutine tracesphere(x,y,z,l,m,n,ux,uy,uz,num,rad)
 
 end subroutine tracesphere
 
+!Trace rays to spherical surface, center assumed to be at origin
+!Intersection taken to be the closest point to ray
+subroutine tracesphereOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,rad,nr)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8, intent(in) :: rad,nr
+  real*8 , intent(inout) :: opd(num),x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  integer :: i
+  real*8 :: mago, dotol, determinant, d1, d2
+
+  !Loop through rays
+  !$omp parallel do private(dotol,mago,determinant,d1,d2)
+  do i=1,num
+    !Compute dot product
+    dotol= l(i)*x(i) + m(i)*y(i) + n(i)*z(i)
+    mago = x(i)**2. + y(i)**2. + z(i)**2.
+    !Compute distance to move rays
+    determinant = dotol**2 - mago + rad**2
+    !If ray does not intersect, set position and cosine vector to NaN
+    if (determinant < 0) then
+      x(i) = 0.
+      y(i) = 0.
+      z(i) = 0.
+      l(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
+    else
+      d1 = -dotol + sqrt(determinant)
+      d2 = -dotol - sqrt(determinant)
+      if (abs(d2) < abs(d1)) then
+        d1 = d2
+      end if
+      x(i) = x(i) + d1*l(i)
+      y(i) = y(i) + d1*m(i)
+      z(i) = z(i) + d1*n(i)
+      opd(i) = opd(i) + d1/nr
+    end if
+    !Compute surface normal, just normalized position vector
+    mago = sqrt(x(i)**2 + y(i)**2 + z(i)**2)
+    ux(i) = x(i)/mago
+    uy(i) = y(i)/mago
+    uz(i) = z(i)/mago
+  end do
+  !$omp end parallel do
+
+end subroutine tracesphereOPD
+
+
 !Traces onto a cylinder
 !Center is assumed to be at origin, y axis is cylindrical axis
 subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
@@ -976,6 +1025,55 @@ subroutine tracecyl(x,y,z,l,m,n,ux,uy,uz,num,rad)
   !$omp end parallel do
 
 end subroutine tracecyl
+
+!Traces onto a cylinder
+!Center is assumed to be at origin, y axis is cylindrical axis
+subroutine tracecylOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,rad,nr)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8, intent(in) :: rad,nr
+  real*8 , intent(inout) :: opd(num),x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  integer :: i
+  real*8 :: a,b,c,mag,d1,d2,det,dum
+
+  !$omp parallel do private(a,b,c,det,mag,d1,d2)
+  !Compute a,b,c terms in quadratic solution for distance to move rays
+  do i=1,num
+    a = l(i)**2 + n(i)**2
+    b = 2*(x(i)*l(i)+z(i)*n(i))
+    c = x(i)**2 + z(i)**2 - rad**2
+    !Compute determinant, if < 0, set ray to 0's
+    det = b**2 - 4*a*c
+    if (det < 0) then
+      x(i) = 0.
+      y(i) = 0.
+      z(i) = 0.
+      l(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
+    else
+      !Find smallest distance to cylinder
+      d1 = (-b + sqrt(det))/2/a
+      d2 = (-b - sqrt(det))/2/a
+      if (abs(d2) < abs(d1)) then
+        d1 = d2
+      end if
+      !Move ray
+      x(i) = x(i) + l(i)*d1
+      y(i) = y(i) + m(i)*d1
+      z(i) = z(i) + n(i)*d1
+      opd(i) = opd(i) + d1/nr
+    end if
+    !Compute surface normal
+    mag = sqrt(x(i)**2+z(i)**2)
+    ux(i) = x(i)/mag
+    uz(i) = z(i)/mag
+    uy(i) = 0.
+  end do
+  !$omp end parallel do
+
+end subroutine tracecylOPD
 
 !This routine traces rays to a cylindrical conic surface
 !z axis is cylindrical axis, rays have been traced to the xy

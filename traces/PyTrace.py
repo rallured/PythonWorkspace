@@ -55,15 +55,15 @@ def reflect(rays,ind=None):
 def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
     """
-    opd,x,y,z,l,m,n,ux,uy,uz = rays
+    x,y,z,l,m,n,ux,uy,uz = rays[1:]
     if ind is not None:
-        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
-                                        l[ind],m[ind],n[ind],\
-                                        ux[ind],uy[ind],uz[ind]
-        tran.flat(tx,ty,tz,tl,tm,tn,tux,tuy,tuz)
-        x[ind],y[ind],z[ind],\
-        l[ind],m[ind],n[ind],\
-        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+        #Temporary array
+        trays = [rays[i][ind] for i in range(10)]
+        #Trace
+        tran.flat(*trays[1:])
+        #Copy back to original
+        for i in range(1,10):
+            rays[i][ind] = trays[i]
     elif nr is not None:
         tran.flatopd(x,y,z,l,m,n,ux,uy,uz,opd,nr)
     else:
@@ -79,9 +79,10 @@ def refract(rays,n1,n2):
     tran.refract(l,m,n,ux,uy,uz,n1,n2)
     return
 
-#Wrapper for Zernike surface
-#Coordinates are usual arctan2(y,x)
 def zernsurf(rays,coeff,rad,rorder=None,aorder=None):
+    """Wrapper for Zernike surface
+    Coordinates are usual arctan2(y,x)
+    """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     if rorder is None:
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
@@ -95,14 +96,14 @@ def zernsurf(rays,coeff,rad,rorder=None,aorder=None):
 def zernphase(rays,coeff,rad,wave,rorder=None,aorder=None):
     """Wrapper for standard Zernike phase surface. Supply
     wavelength in mm, radius in mm, coeff in mm."""
-    x,y,z,l,m,n,ux,uy,uz = rays
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
     if rorder is None:
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
-    tran.zernphase(x,y,z,l,m,n,ux,uy,uz,opd,coeff,\
+    tran.zernphase(opd,x,y,z,l,m,n,ux,uy,uz,coeff,\
                    np.array(rorder),np.array(aorder),rad,wave)
     rho = np.sqrt(x**2+y**2)
     ind = np.where(rho<=rad)
-    vignette(ind=ind)
+    rays = vignette(rays,ind=ind)
     return
 
 #Wrapper for Zernike surface with 2 Zernike sets and one with
