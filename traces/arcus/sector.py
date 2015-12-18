@@ -37,7 +37,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
     #Get axial offset at design wavelength
     bestFoc = traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
                 inc=inc,l=l,order=-3,\
-                blazeYaw=blazeYaw,wave=2.4)[0]
+                blazeYaw=blazeYaw,wave=2.4)
     
     #Get axial offset at nominal focus - this sets the
     #focal plane tilt angle
@@ -55,7 +55,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
     for i in range(np.size(wave)):
         b,r,a = 0.,0.,0.
         if geff(wave[i]) > 0.:
-            b,r,a = traceSector(Rin,Rout,F,N,span=span,d=d,\
+            r,a = traceSector(Rin,Rout,F,N,span=span,d=d,\
                             t=t,gap=gap,inc=inc,l=l,\
                             wave=wave[i],blazeYaw=blazeYaw,\
                             bestFocus=bestFoc,order=order,marg=marg)
@@ -90,13 +90,13 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         weights[i*N:(i+1)*N] = ((R[i]+d)**2-R[i]**2) * spanv[i]/2 / 10000.
 
     #Trace rays through SPO modules
-    refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
+    rays,refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
     weights = weights*refl
 
     #Determine outermost radius of grating array
-    PT.transform(0,0,-(L.max()+gap+95.),0,0,0)
-    PT.flat()
-    outerrad = np.max(sqrt(PT.x**2+PT.y**2))
+    PT.transform(rays,0,0,-(L.max()+gap+95.),0,0,0)
+    PT.flat(rays)
+    outerrad = np.max(sqrt(rays[1]**2+rays[2]**2))
     hubdist = sqrt(outerrad**2 + (F-(L.max()+gap+95.))**2)
     angle = np.arctan(outerrad/(F-(L.max()+gap+95.)))
     thetag = angle - 1.5*pi/180.
@@ -104,41 +104,44 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
     if bestFocus is None:
-        bestFocus = gratArray(outerrad,hubdist,angle,inc,l=l,\
+        return gratArray(rays,outerrad,hubdist,angle,inc,l=l,\
                          weights=weights,order=-3,blazeYaw=blazeYaw,\
                          wave=2.4)
-        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
-                inc=inc,l=l,bestFocus=bestFocus,order=order,\
-                blazeYaw=blazeYaw,wave=wave,marg=marg)
+##        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
+##                inc=inc,l=l,bestFocus=bestFocus,order=order,\
+##                blazeYaw=blazeYaw,wave=wave,marg=marg)
         
-    else:
-        gratArray(outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
+    gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave)
 
     #Get rid of rays that made it through
-    ind = PT.x > 0
-    PT.vignette(ind=ind)
+    ind = rays[1] > 0
+    rays = PT.vignette(rays,ind=ind)
     weights = weights[ind]
     #Get rid of outliers
-    ind = np.abs(PT.y-np.average(PT.y))<10.
-    PT.vignette(ind=ind)
+    ind = np.abs(rays[2]-np.average(rays[2]))<10.
+    rays = PT.vignette(rays,ind=ind)
     weights = weights[ind]
 
     #If no rays made it through
-    if np.size(PT.x)==0:
+    if np.size(rays[1])==0:
         return 0,0,0
 
     #Look at resolution of this line
-    cy = np.average(PT.y,weights=weights)
-    lsf = sqrt((PT.rmsY(weights=weights)*1.35)**2 + (1.5/60**2*pi/180*F)**2\
-          + (marg/60**2*pi/180*F)**2)
+    try:
+        cy = np.average(rays[2],weights=weights)
+    except:
+        pdb.set_trace()
+    lsf = sqrt((PT.rmsY(rays,weights=weights)*1.35)**2 + \
+               (1.5/60**2*pi/180*F)**2\
+               + (marg/60**2*pi/180*F)**2)
     resolution = cy/lsf
     area = np.sum(weights)*.799*.83*.8*.8#Grat plates, azimuthal ribs, packing^2
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
     
-    return bestFocus, resolution, area
+    return resolution, area
 
 def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     """Trace SPO surfaces sequentially. Collect rays from
@@ -148,116 +151,97 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     radius is less than Rout.
     """
     #Ray bookkeeping arrays
-    tx = np.zeros(M*N)
-    ty = np.zeros(M*N)
-    tz = np.zeros(M*N)
-    tl = np.zeros(M*N)
-    tm = np.zeros(M*N)
-    tn = np.zeros(M*N)
-    tux = np.zeros(M*N)
-    tuy = np.zeros(M*N)
-    tuz = np.zeros(M*N)
+    trays = [np.zeros(M*N) for n in range(10)]
 
     #Loop through shell radii and collect rays
     ref = np.zeros(M*N)
     for i in range(M):
         #Set up source annulus
-        PT.subannulus(R[i],R[i]+d,spanv[i],N)
+        rays = PT.subannulus(R[i],R[i]+d,spanv[i],N)
+        z,n = rays[3],rays[6]
         #Transform rays to be above xy plane
-        PT.n = -PT.n
-        PT.transform(0,0,-100.,0,0,0)
+        PT.transform(rays,0,0,0,pi,0,0)#n = -n
+        PT.transform(rays,0,0,-100.,0,0,0)
         #Trace to primary
-        PT.spoPrimary(R[i],F)
-        PT.reflect()
+        PT.spoPrimary(rays,R[i],F)
+        PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz)
+        inc = PT.grazeAngle(rays)#np.arcsin(l*ux+m*uy+n*uz)
         refl = CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(PT.z<=L[i],PT.z>=0.)
+        ind  = np.logical_and(rays[3]<=L[i],rays[3]>=0.)
         if np.sum(ind) < N:
             pdb.set_trace()
-        PT.vignette(np.logical_and(PT.z<=L[i],PT.z>=0.))
+        PT.vignette(rays,ind)
         #Trace to secondary
-        PT.spoSecondary(R[i],F)
-        PT.reflect()
+        PT.spoSecondary(rays,R[i],F)
+        PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz)
+        inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
         ref[i*N:(i+1)*N] = refl * CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(PT.z<=0.,PT.z>=-L[i])
+        ind  = np.logical_and(rays[3]<=0.,rays[3]>=-L[i])
         if np.sum(ind) < N:
             pdb.set_trace()
-        PT.vignette(ind)
+        PT.vignette(rays,ind)
         #Collect rays
         try:
-            tx[i*N:(i+1)*N] = PT.x
-            ty[i*N:(i+1)*N] = PT.y
-            tz[i*N:(i+1)*N] = PT.z
-            tl[i*N:(i+1)*N] = PT.l
-            tm[i*N:(i+1)*N] = PT.m
-            tn[i*N:(i+1)*N] = PT.n
-            tux[i*N:(i+1)*N] = PT.ux
-            tuy[i*N:(i+1)*N] = PT.uy
-            tuz[i*N:(i+1)*N] = PT.uz
+##            tx[i*N:(i+1)*N] = PT.x
+##            ty[i*N:(i+1)*N] = PT.y
+##            tz[i*N:(i+1)*N] = PT.z
+##            tl[i*N:(i+1)*N] = PT.l
+##            tm[i*N:(i+1)*N] = PT.m
+##            tn[i*N:(i+1)*N] = PT.n
+##            tux[i*N:(i+1)*N] = PT.ux
+##            tuy[i*N:(i+1)*N] = PT.uy
+##            tuz[i*N:(i+1)*N] = PT.uz
+            for t in range(1,7):
+                temp = trays[t]
+                temp[i*N:(i+1)*N] = rays[t]
         except:
             pdb.set_trace()
 
-    #Set to PT rays
-    try:
-        PT.x = tx
-        PT.y = ty
-        PT.z = tz
-        PT.l = tl
-        PT.m = tm
-        PT.n = tn
-        PT.ux = tux
-        PT.uy = tuy
-        PT.uz = tuz
-    except:
-        pdb.set_trace()
+    return trays,ref
 
-    return ref
-
-def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
-              order=0,blazeYaw=0.,wave=1.):
+def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
+              weights=None,order=0,blazeYaw=0.,wave=1.):
     """Trace rays leaving SPO petal to the fanned grating array.
     Start with outermost radius and rotate grating array about
     the hub. Define outermost grating position by max ray radius
     at desired axial height.
     Rays have been traced to bottom of outermost grating.
     """
-    x0 = np.copy(PT.x)
-    y0 = np.copy(PT.y)
+    x,y = rays[1:3]
     #Put origin at bottom of outermost grating
-    PT.transform(outerrad,0,0,0,0,0)
+    PT.transform(rays,outerrad,0,0,0,0,0)
     #Go to proper incidence angle of grating
-    PT.transform(0,0,0,0,0,-pi/2)
-    PT.transform(0,0,0,-pi/2-angle+inc,0,0)
+    PT.transform(rays,0,0,0,0,0,-pi/2)
+    PT.transform(rays,0,0,0,-pi/2-angle+inc,0,0)
     #Go to hub
-    PT.transform(0,0,0,0,0,blazeYaw) #Put in blaze
-    PT.transform(0,hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,0,0,blazeYaw) #Put in blaze
+    PT.transform(rays,0,hubdist,0,0,0,0)
     #Trace out gratings until no rays hit a grating
     #Flat
     #Indices
     #Reflect
     #Apply Grating
     #Next
-    PT.flat()
-    rho = -sqrt(PT.x**2+PT.y**2)*np.sign(PT.y)
-    #ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
+    PT.flat(rays)
+    rho = -sqrt(x**2+y**2)*np.sign(y)
     ind = np.logical_and(rho>hubdist,rho<l+hubdist)
     ind2 = np.copy(ind)
     ang = l*sin(inc)/hubdist*.95
     
     i = 0
     prev = np.copy(ind)
+    ###This is broken again
     while np.sum(ind2)>0:
         i = i+1
-        PT.reflect(ind=ind2)
-        PT.radgrat(0.,160./hubdist,order,wave,ind=ind2)
-        PT.transform(0,0,0,ang,0,0)
-        PT.flat()
-        rho = -sqrt(PT.x**2+PT.y**2)*np.sign(PT.y)
+        PT.reflect(rays,ind=ind2)
+        PT.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
+        PT.transform(rays,0,0,0,ang,0,0)
+        PT.flat(rays)
+        rho = -sqrt(x**2+y**2)*np.sign(y)
         prev = np.logical_or(prev,ind) #Add rays hitting new grating
         ind = np.logical_and(rho>hubdist,rho<l+hubdist)
         #ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
@@ -266,27 +250,20 @@ def gratArray(outerrad,hubdist,angle,inc,l=95.,bestFocus=None,weights=None,\
         #sys.stdout.flush()
 
     #Go to focal plane
-    PT.transform(0,-hubdist,0,0,0,0)
-    PT.transform(0,0,0,0,0,-blazeYaw) #Reverse blaze
-    PT.transform(0,hubdist,0,0,0,0)
-    PT.transform(0,0,0,-ang*i+pi/2+angle-inc,0,0)
-    PT.transform(0,0,0,0,0,pi/2)
-    PT.flat()
+    PT.transform(rays,0,-hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,0,0,-blazeYaw) #Reverse blaze
+    PT.transform(rays,0,hubdist,0,0,0,0)
+    PT.transform(rays,0,0,0,-ang*i+pi/2+angle-inc,0,0)
+    PT.transform(rays,0,0,0,0,0,pi/2)
+    PT.flat(rays)
     
     #Find focus
     if bestFocus is None:
-        #Close analytic answer
-        an = PT.analyticYPlane(weights=weights)
-        PT.transform(0,0,an,0,0,0)
-        PT.flat()
-        #Scanned answer
-        #sc = PT.findlineplane(5.,100,weights=weights)
-        return an#+sc
-        
+        return PT.analyticYPlane(rays,weights=weights)
 
     #Focus already found, tracing diffracted line
-    PT.transform(0,0,bestFocus,0,0,0)
-    PT.flat()
+    PT.transform(rays,0,0,bestFocus,0,0,0)
+    PT.flat(rays)
 
     return None
     
