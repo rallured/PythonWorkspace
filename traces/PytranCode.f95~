@@ -837,6 +837,7 @@ subroutine flat(x,y,z,l,m,n,ux,uy,uz,num)
   real*8, intent(in) :: l(num),m(num),n(num)
   real*8, intent(inout) :: x(num),y(num),z(num),ux(num),uy(num),uz(num)
   integer :: i
+  real*8 :: dummy
 
   !Loop through rays
   !$omp parallel do private(delta)
@@ -848,6 +849,10 @@ subroutine flat(x,y,z,l,m,n,ux,uy,uz,num)
     ux(i) = 0.
     uy(i) = 0.
     uz(i) = 1.
+    print *, x(i),y(i),z(i)
+    print *, l(i),m(i),n(i)
+    print *, ux(i),uy(i),uz(i)
+    read *, dummy
   end do
   !$omp end parallel do
 

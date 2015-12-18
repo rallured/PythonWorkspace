@@ -477,7 +477,7 @@ def circularbeam(rad,num):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
-    return opd,x,y,z,l,m,n,ux,uy,uz,opd
+    return opd,x,y,z,l,m,n,ux,uy,uz
 
 def annulus(rin,rout,num):
     """Define annulus of rays pointing in +z direction

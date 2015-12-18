@@ -90,55 +90,58 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         weights[i*N:(i+1)*N] = ((R[i]+d)**2-R[i]**2) * spanv[i]/2 / 10000.
 
     #Trace rays through SPO modules
-    refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
+    rays,refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
     weights = weights*refl
+    pdb.set_trace() 
 
     #Determine outermost radius of grating array
-    PT.transform(0,0,-(L.max()+gap+95.),0,0,0)
-    PT.flat()
-    outerrad = np.max(sqrt(PT.x**2+PT.y**2))
+    PT.transform(rays,0,0,-(L.max()+gap+95.),0,0,0)
+    PT.flat(rays)
+    outerrad = np.max(sqrt(rays[1]**2+rays[2]**2))
     hubdist = sqrt(outerrad**2 + (F-(L.max()+gap+95.))**2)
     angle = np.arctan(outerrad/(F-(L.max()+gap+95.)))
     thetag = angle - 1.5*pi/180.
 
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
-    if bestFocus is None:
-        bestFocus = gratArray(outerrad,hubdist,angle,inc,l=l,\
-                         weights=weights,order=-3,blazeYaw=blazeYaw,\
-                         wave=2.4)
-        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
-                inc=inc,l=l,bestFocus=bestFocus,order=order,\
-                blazeYaw=blazeYaw,wave=wave,marg=marg)
+##    if bestFocus is None:
+##        bestFocus = gratArray(rays,outerrad,hubdist,angle,inc,l=l,\
+##                         weights=weights,order=-3,blazeYaw=blazeYaw,\
+##                         wave=2.4)
+##        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
+##                inc=inc,l=l,bestFocus=bestFocus,order=order,\
+##                blazeYaw=blazeYaw,wave=wave,marg=marg)
         
-    else:
-        gratArray(outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
+    gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave)
+    pdb.set_trace()
 
     #Get rid of rays that made it through
-    ind = PT.x > 0
-    PT.vignette(ind=ind)
+    ind = rays[1] > 0
+    PT.vignette(rays,ind=ind)
     weights = weights[ind]
     #Get rid of outliers
-    ind = np.abs(PT.y-np.average(PT.y))<10.
-    PT.vignette(ind=ind)
+    ind = np.abs(rays[2]-np.average(rays[2]))<10.
+    PT.vignette(rays,ind=ind)
     weights = weights[ind]
 
     #If no rays made it through
-    if np.size(PT.x)==0:
+    if np.size(rays[1])==0:
         return 0,0,0
 
     #Look at resolution of this line
-    cy = np.average(PT.y,weights=weights)
-    lsf = sqrt((PT.rmsY(weights=weights)*1.35)**2 + (1.5/60**2*pi/180*F)**2\
-          + (marg/60**2*pi/180*F)**2)
+    cy = np.average(rays[2],weights=weights)
+    lsf = sqrt((PT.rmsY(rays,weights=weights)*1.35)**2 + \
+               (1.5/60**2*pi/180*F)**2\
+               + (marg/60**2*pi/180*F)**2)
     resolution = cy/lsf
     area = np.sum(weights)*.799*.83*.8*.8#Grat plates, azimuthal ribs, packing^2
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
+    pdb.set_trace()
     
-    return bestFocus, resolution, area
+    return resolution, area
 
 def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     """Trace SPO surfaces sequentially. Collect rays from
@@ -148,12 +151,13 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     radius is less than Rout.
     """
     #Ray bookkeeping arrays
-    trays = [np.zeros(M*N)]*10
+    trays = [np.zeros(M*N) for n in range(10)]
 
     #Loop through shell radii and collect rays
     ref = np.zeros(M*N)
     for i in range(M):
         #Set up source annulus
+        pdb.set_trace()
         rays = PT.subannulus(R[i],R[i]+d,spanv[i],N)
         x,y,z,l,m,n,ux,uy,uz = rays[1:]
         #Transform rays to be above xy plane
@@ -192,11 +196,13 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
 ##            tux[i*N:(i+1)*N] = PT.ux
 ##            tuy[i*N:(i+1)*N] = PT.uy
 ##            tuz[i*N:(i+1)*N] = PT.uz
-            for i in range(1,7):
-                trays[i][i*N:(i+1)*N] = rays[i]
+            for t in range(1,7):
+                temp = trays[t]
+                temp[i*N:(i+1)*N] = rays[t]
         except:
             pdb.set_trace()
 
+    pdb.set_trace()
     return trays,ref
 
 def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
@@ -208,6 +214,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     Rays have been traced to bottom of outermost grating.
     """
     x,y = rays[1:3]
+    pdb.set_trace()
     #Put origin at bottom of outermost grating
     PT.transform(rays,outerrad,0,0,0,0,0)
     #Go to proper incidence angle of grating
@@ -223,16 +230,18 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     #Apply Grating
     #Next
     PT.flat(rays)
-    rho = -sqrt(PT.x**2+PT.y**2)*np.sign(PT.y)
+    rho = -sqrt(x**2+y**2)*np.sign(y)
     ind = np.logical_and(rho>hubdist,rho<l+hubdist)
     ind2 = np.copy(ind)
     ang = l*sin(inc)/hubdist*.95
     
     i = 0
     prev = np.copy(ind)
+    ###This is broken again
     while np.sum(ind2)>0:
         i = i+1
         PT.reflect(rays,ind=ind2)
+        pdb.set_trace()
         PT.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
         PT.transform(rays,0,0,0,ang,0,0)
         PT.flat(rays)
@@ -243,6 +252,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
         ind2 = np.logical_and(np.invert(prev),ind) #Remove previous rays
         #sys.stdout.write('%i \r' % i)
         #sys.stdout.flush()
+    pdb.set_trace()
 
     #Go to focal plane
     PT.transform(rays,0,-hubdist,0,0,0,0)
@@ -254,14 +264,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     
     #Find focus
     if bestFocus is None:
-        #Close analytic answer
-        an = PT.analyticYPlane(rays,weights=weights)
-        PT.transform(rays,0,0,an,0,0,0)
-        PT.flat(rays)
-        #Scanned answer
-        #sc = PT.findlineplane(5.,100,weights=weights)
-        return an#+sc
-        
+        return PT.analyticYPlane(rays,weights=weights)
 
     #Focus already found, tracing diffracted line
     PT.transform(rays,0,0,bestFocus,0,0,0)
