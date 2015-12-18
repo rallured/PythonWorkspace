@@ -37,7 +37,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
     #Get axial offset at design wavelength
     bestFoc = traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
                 inc=inc,l=l,order=-3,\
-                blazeYaw=blazeYaw,wave=2.4)[0]
+                blazeYaw=blazeYaw,wave=2.4)
     
     #Get axial offset at nominal focus - this sets the
     #focal plane tilt angle
@@ -55,7 +55,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
     for i in range(np.size(wave)):
         b,r,a = 0.,0.,0.
         if geff(wave[i]) > 0.:
-            b,r,a = traceSector(Rin,Rout,F,N,span=span,d=d,\
+            r,a = traceSector(Rin,Rout,F,N,span=span,d=d,\
                             t=t,gap=gap,inc=inc,l=l,\
                             wave=wave[i],blazeYaw=blazeYaw,\
                             bestFocus=bestFoc,order=order,marg=marg)
@@ -92,7 +92,6 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #Trace rays through SPO modules
     rays,refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
     weights = weights*refl
-    pdb.set_trace() 
 
     #Determine outermost radius of grating array
     PT.transform(rays,0,0,-(L.max()+gap+95.),0,0,0)
@@ -104,25 +103,24 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
 
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
-##    if bestFocus is None:
-##        bestFocus = gratArray(rays,outerrad,hubdist,angle,inc,l=l,\
-##                         weights=weights,order=-3,blazeYaw=blazeYaw,\
-##                         wave=2.4)
+    if bestFocus is None:
+        return gratArray(rays,outerrad,hubdist,angle,inc,l=l,\
+                         weights=weights,order=-3,blazeYaw=blazeYaw,\
+                         wave=2.4)
 ##        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
 ##                inc=inc,l=l,bestFocus=bestFocus,order=order,\
 ##                blazeYaw=blazeYaw,wave=wave,marg=marg)
         
     gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave)
-    pdb.set_trace()
 
     #Get rid of rays that made it through
     ind = rays[1] > 0
-    PT.vignette(rays,ind=ind)
+    rays = PT.vignette(rays,ind=ind)
     weights = weights[ind]
     #Get rid of outliers
     ind = np.abs(rays[2]-np.average(rays[2]))<10.
-    PT.vignette(rays,ind=ind)
+    rays = PT.vignette(rays,ind=ind)
     weights = weights[ind]
 
     #If no rays made it through
@@ -130,7 +128,10 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         return 0,0,0
 
     #Look at resolution of this line
-    cy = np.average(rays[2],weights=weights)
+    try:
+        cy = np.average(rays[2],weights=weights)
+    except:
+        pdb.set_trace()
     lsf = sqrt((PT.rmsY(rays,weights=weights)*1.35)**2 + \
                (1.5/60**2*pi/180*F)**2\
                + (marg/60**2*pi/180*F)**2)
@@ -139,7 +140,6 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
-    pdb.set_trace()
     
     return resolution, area
 
@@ -157,31 +157,30 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
     ref = np.zeros(M*N)
     for i in range(M):
         #Set up source annulus
-        pdb.set_trace()
         rays = PT.subannulus(R[i],R[i]+d,spanv[i],N)
-        x,y,z,l,m,n,ux,uy,uz = rays[1:]
+        z,n = rays[3],rays[6]
         #Transform rays to be above xy plane
-        n = -n
+        PT.transform(rays,0,0,0,pi,0,0)#n = -n
         PT.transform(rays,0,0,-100.,0,0,0)
         #Trace to primary
         PT.spoPrimary(rays,R[i],F)
         PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(l*ux+m*uy+n*uz)
+        inc = PT.grazeAngle(rays)#np.arcsin(l*ux+m*uy+n*uz)
         refl = CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(z<=L[i],z>=0.)
+        ind  = np.logical_and(rays[3]<=L[i],rays[3]>=0.)
         if np.sum(ind) < N:
             pdb.set_trace()
-        PT.vignette(rays,np.logical_and(z<=L[i],z>=0.))
+        PT.vignette(rays,ind)
         #Trace to secondary
         PT.spoSecondary(rays,R[i],F)
         PT.reflect(rays)
         #Compute reflectivity
-        inc = np.arcsin(l*ux+m*uy+n*uz)
+        inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
         ref[i*N:(i+1)*N] = refl * CXCreflIr(inc,1239.8/wave,.5)
         #Vignette
-        ind  = np.logical_and(z<=0.,z>=-L[i])
+        ind  = np.logical_and(rays[3]<=0.,rays[3]>=-L[i])
         if np.sum(ind) < N:
             pdb.set_trace()
         PT.vignette(rays,ind)
@@ -202,7 +201,6 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
         except:
             pdb.set_trace()
 
-    pdb.set_trace()
     return trays,ref
 
 def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
@@ -214,7 +212,6 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     Rays have been traced to bottom of outermost grating.
     """
     x,y = rays[1:3]
-    pdb.set_trace()
     #Put origin at bottom of outermost grating
     PT.transform(rays,outerrad,0,0,0,0,0)
     #Go to proper incidence angle of grating
@@ -241,7 +238,6 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     while np.sum(ind2)>0:
         i = i+1
         PT.reflect(rays,ind=ind2)
-        pdb.set_trace()
         PT.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
         PT.transform(rays,0,0,0,ang,0,0)
         PT.flat(rays)
@@ -252,7 +248,6 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
         ind2 = np.logical_and(np.invert(prev),ind) #Remove previous rays
         #sys.stdout.write('%i \r' % i)
         #sys.stdout.flush()
-    pdb.set_trace()
 
     #Go to focal plane
     PT.transform(rays,0,-hubdist,0,0,0,0)

@@ -364,17 +364,8 @@ def vignette(rays,ind=None):
         mag = l**2+m**2+n**2
         ind = np.where(mag>.1) #Automatic vignetting
                             #requires position vector set to 0.
-    opd = opd[ind]
-    x = x[ind]
-    y = y[ind]
-    z = z[ind]
-    l = l[ind]
-    m = m[ind]
-    n = n[ind]
-    ux = ux[ind]
-    uy = uy[ind]
-    uz = uz[ind]
-    return
+    
+    return [rays[i][ind] for i in range(10)]
 
 def lens(rays,r1,r2,thick,d,nl,reverse=False):
     """Trace lens, first surface center is coincident with xy plane
@@ -770,6 +761,12 @@ def analyticYPlane(rays,weights=None):
     dz = -by/ay
     return dz
 
+def grazeAngle(rays):
+    """Find the graze angle of the rays with the current
+    surface normal."""
+    return np.arcsin(rays[4]*rays[7] +\
+                     rays[5]*rays[8] +\
+                     rays[6]*rays[9])
 
 def wsPrimRad(z,psi,r0,z0):
     """Return the radius of a WS primary as a function of axial coordinate
