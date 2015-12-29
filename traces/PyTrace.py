@@ -55,7 +55,7 @@ def reflect(rays,ind=None):
 def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
     """
-    x,y,z,l,m,n,ux,uy,uz = rays[1:]
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
     if ind is not None:
         #Temporary array
         trays = [rays[i][ind] for i in range(10)]
@@ -123,19 +123,25 @@ def zernsurfrot(rays,coeff1,coeff2,rad,rot,\
     ind = np.where(rho<=rad)
     vignette(ind=ind)
 
-def sphere(rays,rad):
+def sphere(rays,rad,nr=None):
     """Wrapper for spherical surface.
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    tran.tracesphere(x,y,z,l,m,n,ux,uy,uz,rad)
+    if nr is not None:
+        tran.tracesphereopd(opd,x,y,z,l,m,n,ux,uy,uz,rad,nr)
+    else:
+        tran.tracesphere(x,y,z,l,m,n,ux,uy,uz,rad)
     return
 
-def conic(rays,R,K):
+def conic(rays,R,K,nr=None):
     """Wrapper for conic surface with radius of curvature R
     and conic constant K
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    tran.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
+    if nr is not None:
+        tran.conicopd(opd,x,y,l,m,n,ux,uy,uz,R,K,nr)
+    else:
+        tran.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
     return
 
 def cyl(rays,rad):
@@ -504,6 +510,22 @@ def subannulus(rin,rout,dphi,num):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
+    return opd,x,y,z,l,m,n,ux,uy,uz
+
+def rectArray(xsize,ysize,num):
+    """Creates a regular array of rays using meshgrid and linspace"""
+    x,y = np.meshgrid(np.linspace(-xsize,xsize,num),\
+                      np.linspace(-ysize,ysize,num))
+    opd = np.repeat(0.,num**2)
+    x = x.flatten()
+    y = y.flatten()
+    z = np.copy(opd)
+    l = np.repeat(0.,num**2)
+    m = np.repeat(0.,num**2)
+    n = np.repeat(1.,num**2)
+    ux = np.copy(l)
+    uy = np.copy(l)
+    uz = np.copy(l)
     return opd,x,y,z,l,m,n,ux,uy,uz
 
 def convergingbeam(zset,rin,rout,tmin,tmax,num,lscat):

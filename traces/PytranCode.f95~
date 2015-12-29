@@ -876,7 +876,7 @@ subroutine flatOPD(x,y,z,l,m,n,ux,uy,uz,opd,num,nr)
     ux(i) = 0.
     uy(i) = 0.
     uz(i) = 1.
-    opd(i) = opd(i) + delta/nr
+    opd(i) = opd(i) + delta*nr
   end do
   !$omp end parallel do
 
@@ -935,7 +935,7 @@ subroutine tracesphereOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,rad,nr)
   !Declarations
   implicit none
   integer, intent(in) :: num
-  real*8, intent(in) :: rad
+  real*8, intent(in) :: rad,nr
   real*8 , intent(inout) :: opd(num),x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   integer :: i
   real*8 :: mago, dotol, determinant, d1, d2
@@ -965,7 +965,7 @@ subroutine tracesphereOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,rad,nr)
       x(i) = x(i) + d1*l(i)
       y(i) = y(i) + d1*m(i)
       z(i) = z(i) + d1*n(i)
-      opd(i) = opd(i) + d1/nr
+      opd(i) = opd(i) + d1*nr
     end if
     !Compute surface normal, just normalized position vector
     mago = sqrt(x(i)**2 + y(i)**2 + z(i)**2)
@@ -1063,7 +1063,7 @@ subroutine tracecylOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,rad,nr)
       x(i) = x(i) + l(i)*d1
       y(i) = y(i) + m(i)*d1
       z(i) = z(i) + n(i)*d1
-      opd(i) = opd(i) + d1/nr
+      opd(i) = opd(i) + d1*nr
     end if
     !Compute surface normal
     mag = sqrt(x(i)**2+z(i)**2)
@@ -1841,3 +1841,63 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
   end do
 
 end subroutine conic
+
+!Function to trace to a general conic
+!Vertex assumed at origin, opening up in the +z direction
+!Radius of curvature and conic constant are required parameters
+!Traces to solution closest to vertex
+subroutine conic(opd,x,y,z,l,m,n,ux,uy,uz,num,R,K,nr)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num),opd(num)
+  real*8, intent(in) :: R,K,nr
+  real*8 :: s1,s2,s,z1,z2,denom,b,c,disc
+  integer :: i
+
+  !Loop through rays and trace to the conic
+  do i=1,num
+    !Compute amount to move ray s
+    s = 0.
+    if (K .eq. -1 .and. abs(n(i))==1.) then
+      s = (x(i)**2 + y(i)**2 - 2*R*z(i)) / (2*R*n(i))
+    else
+      denom = l(i)**2 + m(i)**2 + (K+1)*n(i)**2
+      b = x(i)*l(i) + y(i)*m(i) + ((K+1)*z(i) - R)*n(i)
+      b = b/denom
+      c = x(i)**2 + y(i)**2 + (K+1)*z(i)**2 - 2*R*z(i)
+      c = c/denom
+      disc = b**2 - c
+      if (disc .ge. 0.) then
+        s1 = -b + sqrt(disc)
+        s2 = -b - sqrt(disc)
+        !Choose smallest positive resulting Z
+        z1 = z(i) + s1*n(i)
+        z2 = z(i) + s2*n(i)
+        if (abs(z1) .le. abs(z2)) then
+          s = s1
+        else
+          s = s2
+        end if
+      end if
+    end if
+    !Advance ray
+    if (s==0.) then
+      l(i) = 0.
+      m(i) = 0.
+      n(i) = 0.
+    else
+      x(i) = x(i) + l(i)*s
+      y(i) = y(i) + m(i)*s
+      z(i) = z(i) + n(i)*s
+      opd(i) = opd(i) + s*nr
+      !Compute normal derivative
+      denom = sqrt(R**2 - K*(x(i)**2+y(i)**2))
+      ux(i) = -x(i) / denom
+      uy(i) = -y(i) / denom
+      uz(i) = -R/abs(R) * sqrt(R**2 - (K+1)*(x(i)**2+y(i)**2))
+      uz(i) = -uz(i) / denom
+    end if
+  end do
+
+end subroutine conicopd

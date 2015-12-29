@@ -70,14 +70,14 @@ def sgolay2d ( z, window_size, order, derivative=None):
     # solve system and convolve
     if derivative == None:
         m = np.linalg.pinv(A)[0].reshape((window_size, -1))
-        return scipy.signal.fftconvolve(Z, m, mode='valid'), m
+        return scipy.signal.fftconvolve(Z, m, mode='valid')
     elif derivative == 'col':
         c = np.linalg.pinv(A)[1].reshape((window_size, -1))
-        return scipy.signal.fftconvolve(Z, -c, mode='valid'), m
+        return scipy.signal.fftconvolve(Z, -c, mode='valid')
     elif derivative == 'row':
         r = np.linalg.pinv(A)[2].reshape((window_size, -1))
-        return scipy.signal.fftconvolve(Z, -r, mode='valid'), m
+        return scipy.signal.fftconvolve(Z, -r, mode='valid')
     elif derivative == 'both':
         c = np.linalg.pinv(A)[1].reshape((window_size, -1))
         r = np.linalg.pinv(A)[2].reshape((window_size, -1))
-        return scipy.signal.fftconvolve(Z, -r, mode='valid'), scipy.signal.fftconvolve(Z, -c, mode='valid'), m
+        return scipy.signal.fftconvolve(Z, -r, mode='valid'), scipy.signal.fftconvolve(Z, -c, mode='valid')
