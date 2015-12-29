@@ -57,13 +57,13 @@ def flat(rays,ind=None,nr=None):
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     if ind is not None:
-        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
-                                        l[ind],m[ind],n[ind],\
-                                        ux[ind],uy[ind],uz[ind]
-        tran.flat(tx,ty,tz,tl,tm,tn,tux,tuy,tuz)
-        x[ind],y[ind],z[ind],\
-        l[ind],m[ind],n[ind],\
-        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+        #Temporary array
+        trays = [rays[i][ind] for i in range(10)]
+        #Trace
+        tran.flat(*trays[1:])
+        #Copy back to original
+        for i in range(1,10):
+            rays[i][ind] = trays[i]
     elif nr is not None:
         tran.flatopd(x,y,z,l,m,n,ux,uy,uz,opd,nr)
     else:
@@ -79,9 +79,10 @@ def refract(rays,n1,n2):
     tran.refract(l,m,n,ux,uy,uz,n1,n2)
     return
 
-#Wrapper for Zernike surface
-#Coordinates are usual arctan2(y,x)
 def zernsurf(rays,coeff,rad,rorder=None,aorder=None):
+    """Wrapper for Zernike surface
+    Coordinates are usual arctan2(y,x)
+    """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     if rorder is None:
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
@@ -95,14 +96,14 @@ def zernsurf(rays,coeff,rad,rorder=None,aorder=None):
 def zernphase(rays,coeff,rad,wave,rorder=None,aorder=None):
     """Wrapper for standard Zernike phase surface. Supply
     wavelength in mm, radius in mm, coeff in mm."""
-    x,y,z,l,m,n,ux,uy,uz = rays
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
     if rorder is None:
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
-    tran.zernphase(x,y,z,l,m,n,ux,uy,uz,opd,coeff,\
+    tran.zernphase(opd,x,y,z,l,m,n,ux,uy,uz,coeff,\
                    np.array(rorder),np.array(aorder),rad,wave)
     rho = np.sqrt(x**2+y**2)
     ind = np.where(rho<=rad)
-    vignette(ind=ind)
+    rays = vignette(rays,ind=ind)
     return
 
 #Wrapper for Zernike surface with 2 Zernike sets and one with
@@ -122,19 +123,25 @@ def zernsurfrot(rays,coeff1,coeff2,rad,rot,\
     ind = np.where(rho<=rad)
     vignette(ind=ind)
 
-def sphere(rays,rad):
+def sphere(rays,rad,nr=None):
     """Wrapper for spherical surface.
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    tran.tracesphere(x,y,z,l,m,n,ux,uy,uz,rad)
+    if nr is not None:
+        tran.tracesphereopd(opd,x,y,z,l,m,n,ux,uy,uz,rad,nr)
+    else:
+        tran.tracesphere(x,y,z,l,m,n,ux,uy,uz,rad)
     return
 
-def conic(rays,R,K):
+def conic(rays,R,K,nr=None):
     """Wrapper for conic surface with radius of curvature R
     and conic constant K
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    tran.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
+    if nr is not None:
+        tran.conicopd(opd,x,y,l,m,n,ux,uy,uz,R,K,nr)
+    else:
+        tran.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
     return
 
 def cyl(rays,rad):
@@ -503,6 +510,22 @@ def subannulus(rin,rout,dphi,num):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
+    return opd,x,y,z,l,m,n,ux,uy,uz
+
+def rectArray(xsize,ysize,num):
+    """Creates a regular array of rays using meshgrid and linspace"""
+    x,y = np.meshgrid(np.linspace(-xsize,xsize,num),\
+                      np.linspace(-ysize,ysize,num))
+    opd = np.repeat(0.,num**2)
+    x = x.flatten()
+    y = y.flatten()
+    z = np.copy(opd)
+    l = np.repeat(0.,num**2)
+    m = np.repeat(0.,num**2)
+    n = np.repeat(1.,num**2)
+    ux = np.copy(l)
+    uy = np.copy(l)
+    uz = np.copy(l)
     return opd,x,y,z,l,m,n,ux,uy,uz
 
 def convergingbeam(zset,rin,rout,tmin,tmax,num,lscat):
