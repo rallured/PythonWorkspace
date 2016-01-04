@@ -17,6 +17,37 @@ cghcoeff = np.genfromtxt('/home/rallured/Dropbox/'
                          'AXRO/Metrology/200mmCGH.txt')[2:]
 #Empirically determined line focus distance
 line = 199.997297
+#Empirically determined focus from field lens
+foc = 199.55625859108886
+
+def rayBundle(N,div,az,height):
+    """
+    Set up a diverging ray bundle on the 220 mm cylinder.
+    """
+    #Establish rays
+    rays = sources.pointsource(div,N)
+    #Go to cylindrical axis
+    tran.transform(rays,0,0,220.,0,0,0)
+    #Apply height offset
+    tran.transform(rays,-height,0,0,0,0,0)
+    #Apply azimuthal offset
+    tran.transform(rays,0,0,0,-az,0,0)
+    #Go back to tangent plane
+    tran.transform(rays,0,0,-220.,0,0,0)
+    surf.flat(rays,nr=1.)
+    return rays
+
+def cylindricalSource(height=np.linspace(-50.,50.,3),\
+                      az=np.linspace(-pi/12,pi/12,5),\
+                      N=100,div=pi/180.):
+    """
+    Set up source rays for focus testing. Set them up on the
+    220 mm nominal cylindrical surface using coordinate transforms.
+    Use extreme heights and azimuths as well as central sources.
+    Use N rays per position, with div divergence
+    """
+    raylist = [rayBundle(N,div,a,h) for a in az for h in height]
+    return raylist
 
 def backToWFS(rays):
     """
@@ -31,6 +62,7 @@ def backToWFS(rays):
     #Trace back through CGH
     tran.transform(rays,0,0,0,0,1.*pi/180,0)
     tran.transform(rays,0,0,0,1.*pi/180,0,0)
+    surf.flat(rays,nr=1.)
     surf.zernphase(rays,cghcoeff,80.,632.82e-6)
     tran.refract(rays,1.,nsil)
     tran.transform(rays,0,0,6.35,0,0,0)
@@ -42,11 +74,29 @@ def backToWFS(rays):
     surf.flat(rays,nr=1.)
     lenses.collimator6(rays,reverse=True)
     #Go to focus
-    foc = anal.analyticImagePlane(rays)
-    tran.transform(rays,0,0,anal.analyticImagePlane(rays),0,0,0)
+    tran.transform(rays,0,0,1934.99719-200.,0,0,0)
     surf.flat(rays,nr=1.)
+    #Place to AC-508-250
+    lenses.AC508_250(rays,reverse=True)
+    #Go to WFS location
+    tran.transform(rays,0,0,foc,0,0,0)
+    #Go to cylindrical field lens
+    tran.transform(rays,0,0,-cylfield,0,0,0)
+    surf.flat(rays,nr=1.)
+    tran.transform(rays,0,0,0,0,0,pi/2)
+    lenses.LJ1517_L2(rays,reverse=False)
+    tran.itransform(rays,0,0,0,0,0,pi/2)
+    tran.itransform(rays,0,0,-cylfield,0,0,0)
+    #Back to WFS
+    surf.flat(rays,nr=1.)
+##    #Find minimum ray spread in spherical direction
+##    foc = 0.
+##    for i in range(2):
+##        foc = line+anal.analyticXPlane(rays)
+##        tran.transform(rays,0,0,anal.analyticXPlane(rays),0,0,0)
+##        surf.flat(rays,nr=1.)
     
-    return foc
+    return anal.rmsY(rays)
 
 def perfectCyl(rays,align=np.zeros(6)):
     """

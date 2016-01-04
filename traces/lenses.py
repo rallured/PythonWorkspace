@@ -2,6 +2,7 @@
 #Explicitly put in commonly used lenses such as Thorlabs doublets
 import surfaces as surf
 import transformations as tran
+import pdb
 
 def singlet(rays,r1,r2,thick,nl,reverse=False):
     """Trace a spherical singlet lens. Assume reference frame
@@ -21,6 +22,67 @@ def singlet(rays,r1,r2,thick,nl,reverse=False):
     tran.transform(rays,0,0,r2,0,0,0)
     #Refract out of surface
     tran.refract(rays,nl,1.)
+    return
+
+def singletCyl(rays,r1,r2,thick,nl,reverse=False):
+    """Trace a cylindrical singlet lens. Assume reference frame
+    is +z toward optical axis, xy plane tangent to first surface.
+    Positive R indicates convex surface for both surfaces.
+    Cylindrical axis is in y direction
+    Radius of 0 is flat
+    """
+    if reverse is True:
+        r1,r2 = r2,r1
+    pdb.set_trace()
+    #Trace to first surface
+    tran.transform(rays,0,0,r1,0,0,0)
+    if r1==0:
+        surf.flat(rays,nr=1.)
+    else:
+        surf.cyl(rays,r1,nr=1.)
+    #Refract into material
+    tran.refract(rays,1.,nl)
+    #Trace to second surface
+    tran.transform(rays,0,0,-r1+thick-r2,0,0,0)
+    if r2==0:
+        surf.flat(rays,nr=1.)
+    else:
+        surf.cyl(rays,r2,nr=nl)
+    tran.transform(rays,0,0,r2,0,0,0)
+    #Refract out of surface
+    tran.refract(rays,nl,1.)
+    return
+
+def doublet(rays,r1,r2,r3,n1,n2,t1,t2,reverse=False):
+    """
+    Trace rays through a cemented doublet lens,
+    similar to Thorlabs Achromats
+    r1,r2,t1,n1 belong to first singlet
+    r2,r3,t2,n2 belong to second
+    Positive r is convex for end surfaces
+    r2 is same convention as r1
+    """
+    if reverse is True:
+        r1,r3,r2 = r3,r1,-r2
+        n1,n2 = n2,n1
+        t1,t2 = t2,t1
+    #Trace to first surface
+    tran.transform(rays,0,0,r1,0,0,0)
+    surf.sphere(rays,r1,nr=1.)
+    #Refract into material
+    tran.refract(rays,1.,n1)
+    #Trace to second surface
+    tran.transform(rays,0,0,-r1+t1+r2,0,0,0)
+    surf.sphere(rays,r2,nr=n1)
+    #Refract into second material
+    tran.refract(rays,n1,n2)
+    #Trace to third surface
+    tran.transform(rays,0,0,-r2+t2-r3,0,0,0)
+    surf.sphere(rays,r3,nr=n2)
+    tran.transform(rays,0,0,r3,0,0,0)
+    #Refract back to air
+    tran.refract(rays,n2,1.)
+    
     return
     
 
@@ -90,6 +152,15 @@ def cyllens(rays,r1,r2,thick,width,height,nl,reverse=False):
 
 
 ####### Lenses ##########
+def AC508_250(rays,reverse=False):
+    """
+    Trace rays through AC508-250.
+    Assumed highly curved surface first
+    """
+    doublet(rays,137.1,-111.7,459.2,1.5150885,1.6437928,7.5,2.,\
+            reverse=reverse)
+    return
+
 def collimator6(rays,reverse=False):
     """
     Traces through the six inch collimator from Cumberland.
@@ -99,6 +170,10 @@ def collimator6(rays,reverse=False):
     Reverse is focusing of plane wave
     """
     singlet(rays,9324.,1124.,20.,1.5150885,reverse=reverse)
+    return
+
+def LJ1516_L2(rays,reverse=False):
+    singletCyl(rays,0,516.8,3.2,1.5150885,reverse=False)
     return
 
 def LJ1653L2(rays,reverse=False):
