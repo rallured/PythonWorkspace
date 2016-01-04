@@ -799,7 +799,7 @@ def wsPrimRad(z,psi,r0,z0):
     #Set up source pointing toward +z
     rays = pointsource(0.,1)
     transform(rays,0,0,0,0,-np.pi/2,0) #Point ray to +x
-    transform(rays,-r0,0,-z,0,0,0) #Go to proper axial location
+    transform(rays,-r0,0,-z,0,0,0) #Go to proper axial locatio
 
     #Trace to WS primary
     wsPrimary(rays,r0,z0,psi)
