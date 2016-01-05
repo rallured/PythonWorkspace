@@ -33,7 +33,6 @@ def singletCyl(rays,r1,r2,thick,nl,reverse=False):
     """
     if reverse is True:
         r1,r2 = r2,r1
-    pdb.set_trace()
     #Trace to first surface
     tran.transform(rays,0,0,r1,0,0,0)
     if r1==0:
@@ -51,6 +50,8 @@ def singletCyl(rays,r1,r2,thick,nl,reverse=False):
     tran.transform(rays,0,0,r2,0,0,0)
     #Refract out of surface
     tran.refract(rays,nl,1.)
+    #Leave at tangent plane of last surface
+    surf.flat(rays,nr=1.)
     return
 
 def doublet(rays,r1,r2,r3,n1,n2,t1,t2,reverse=False):

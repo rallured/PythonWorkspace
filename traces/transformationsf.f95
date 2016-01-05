@@ -99,6 +99,16 @@ subroutine refract(l,m,n,ux,uy,uz,num,n1,n2)
       uz(i) = -uz(i)
       dot = -dot
     end if
+    !If wavevector is equal to surface normal, do nothing
+    !print *, l(i),m(i),n(i)
+    !print *, ux(i),uy(i),uz(i)
+    !read *, dummy
+    !if ((l(i) .eq. ux(i)) .and. (m(i) .eq. uy(i)) .and. (n(i) .eq. uz(i))) then
+    if (dot==1) then
+      cycle
+    end if
+    !print *, "Passed conditional"
+    !read *, dummy
     !Compute Snell's law
     t1 = acos(dot)
     t2 = asin((n1/n2)*sin(t1))

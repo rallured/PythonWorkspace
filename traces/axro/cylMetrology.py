@@ -18,7 +18,15 @@ cghcoeff = np.genfromtxt('/home/rallured/Dropbox/'
 #Empirically determined line focus distance
 line = 199.997297
 #Empirically determined focus from field lens
-foc = 199.55625859108886
+foc = 264.92386077410214#275.01818439272461
+#Empriically determined position of cylindrical field lens
+cylz = 120.70707070707071
+
+def focusCyl(cylz,div=.1*pi/180):
+    raylist = cylindricalSource(N=1000,div=div)
+    rmsy = [backToWFS(rays,cylz) for rays in raylist]
+    return np.mean(rmsy)
+
 
 def rayBundle(N,div,az,height):
     """
@@ -49,7 +57,7 @@ def cylindricalSource(height=np.linspace(-50.,50.,3),\
     raylist = [rayBundle(N,div,a,h) for a in az for h in height]
     return raylist
 
-def backToWFS(rays):
+def backToWFS(rays,cylfield):
     """
     Trace rays from nominal test optic tangent plane back to WFS plane.
     This function can also be used with a point source to determine the
@@ -74,27 +82,25 @@ def backToWFS(rays):
     surf.flat(rays,nr=1.)
     lenses.collimator6(rays,reverse=True)
     #Go to focus
-    tran.transform(rays,0,0,1934.99719-200.,0,0,0)
+    tran.transform(rays,0,0,1934.99719-100.,0,0,0)
     surf.flat(rays,nr=1.)
     #Place to AC-508-250
     lenses.AC508_250(rays,reverse=True)
     #Go to WFS location
+##    tran.transform(rays,0,0,foc,0,0,0)
+##    surf.flat(rays,nr=.1)
     tran.transform(rays,0,0,foc,0,0,0)
+    surf.flat(rays,nr=1.)
+
     #Go to cylindrical field lens
     tran.transform(rays,0,0,-cylfield,0,0,0)
     surf.flat(rays,nr=1.)
     tran.transform(rays,0,0,0,0,0,pi/2)
-    lenses.LJ1517_L2(rays,reverse=False)
+    lenses.LJ1516_L2(rays,reverse=False)
     tran.itransform(rays,0,0,0,0,0,pi/2)
     tran.itransform(rays,0,0,-cylfield,0,0,0)
     #Back to WFS
     surf.flat(rays,nr=1.)
-##    #Find minimum ray spread in spherical direction
-##    foc = 0.
-##    for i in range(2):
-##        foc = line+anal.analyticXPlane(rays)
-##        tran.transform(rays,0,0,anal.analyticXPlane(rays),0,0,0)
-##        surf.flat(rays,nr=1.)
     
     return anal.rmsY(rays)
 
