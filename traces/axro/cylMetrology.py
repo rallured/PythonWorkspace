@@ -7,6 +7,7 @@ import traces.lenses as lenses
 import traces.analyses as anal
 import traces.surfaces as surf
 import pdb
+import copy
 
 nbk7 = 1.5150885
 nsf2 = 1.6437928
@@ -56,6 +57,28 @@ def cylindricalSource(height=np.linspace(-50.,50.,3),\
     """
     raylist = [rayBundle(N,div,a,h) for a in az for h in height]
     return raylist
+
+def misalignmentTerm(N,align):
+    """
+    Trace identical set of rays through system with and
+    without misalignment of cylindrical optic.
+    Return interpolated
+    """
+    #Set up list of rays
+    rays = traceToTestOptic(10000)
+    rays2 = copy.deepcopy(rays)
+
+    #Trace each through the system
+    perfectCyl(rays)
+    backToWFS(rays)
+    perfectCyl(rays2,align=align)
+    backToWFS(rays2)
+
+    #Return both OPD
+    opd1 = anal.interpolateVec(rays,0,100,100,method='cubic')[0]
+    opd2 = anal.interpolateVec(rays2,0,100,100,method='cubic')[0]
+    return opd1,opd2
+
 
 def backToWFS(rays):
     """
