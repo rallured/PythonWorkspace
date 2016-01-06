@@ -106,6 +106,26 @@ def cylconic(rays,rad,k):
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     surf.cylconic(x,y,z,l,m,n,ux,uy,uz,rad,k)
 
+def paraxial(rays,F):
+    """
+    Trace rays through an ideal, paraxial lens.
+    Assume optical axis is at xy=0 in z direction
+    Surface is in xy plane
+    """
+    x,y,z,l,m,n,ux,uy,uz = rays[1:]
+    surf.paraxial(x,y,z,l,m,n,ux,uy,uz,F)
+    return
+
+def paraxialY(rays,F):
+    """
+    Trace rays through an ideal, paraxial lens.
+    Assume optical axis is at xy=0 in z direction
+    Surface is in xy plane
+    """
+    x,y,z,l,m,n,ux,uy,uz = rays[1:]
+    surf.paraxialy(x,y,z,l,m,n,ux,uy,uz,F)
+    return
+
 def wolterprimary(rays,r0,z0):
     """Wrapper for Wolter primary surface - no vignetting
     """
