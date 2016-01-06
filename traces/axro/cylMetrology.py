@@ -57,7 +57,7 @@ def cylindricalSource(height=np.linspace(-50.,50.,3),\
     raylist = [rayBundle(N,div,a,h) for a in az for h in height]
     return raylist
 
-def backToWFS(rays,cylfield):
+def backToWFS(rays):
     """
     Trace rays from nominal test optic tangent plane back to WFS plane.
     This function can also be used with a point source to determine the
@@ -93,12 +93,12 @@ def backToWFS(rays,cylfield):
     surf.flat(rays,nr=1.)
 
     #Go to cylindrical field lens
-    tran.transform(rays,0,0,-cylfield,0,0,0)
+    tran.transform(rays,0,0,-cylz,0,0,0)
     surf.flat(rays,nr=1.)
     tran.transform(rays,0,0,0,0,0,pi/2)
     lenses.LJ1516_L2(rays,reverse=False)
     tran.itransform(rays,0,0,0,0,0,pi/2)
-    tran.itransform(rays,0,0,-cylfield,0,0,0)
+    tran.itransform(rays,0,0,-cylz,0,0,0)
     #Back to WFS
     surf.flat(rays,nr=1.)
     
@@ -123,6 +123,8 @@ def perfectCyl(rays,align=np.zeros(6)):
     tran.itransform(rays,0,0,220.,0,0,0)
     #Go back to nominal tangent plane
     tran.itransform(rays,*align)
+    surf.flat(rays,nr=1.)
+    
     return
 
 def traceToTestOptic(N):
@@ -151,6 +153,7 @@ def traceToTestOptic(N):
     tran.itransform(rays,0,0,0,-1.*pi/180,0,0)
     #Go to line focus
     tran.transform(rays,0,0,0,0,1.*pi/180,0)
+    surf.flat(rays,nr=1.)
     tran.transform(rays,0,0,line,0,0,0)
     surf.flat(rays,nr=1.)
     #Go to test optic

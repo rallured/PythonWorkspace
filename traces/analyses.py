@@ -1,4 +1,7 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+import pdb
 
 def centroid(rays,weights=None):
     """Compute the centroid of the rays in the xy plane
@@ -107,3 +110,75 @@ def grazeAngle(rays):
     return np.arcsin(rays[4]*rays[7] +\
                      rays[5]*rays[8] +\
                      rays[6]*rays[9])
+
+def interpolateVec(rays,I,Nx,Ny,method='linear'):
+    """
+    Interpolate a ray vector onto a 2D grid based on the X and Y
+    positions of the rays. Assume that the rays randomly fill a
+    contiguous region of space. Automatically set up the grid
+    using the min/max X/Y positions. User inputs the number of
+    points in the grid as Nx,Ny, where total points is Nx*Ny.
+    User can also indicate the interpolation method used by
+    griddata.
+    I indicates which vector to interpolate
+    """
+    #Unpack needed vectors
+    x,y = rays[1:3]
+    interpVec = rays[I]
+    #Set up new grid
+    gridx,gridy = np.meshgrid(np.linspace(x.min(),x.max(),Nx),\
+                              np.linspace(y.min(),y.max(),Ny))
+    dx = np.diff(gridx)[0][0]
+    #Call griddata for interpolation
+    res = griddata((x,y),interpVec,(gridx,gridy),method=method)
+    
+    return res,dx
+
+def compareOPDandSlopes(rays,Nx,Ny,method='linear'):
+    """
+    Function to compare OPD gradient to ray slopes quickly
+    """
+    #Get opd
+    opd,dx = interpolateVec(rays,0,Nx,Ny,method=method)
+    #Get gradient
+    gradx,grady = np.gradient(opd,dx)
+    #Get slopes
+    l,dx = interpolateVec(rays,4,Nx,Ny,method=method)
+    m,dx = interpolateVec(rays,5,Nx,Ny,method=method)
+    #Make plots
+    fig = plt.figure()
+    
+    fig.add_subplot(321)
+    plt.imshow(grady)
+    plt.title('Gradx')
+    plt.colorbar()
+    
+    fig.add_subplot(322)
+    plt.imshow(gradx)
+    plt.title('Grady')
+    plt.colorbar()
+
+    fig.add_subplot(323)
+    plt.imshow(l)
+    plt.title('l')
+    plt.colorbar()
+
+    fig.add_subplot(324)
+    plt.imshow(m)
+    plt.title('m')
+    plt.colorbar()
+
+    fig.add_subplot(325)
+    plt.imshow(l-grady)
+    plt.title('l-gradx')
+    plt.colorbar()
+
+    fig.add_subplot(326)
+    plt.imshow(m-gradx)
+    plt.title('m-grady')
+    plt.colorbar()
+
+    print 'X Diff:' + str(np.sqrt(np.nanmean((grady-l)**2)))
+    print 'Y Diff:' + str(np.sqrt(np.nanmean((gradx-m)**2)))
+    
+    return

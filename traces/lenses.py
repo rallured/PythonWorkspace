@@ -22,6 +22,8 @@ def singlet(rays,r1,r2,thick,nl,reverse=False):
     tran.transform(rays,0,0,r2,0,0,0)
     #Refract out of surface
     tran.refract(rays,nl,1.)
+    #Leave at tangent plane of surface
+    surf.flat(rays,nr=1.)
     return
 
 def singletCyl(rays,r1,r2,thick,nl,reverse=False):
@@ -83,6 +85,8 @@ def doublet(rays,r1,r2,r3,n1,n2,t1,t2,reverse=False):
     tran.transform(rays,0,0,r3,0,0,0)
     #Refract back to air
     tran.refract(rays,n2,1.)
+    #Leave at tangent plane of last surface
+    surf.flat(rays,nr=1.)
     
     return
     
