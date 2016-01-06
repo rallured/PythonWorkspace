@@ -307,6 +307,7 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
   integer :: i
 
   !Loop through rays and trace to the conic
+  !$omp parallel do private(s,R,denom,b,c,disc,s1,s2,z1,z2)
   do i=1,num
     !Compute amount to move ray s
     s = 0.
@@ -349,6 +350,7 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
       uz(i) = -uz(i) / denom
     end if
   end do
+  !$omp end parallel do
 
 end subroutine conic
 
@@ -366,6 +368,7 @@ subroutine conicopd(opd,x,y,z,l,m,n,ux,uy,uz,num,R,K,nr)
   integer :: i
 
   !Loop through rays and trace to the conic
+  !$omp parallel do private(s,R,denom,b,c,disc,s1,s2,z1,z2)
   do i=1,num
     !Compute amount to move ray s
     s = 0.
@@ -409,5 +412,45 @@ subroutine conicopd(opd,x,y,z,l,m,n,ux,uy,uz,num,R,K,nr)
       uz(i) = -uz(i) / denom
     end if
   end do
+  !$omp end parallel do
 
 end subroutine conicopd
+
+!Trace an ideal paraxial lens
+subroutine paraxial(x,y,z,l,m,n,ux,uy,uz,num,F)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: F
+  integer :: i
+
+  !Loop through rays and apply appropriate perturbations to cosines
+  !$omp parallel do
+  do i=1,num
+    !Compute 
+    l(i) = l(i) - x(i)/F
+    m(i) = m(i) - y(i)/F
+  end do
+  !$omp end parallel do
+
+end subroutine paraxial
+
+!Trace an ideal paraxial lens
+subroutine paraxialY(x,y,z,l,m,n,ux,uy,uz,num,F)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: F
+  integer :: i
+
+  !Loop through rays and apply appropriate perturbations to cosines
+  !$omp parallel do
+  do i=1,num
+    !Compute 
+    m(i) = m(i) - y(i)/F
+  end do
+  !$omp end parallel do
+
+end subroutine paraxialY
