@@ -4,6 +4,8 @@ import surfacesf as surf
 import zernsurf as zern
 import zernikemod
 import woltsurf as wolt
+import traces.transformations as tran
+from traces.analyses import analyticYPlane,analyticXPlane,analyticImagePlane
 
 def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
@@ -284,3 +286,22 @@ def spoSecondary(rays,R0,F,d=.605,ind=None):
     #Call SPO wrapper
     spoCone(rays,R0,tg,ind=ind)
     return
+
+def focus(rays,fn,weights=None,nr=None):
+    dz1 = fn(rays,weights=weights)
+    tran.transform(rays,0,0,dz1,0,0,0)
+    flat(rays,nr=nr)
+    dz2 = fn(rays,weights=weights)
+    tran.transform(rays,0,0,dz2,0,0,0)
+    flat(rays,nr=nr)
+    
+    return dz1+dz2
+
+def focusY(rays,weights=None,nr=None):
+    return focus(rays,analyticYPlane,weights=weights,nr=nr)
+
+def focusX(rays,weights=None,nr=None):
+    return focus(rays,analyticXPlane,weights=weights,nr=nr)
+
+def focusI(rays,weights=None,nr=None):
+    return focus(rays,analyticImagePlane,weights=weights,nr=nr)

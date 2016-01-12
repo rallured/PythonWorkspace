@@ -25,7 +25,7 @@ cylz = 120.70707070707071
 
 def focusCyl(cylz,div=.1*pi/180):
     raylist = cylindricalSource(N=1000,div=div)
-    rmsy = [backToWFS(rays,cylz) for rays in raylist]
+    rmsy = [backToWFSP(rays,cylz) for rays in raylist]
     return np.mean(rmsy)
 
 
@@ -77,7 +77,9 @@ def misalignmentTerm(N,align):
     #Return both OPD
     opd1 = anal.interpolateVec(rays,0,100,100,method='cubic')[0]
     opd2 = anal.interpolateVec(rays2,0,100,100,method='cubic')[0]
-    return opd1,opd2
+    d = (opd1-opd2)/2.
+    
+    return d - np.nanmean(d)
 
 
 def backToWFS(rays):
@@ -187,7 +189,78 @@ def traceToTestOptic(N):
     
     return rays
 
-def testCollimator():
+def traceToTestOpticP(N):
+    """Trace a set of rays from the point source to the nominal
+    test optic location
+    Return the rays at the plane tangent to the nominal source position.
+    Assumes all paraxial lenses
+    """
+    #Set up source
+    rays = sources.pointsource(.038996,N)
+    #Trace through collimator
+    tran.transform(rays,0,0,1935.033,0,0,0)
+    surf.flat(rays,nr=1.)
+    surf.paraxial(rays,1935.033)
+    #Trace to CGH
+    tran.transform(rays,0,0,100.,0,0,0)
+    #Trace through CGH
+    surf.flat(rays,nr=1.)
+    surf.paraxialY(rays,200.)
+    #Go to test optic
+    tran.transform(rays,0,0,420.,0,0,0)
+    surf.flat(rays,nr=1.)
+    #Rotate reference frame so rays impinge toward -z
+    tran.transform(rays,0,0,0,0,pi,0)
+    
+    return rays
+
+def backToWFSP(rays,cylp):
+    """
+    Trace rays from nominal test optic tangent plane back to WFS plane.
+    This function can also be used with a point source to determine the
+    Optimal focus positions of the field lenses.
+    +z points toward CGH.
+    Assumes paraxial lenses
+    """
+    #Back to CGH
+    tran.transform(rays,0,0,420,0,0,0)
+    surf.flat(rays,nr=1.)
+    surf.paraxialY(rays,200.)
+    #Go to collimator
+    tran.transform(rays,0,0,100,0,0,0)
+    surf.flat(rays,nr=1.)
+    surf.paraxial(rays,1935.033)
+    #Go to focus
+    tran.transform(rays,0,0,1934.99719-100.,0,0,0)
+    surf.flat(rays,nr=1.)
+    #Place to AC-508-250
+    surf.paraxial(rays,250.)
+    #Go to WFS location
+##    tran.transform(rays,0,0,foc,0,0,0)
+##    surf.flat(rays,nr=.1)
+    #Determine focus location
+##    return surf.focusX(rays)
+
+    
+    tran.transform(rays,0,0,271.98618296467038-132.32323232323233,0,0,0)
+    surf.flat(rays,nr=1.)
+    surf.paraxialY(rays,1000.)
+    tran.transform(rays,0,0,132.32323232323233,0,0,0)
+    surf.flat(rays,nr=1.)
+
+##    #Go to cylindrical field lens
+##    tran.transform(rays,0,0,-cylz,0,0,0)
+##    surf.flat(rays,nr=1.)
+##    tran.transform(rays,0,0,0,0,0,pi/2)
+##    lenses.LJ1516_L2(rays,reverse=False)
+##    tran.itransform(rays,0,0,0,0,0,pi/2)
+##    tran.itransform(rays,0,0,-cylz,0,0,0)
+##    #Back to WFS
+##    surf.flat(rays,nr=1.)
+    
+    return anal.rmsY(rays)
+
+def testCollimatorP():
     """Find out the true focal length of the collimator for
     positioning of the source in raytrace.
     """

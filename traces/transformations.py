@@ -1,7 +1,6 @@
 import numpy as np
 import transformationsf as tran
 
-
 def transform(rays,tx,ty,tz,rx,ry,rz,ind=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
