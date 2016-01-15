@@ -22,6 +22,14 @@ def findMoments(d):
     
     return cx,cy,sqrt(rmsx),sqrt(rmsy)
 
+def nanflat(d):
+    """
+    Remove NaNs and flatten an image
+    """
+    d = d.flatten()
+    d = d[invert(isnan(d))]
+    return d
+
 class pointGetter:
     """Creates an object tied to an imshow where the user can
     accumulate a list of x,y coords by right clicking on them.

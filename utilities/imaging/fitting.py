@@ -2,6 +2,25 @@ import numpy as np
 import scipy
 import scipy.signal
 import pdb
+from astropy.modeling import models,fitting
+
+def legendre2d(d,xo,yo):
+    """
+    Fit a set of 2d Legendre polynomials to a 2D array.
+    The aperture is assumed to be +-1 over each dimension.
+    NaNs are automatically excluded from the analysis.
+    x0 = 2 fits up to quadratic in row axis
+    y0 = 3 fits up to cubic in column axis
+    """
+    fit_p = fitting.LinearLSQFitter()
+    p_init = models.Legendre2D(xo,yo)
+    sh = np.shape(d)
+    x,y = np.meshgrid(np.linspace(-1,1,sh[1]),\
+                      np.linspace(-1,1,sh[0]))
+    index = ~np.isnan(d)
+    p = fit_p(p_init,x[index],y[index],d[index])
+    
+    return p(x,y),p.parameters.reshape((yo+1,xo+1))
 
 def sgolay2d ( z, window_size, order, derivative=None):
     """

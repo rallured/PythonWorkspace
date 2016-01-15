@@ -1,12 +1,17 @@
 import numpy as np
 from numpy import sin,cos,exp,sqrt,pi,tan
 import matplotlib.pyplot as plt
-import traces.PyTrace as PT
 import pdb,sys
 import traces.grating as grat
 import utilities.plotting as plotting
 from traces.axro.SMARTX import CXCreflIr
 from scipy import interpolate
+
+import traces.PyTrace as PT
+
+import traces.analyses as anal
+import traces.surfaces as surf
+import traces.transformations as tran
 
 #Load CCD QE data and define interpolation function
 ccd = np.genfromtxt('/home/rallured/Dropbox/'
@@ -63,7 +68,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
         a = a * geff(wave[i]) * ccdQE(wave[i])
         res[i] = r
         area[i] = a
-        sys.stdout.write('Wave: %.2f, Res: %.2f, Area: %.2f\r'\
+        sys.stdout.write('Wave: %.2f, Area: %.2f, Res: %.2f\r'\
                          % (wave[i],area[i],res[i]))
         sys.stdout.flush()
     return res,area
@@ -80,6 +85,10 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #L = 4*F*d/R #Vector of mirror lengths
     M = np.size(R) #Number of shells
 
+    #Create focal length vector to implement spherical principle surface
+    focConst = F**2+Rin**2
+    focVec = sqrt(focConst-R**2)
+
     #Weight vector for shell radii
     weights = np.zeros(M*N)
     spanv = np.zeros(M)
@@ -90,16 +99,20 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         weights[i*N:(i+1)*N] = ((R[i]+d)**2-R[i]**2) * spanv[i]/2 / 10000.
 
     #Trace rays through SPO modules
-    rays,refl = traceSPO(R,L,F,N,M,spanv,wave,d=d,t=t)
+    rays,refl = traceSPO(R,L,focVec,N,M,spanv,wave,d=d,t=t)
     weights = weights*refl
 
     #Determine outermost radius of grating array
-    PT.transform(rays,0,0,-(L.max()+gap+95.),0,0,0)
+    PT.transform(rays,0,0,focVec[-1]-(L.max()+gap+95.),0,0,0)
     PT.flat(rays)
     outerrad = np.max(sqrt(rays[1]**2+rays[2]**2))
-    hubdist = sqrt(outerrad**2 + (F-(L.max()+gap+95.))**2)
-    angle = np.arctan(outerrad/(F-(L.max()+gap+95.)))
+    hubdist = sqrt(outerrad**2 + (focVec[-1]-(L.max()+gap+95.))**2)
+    angle = np.arctan(outerrad/(focVec[-1]-(L.max()+gap+95.)))
     thetag = angle - 1.5*pi/180.
+    print 'Outerrad: %f\nHubdist: %f\nLmax: %f\nOuter Focus: %f\n' % \
+          (outerrad,hubdist,L.max(),focVec[-1])
+
+    pdb.set_trace()
 
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
@@ -143,7 +156,7 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     
     return resolution, area
 
-def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
+def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775):
     """Trace SPO surfaces sequentially. Collect rays from
     each SPO shell and set them to the PT rays at the end.
     Start at the inner radius, use the wafer and pore thicknesses
@@ -163,7 +176,7 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
         PT.transform(rays,0,0,0,pi,0,0)#n = -n
         PT.transform(rays,0,0,-100.,0,0,0)
         #Trace to primary
-        PT.spoPrimary(rays,R[i],F)
+        PT.spoPrimary(rays,R[i],focVec[i])
         PT.reflect(rays)
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#np.arcsin(l*ux+m*uy+n*uz)
@@ -174,7 +187,7 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
             pdb.set_trace()
         PT.vignette(rays,ind)
         #Trace to secondary
-        PT.spoSecondary(rays,R[i],F)
+        PT.spoSecondary(rays,R[i],focVec[i])
         PT.reflect(rays)
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
@@ -184,6 +197,8 @@ def traceSPO(R,L,F,N,M,spanv,wave,d=.605,t=.775):
         if np.sum(ind) < N:
             pdb.set_trace()
         PT.vignette(rays,ind)
+        #Set plane to be at focus
+        PT.transform(rays,0,0,-focVec[i],0,0,0)
         #Collect rays
         try:
 ##            tx[i*N:(i+1)*N] = PT.x
@@ -234,11 +249,10 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     
     i = 0
     prev = np.copy(ind)
-    ###This is broken again
     while np.sum(ind2)>0:
         i = i+1
         PT.reflect(rays,ind=ind2)
-        PT.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
+        tran.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
         PT.transform(rays,0,0,0,ang,0,0)
         PT.flat(rays)
         rho = -sqrt(x**2+y**2)*np.sign(y)
@@ -259,7 +273,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     
     #Find focus
     if bestFocus is None:
-        return PT.analyticYPlane(rays,weights=weights)
+        return surf.focusY(rays,weights=weights)
 
     #Focus already found, tracing diffracted line
     PT.transform(rays,0,0,bestFocus,0,0,0)

@@ -205,27 +205,27 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
   real*8, intent(inout) :: l(num),m(num),n(num)
   real*8, intent(in) :: hubdist,dpermm,wave,order
   integer :: i
-  real*8 :: d, yaw, pi, dum, det
+  real*8 :: d, yaw, pi, dum, det, sn
 
   pi = acos(-1.)
 
   !Loop through rays, compute new diffracted ray direction
   do i=1,num
     !Compute local d spacing in nm
-    d = dpermm * sqrt((hubdist-y(i))**2 + x(i)**2)
+    d = dpermm * sqrt((hubdist-abs(y(i)))**2 + x(i)**2)
     !Compute local yaw
-    yaw = pi/2 + atan(x(i)/(hubdist-y(i)))
+    sn = abs(y(i))/y(i)
+    yaw = pi/2 + atan(x(i)*sn/(hubdist-abs(y(i))))
     !print *, x(i),y(i),d,yaw
     !print *, l(i),m(i),n(i)
 
     !Evanescence?
-    det = l(i)**2+m(i)**2
-    if (det<1) then
-      !Compute new direction cosines
-      l(i) = l(i) + sin(yaw)*order*wave/d
-      m(i) = m(i) - cos(yaw)*order*wave/d
-      n(i) = sqrt(1. - l(i)**2 - m(i)**2)
-    end if
+    !det = l(i)**2+m(i)**2
+    !Compute new direction cosines - evanescence will result in NaNs
+    l(i) = l(i) + sin(yaw)*order*wave/d
+    m(i) = m(i) - cos(yaw)*order*wave/d
+    n(i) = sqrt(1. - l(i)**2 - m(i)**2)
+    
   end do
 
 end subroutine radgrat

@@ -58,11 +58,21 @@ def cylindricalSource(height=np.linspace(-50.,50.,3),\
     raylist = [rayBundle(N,div,a,h) for a in az for h in height]
     return raylist
 
+def investigateFocus():
+    """
+    Trace various focus errors, fit the Legendres,
+    and return the ratios of the quadratic and quartic
+    Legendre coefficients
+    """
+    focErr = linspace(.1,10.,100)
+    focAlign = [[0,0,f,0,0,0] for f in focErr]
+    
+
 def misalignmentTerm(N,align):
     """
     Trace identical set of rays through system with and
     without misalignment of cylindrical optic.
-    Return interpolated
+    Return interpolated OPD difference
     """
     #Set up list of rays
     rays = traceToTestOptic(10000)
