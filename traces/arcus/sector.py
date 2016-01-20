@@ -6,6 +6,7 @@ import traces.grating as grat
 import utilities.plotting as plotting
 from traces.axro.SMARTX import CXCreflIr
 from scipy import interpolate
+import utilities.imaging.man as man
 
 import traces.PyTrace as PT
 
@@ -64,7 +65,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
             r,a = traceSector(Rin,Rout,F,N,span=span,d=d,\
                             t=t,gap=gap,inc=inc,l=l,\
                             wave=wave[i],blazeYaw=blazeYaw,\
-                            bestFocus=bestFoc,order=order,marg=marg)
+                            bestFocus=bestFoc,order=order,marg=marg)[:2]
         #Add in grating efficiency and CCD QE
         a = a * geff(wave[i]) * ccdQE(wave[i])
         res[i] = r
@@ -113,8 +114,6 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     print 'Outerrad: %f\nHubdist: %f\nLmax: %f\nOuter Focus: %f\n' % \
           (outerrad,hubdist,L.max(),focVec[-1])
 
-    pdb.set_trace()
-
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
     if bestFocus is None:
@@ -127,7 +126,10 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         
     gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave)
-    pdb.set_trace()
+
+    #Go to focal plane
+    tran.transform(rays,0,0,bestFocus,0,0,0)
+    surf.flat(rays)
 
     #Get rid of rays that made it through
     ind = rays[1] > 0
@@ -155,8 +157,9 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
+    pdb.set_trace()
     
-    return resolution, area, np.nanmean(rays[1])
+    return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2])
 
 def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775):
     """Trace SPO surfaces sequentially. Collect rays from
@@ -231,7 +234,6 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     x,y = rays[1:3]
     #Dummy rays to ensure return of reference frame
 ##    rays2 = sources.subannulus(220.,223.,10.*pi/180,100)
-    pdb.set_trace()
     #Put origin at bottom of outermost grating
     PT.transform(rays,outerrad,0,0,0,0,0)
 ##    PT.transform(rays2,outerrad,0,0,0,0,0)
@@ -296,16 +298,15 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
 ##    PT.transform(rays2,-outerrad,0,0,0,0,0)
     #Should be there
     PT.flat(rays)
-    pdb.set_trace()
     
 ##    PT.transform(rays,0,hubdist,0,0,0,0)
 ##    PT.transform(rays,0,0,0,-ang*i+pi/2+angle-inc,0,0)
 ##    PT.transform(rays,0,0,0,0,0,pi/2)
 ##    PT.flat(rays)
     
-##    #Find focus
-##    if bestFocus is None:
-##        return surf.focusY(rays,weights=weights)
+    #Find focus
+    if bestFocus is None:
+        return surf.focusY(rays,weights=weights)
 ##
 ##    #Focus already found, tracing diffracted line
 ##    PT.transform(rays,0,0,bestFocus,0,0,0)
@@ -380,6 +381,16 @@ def predictionPlots(wave,arcus,w1,w2):
         plt.figure(eafig.number)
         plt.plot(wave[ind],arcus[i,1][ind]*4,label=str(order))
 
-
-
-        
+def plotPetal(x,y,r=0.,tx=0.,ty=0.,color='blue'):
+    """Make an isometric plot of a petal layout"""
+    #Plot arc
+    plotting.isoplot(*man.transformation(x,y,r=r,tx=tx,ty=ty),color=color)
+    #Plot petal aperture
+    appx = np.array([300.,300.,800.,800.,300.])
+    appy = np.array([187.5,-187.5,-187.5,187.5,187.5])
+    plt.plot(*man.transformation(appx,appy,r=r,tx=tx,ty=ty),color=color)
+    #Plot zero order
+    x,y = man.transformation(np.array([615.253]),\
+                                 np.array([0.]),r=r,tx=tx,ty=ty)
+    plt.plot(x,y,'.',color=color)
+    return

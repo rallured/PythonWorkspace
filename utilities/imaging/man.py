@@ -111,3 +111,11 @@ def stripnans(d):
     while sum(isnan(d[:,-1]))==newsize:
         d = d[:,:-1]
     return d
+
+def transformation(x,y,r=0.,tx=0.,ty=0.):
+    """Return x and y vectors after applying a rotation about
+    the origin and then translations in x and y
+    """
+    x,y = cos(r)*x+sin(r)*y,-sin(r)*x+cos(r)*y
+    x,y = x+tx,y+ty
+    return x,y
