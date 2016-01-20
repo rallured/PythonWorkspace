@@ -8,6 +8,8 @@ import traces.analyses as anal
 import traces.surfaces as surf
 import pdb
 import copy
+import utilities.imaging.fitting as fit
+from utilities.imaging.analysis import ptov,rms
 
 nbk7 = 1.5150885
 nsf2 = 1.6437928
@@ -58,24 +60,97 @@ def cylindricalSource(height=np.linspace(-50.,50.,3),\
     raylist = [rayBundle(N,div,a,h) for a in az for h in height]
     return raylist
 
-def investigateFocus():
+def investigateFocus(focErr=np.linspace(.1,1,.100),app=75.):
     """
     Trace various focus errors, fit the Legendres,
     and return the ratios of the quadratic and quartic
     Legendre coefficients
     """
-    focErr = linspace(.1,10.,100)
-    focAlign = [[0,0,f,0,0,0] for f in focErr]
+    coeffs = [determineFocusCoefficients(f,app=app) for f in focErr]
+
+    return np.transpose(coeffs)
+
+def investigateTilt(tiltErr=np.linspace(1e-5,1e-3,100),app=75.):
+    """
+    Trace various tilt errors, fit the Legendres,
+    and return the coefficients
+    """
+    coeffs = [determineTiltCoefficients(f,app=app) for f in tiltErr]
+    return np.transpose(coeffs)
+
+def investigateTip(tipErr=np.linspace(1e-5,1e-3,100),app=75.):
+    """
+    Trace various tip errors, fit the Legendres,
+    and return the coefficients
+    """
+    coeffs = [determineTipCoefficients(f,app=app) for f in tipErr]
+    return np.transpose(coeffs)
+
+def investigateTwist(twistErr=np.linspace(1e-5,1e-3,100),app=75.):
+    """
+    Trace various twist errors, fit the Legendres,
+    and return the coefficients
+    """
+    coeffs = [determineTwistCoefficients(f,app=app) for f in twistErr]
+    return np.transpose(coeffs)
+
+def determineFocusCoefficients(focerror,app=75.):
+    d = misalignmentTerm(10000,[0,0,focerror,0,0,0],app=app)
+    return fitFocus(d)
+
+def determineTiltCoefficients(tilterror,app=75.):
+    d = misalignmentTerm(10000,[0,0,0,tilterror,0,0],app=app)
+    return fitTilt(d)
+
+def determineTipCoefficients(tiperror,app=75.):
+    d = misalignmentTerm(10000,[0,0,0,0,tiperror,0],app=app)
+    return fitTip(d)
+
+def determineTwistCoefficients(twisterror,app=75.):
+    d = misalignmentTerm(10000,[0,0,0,0,0,twisterror],app=app)
+    return fitTwist(d)
     
 
-def misalignmentTerm(N,align):
+def fitFocus(d):
+    """
+    Fit up to 4th order for focus and return the
+    2nd and 4th order coefficients
+    """
+    res,c = fit.legendre2d(d,xo=0,yo=4,xl=[1,0,0,0,0],yl=[1,0,1,2,4])
+    return ptov(d),ptov(d-res),c[2,0],c[4,0],res
+
+def fitTilt(d):
+    """
+    Fit the tilt term (pitch) using the 1st and 3rd
+    order coefficients
+    """
+    res,c = fit.legendre2d(d,xo=0,yo=3,xl=[1,0,0,0],yl=[0,0,1,3])
+    return ptov(d),ptov(d-res),c[1,0],c[3,0],res
+
+def fitTip(d):
+    """
+    Fit the tip term (roll) using the 1st and
+    2,1 coefficients
+    """
+    res,c = fit.legendre2d(d,xo=1,yo=2,xl=[1,0,1,1],yl=[0,0,0,2])
+    return ptov(d),ptov(d-res),c[0,1],c[2,1],res
+
+def fitTwist(d):
+    """
+    Fit the twist term (yaw) using the 1,1 and
+    3,1 terms
+    """
+    res,c = fit.legendre2d(d,xo=1,yo=2,xl=[1,0,1,1,1],yl=[0,0,0,1,3])
+    return ptov(d),ptov(d-res),c[1,1],c[3,1],res
+
+def misalignmentTerm(N,align,app=75.):
     """
     Trace identical set of rays through system with and
     without misalignment of cylindrical optic.
     Return interpolated OPD difference
     """
     #Set up list of rays
-    rays = traceToTestOptic(10000)
+    rays = traceToTestOptic(10000,app=app)
     rays2 = copy.deepcopy(rays)
 
     #Trace each through the system
@@ -85,8 +160,8 @@ def misalignmentTerm(N,align):
     backToWFS(rays2)
 
     #Return both OPD
-    opd1 = anal.interpolateVec(rays,0,100,100,method='cubic')[0]
-    opd2 = anal.interpolateVec(rays2,0,100,100,method='cubic')[0]
+    opd1 = anal.interpolateVec(rays,0,100,100,method='linear')[0]
+    opd2 = anal.interpolateVec(rays2,0,100,100,method='linear')[0]
     d = (opd1-opd2)/2.
     
     return d - np.nanmean(d)
@@ -162,13 +237,14 @@ def perfectCyl(rays,align=np.zeros(6)):
     
     return
 
-def traceToTestOptic(N):
+def traceToTestOptic(N,app=75.):
     """Trace a set of rays from the point source to the nominal
     test optic location
     Return the rays at the plane tangent to the nominal source position.
     """
     #Set up source
-    rays = sources.pointsource(.038996,N)
+    div = app/1935.033
+    rays = sources.pointsource(div,N)
     #Trace through collimator
     tran.transform(rays,0,0,1935.033,0,0,0)
     surf.flat(rays,nr=1.)
