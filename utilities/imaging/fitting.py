@@ -4,16 +4,36 @@ import scipy.signal
 import pdb
 from astropy.modeling import models,fitting
 
-def legendre2d(d,xo,yo):
+def legendre2d(d,xo=2,yo=2,xl=None,yl=None):
     """
     Fit a set of 2d Legendre polynomials to a 2D array.
     The aperture is assumed to be +-1 over each dimension.
     NaNs are automatically excluded from the analysis.
     x0 = 2 fits up to quadratic in row axis
     y0 = 3 fits up to cubic in column axis
+    If xl and yl are specified, only the polynomials with
+    orders xl[i],yl[i] are fitted, this allows for fitting
+    only specific polynomial orders.
     """
+    #Define fitting algorithm
     fit_p = fitting.LinearLSQFitter()
-    p_init = models.Legendre2D(xo,yo)
+    #Handle xl,yl
+    if xl is not None and yl is not None:
+        xo,yo = max(xl),max(yl)
+        p_init = models.Legendre2D(xo,yo)
+        #Set all variables to fixed
+        for l in range(xo+1):
+            for m in range(yo+1):
+                key = 'c'+str(l)+'_'+str(m)
+                p_init.fixed[key] = True
+        #p_init.fixed = dict.fromkeys(p_init.fixed.iterkeys(),True)
+        #Allow specific orders to vary
+        for i in range(len(xl)):
+            key = 'c'+str(xl[i])+'_'+str(yl[i])
+            p_init.fixed[key] = False
+    else:
+        p_init = models.Legendre2D(xo,yo)
+    
     sh = np.shape(d)
     x,y = np.meshgrid(np.linspace(-1,1,sh[1]),\
                       np.linspace(-1,1,sh[0]))
