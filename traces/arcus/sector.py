@@ -157,7 +157,7 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
-    pdb.set_trace()
+    
     
     return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2])
 
