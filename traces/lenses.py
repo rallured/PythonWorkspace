@@ -178,8 +178,11 @@ def collimator6(rays,reverse=False):
     return
 
 def LJ1516_L2(rays,reverse=False):
-    singletCyl(rays,0,516.8,3.2,1.5150885,reverse=False)
+    singletCyl(rays,0,516.8,3.2,1.5150885,reverse=reverse)
     return
+
+def LJ1144_L2(rays,reverse=False):
+    singletCyl(rays,0,258.4,3.4,1.5150885,reverse=reverse)
 
 def LJ1653L2(rays,reverse=False):
     cyllens(rays,103.36,0,4.09,30.,60.,1.51501,reverse=reverse)

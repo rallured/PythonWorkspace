@@ -100,6 +100,8 @@ def rebin(a,shape):
     return nanmean(nanmean(a.reshape(sh),axis=3),axis=1)
 
 def stripnans(d):
+    if len(shape(d)) is 1:
+        return d[~isnan(d)]
     newsize = shape(d)[1]
     while sum(isnan(d[0]))==newsize:
         d = d[1:]

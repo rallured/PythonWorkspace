@@ -30,6 +30,17 @@ def nanflat(d):
     d = d[invert(isnan(d))]
     return d
 
+def fwhm(x,y):
+    """Compute the FWHM of an x,y vector pair"""
+    #Determine FWHM
+    maxi = np.argmax(y) #Index of maximum value
+    #Find positive bound
+    xp = x[maxi:]
+    fwhmp = xp[np.argmin(np.abs(y[maxi:]-y.max()/2))]-x[maxi]
+    xm = x[:maxi]
+    fwhmm = x[maxi]-xm[np.argmin(np.abs(y[:maxi]-y.max()/2))]
+    return fwhmp+fwhmm
+
 class pointGetter:
     """Creates an object tied to an imshow where the user can
     accumulate a list of x,y coords by right clicking on them.

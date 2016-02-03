@@ -7,6 +7,9 @@ import utilities.plotting as plotting
 from traces.axro.SMARTX import CXCreflIr
 from scipy import interpolate
 import utilities.imaging.man as man
+import utilities.transformations as tr
+import utilities.imaging.fitting as fit
+import astropy.convolution as conv
 
 import traces.PyTrace as PT
 
@@ -36,6 +39,16 @@ def gratEff(order):
 ##geometric stray light approximations. Then trace things through and
 ##return list of background photons at the focal plane. This shouldn't
 ##be too bad.
+
+def meritFunction():
+    """Go through the science cases, trace the relevant lines,
+    sum the observation times
+    """
+    #Case G-2, NRL velocity measurements, intrinsic width ~ 300-500 km/s
+    #Need velocity uncertainty < 100 km/s
+
+    return None
+    
 
 
 def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
@@ -77,7 +90,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
 
 def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
                 inc=1.5*pi/180,l=95.,bestFocus=None,order=0,\
-                blazeYaw=0.,wave=1.,marg=0.):
+                blazeYaw=0.,wave=1.,marg=0.,findMargin=False):
     """Trace Arcus sector
     """
     #Trace parameters
@@ -149,17 +162,23 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         cy = np.average(rays[2],weights=weights)
     except:
         pdb.set_trace()
-    lsf = sqrt((PT.rmsY(rays,weights=weights)*1.35)**2 + \
-               (1.5/60**2*pi/180*F)**2\
-               + (marg/60**2*pi/180*F)**2)
-    resolution = cy/lsf
+    if findMargin is True:
+        #Compute FWHM after Gaussian convolution
+        fwhms = np.linspace(1,3,201)/60.**2*pi/180*12e3
+        tot = np.array([convolveLSF(rays,.001,m,weights=weights)\
+                        for m in fwhms/2.35])
+        #Convert to arcsec, return std of margin convolution
+        marg = fwhms[np.argmin(np.abs(tot/12e3*180/pi*60**2-3.))]/2.35
+        return marg,rays
+    fwhm = convolveLSF(rays,.001,marg,weights=weights)
+    resolution = cy/fwhm
     area = np.sum(weights)*.799*.83*.8*.8#Grat plates, azimuthal ribs, packing^2
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
     
-    
-    return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2])
+    return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2]),\
+           rays,weights
 
 def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775):
     """Trace SPO surfaces sequentially. Collect rays from
@@ -381,16 +400,121 @@ def predictionPlots(wave,arcus,w1,w2):
         plt.figure(eafig.number)
         plt.plot(wave[ind],arcus[i,1][ind]*4,label=str(order))
 
-def plotPetal(x,y,r=0.,tx=0.,ty=0.,color='blue'):
+def plotPetal(x,y,tra=tr.identity_matrix(),color='blue'):
     """Make an isometric plot of a petal layout"""
+    #Apply transformation matrices
+    arc = [x,y,np.zeros(len(x)),np.ones(len(x))]
+    arc = np.dot(tra,arc)
     #Plot arc
-    plotting.isoplot(*man.transformation(x,y,r=r,tx=tx,ty=ty),color=color)
+    plotting.isoplot(arc[0],arc[1],color=color)
     #Plot petal aperture
     appx = np.array([300.,300.,800.,800.,300.])
     appy = np.array([187.5,-187.5,-187.5,187.5,187.5])
-    plt.plot(*man.transformation(appx,appy,r=r,tx=tx,ty=ty),color=color)
+    app = [appx,appy,np.zeros(5),np.ones(5)]
+    app = np.dot(tra,app)
+    plt.plot(app[0],app[1],color=color)
     #Plot zero order
-    x,y = man.transformation(np.array([615.253]),\
-                                 np.array([0.]),r=r,tx=tx,ty=ty)
-    plt.plot(x,y,'.',color=color)
-    return
+    zo = np.dot(tra,[615.253,0,0,1])
+    plt.plot(zo[0],zo[1],'.',color=color)
+    return [arc,app,zo]
+
+def matchArc(arc):
+    """Take the raytraced arc, negate the dispersion direction, and
+    compute the translation and rotation transformations to
+    match the two spectra
+    """
+    #Create the second arc by negating the dispersion direction
+    sh = np.shape(arc)
+    arc = [arc[0],arc[1],np.zeros(sh[1]),np.ones(sh[1])]
+    arc2 = np.copy(arc)
+    arc2[1] = -arc2[1]
+
+    #Transform second arc by pi/2
+    r = tr.rotation_matrix(pi/2,[0,0,1])
+    arc2 = np.dot(r,arc2)
+
+    #Get gradients
+    dx = np.diff(arc2[0])[0]
+    gr = np.gradient(arc2[1],dx)
+
+    #Apply rotation to match slopes
+    angle = pi/2+np.arctan(gr[-1])+np.arctan(gr[0])
+    r2 = tr.rotation_matrix(-angle,[0,0,1])
+    arc3 = np.dot(r2,arc2)
+
+    #Apply translation to match 
+    pdb.set_trace()
+##    arc3[0] = arc3[0] + (arc[0][-1]-arc3[0][0])
+##    arc3[1] = arc3[1] + (arc[1][-1]-arc3[1][0])
+    t = tr.translation_matrix([(arc[0][-1]-arc3[0][0]),\
+                               (arc[1][-1]-arc3[1][0]),\
+                               0.])
+    arc3 = np.dot(t,arc3)
+    tra = np.dot(t,(np.dot(r2,r)))
+
+    #Get even closer
+    dist = np.sqrt((arc[0][0]-arc3[0][-1])**2+(arc[1][0]-arc3[1][-1])**2)
+    lever = np.sqrt((arc[0][0]-arc[0][-1])**2+(arc[1][0]-arc[1][-1])**2)
+    angle = dist/lever
+    tra2 = np.dot(tr.rotation_matrix(angle,[0,0,1],point=\
+                                     [arc3[0][0],arc3[1][0],0]),tra)
+
+    #Return transformation
+    return tra2,angle
+
+def makeLayout(arc,sepAngle):
+    tra,angle = matchArc(arc) #Get nominal transformation for paired petal
+    tra2 = np.dot(tr.rotation_matrix(angle/2,[0,0,1]),tra)
+    tra1 = tr.rotation_matrix(angle/2,[0,0,1])
+
+    #Create the second arc by negating the dispersion direction
+    sh = np.shape(arc)
+    arc = [arc[0],arc[1],np.zeros(sh[1]),np.ones(sh[1])]
+    arc2 = np.copy(arc)
+    arc2[1] = -arc2[1]
+
+    #Apply transformations
+    arc2 = np.dot(tra2,arc2)
+    arc1 = np.dot(tra1,arc)
+    
+    #Find center of second arc
+    xc,yc = fit.circle(arc2[0],arc2[1],0,0)[0]
+
+    #Rotate each petal about this point
+    tra1 = np.dot(tr.rotation_matrix(sepAngle,[0,0,1],point=[xc,yc,0]),tra1)
+    tra2 = np.dot(tr.rotation_matrix(-sepAngle,[0,0,1],point=[xc,yc,0]),tra2)
+
+    #Add translation to second petal
+    tra2 = np.dot(tr.translation_matrix([10/np.sqrt(2),10/np.sqrt(2),0]),tra2)
+
+    #Now plot the petals with the correct translations
+    pet1 = plotPetal(arc[0],arc[1],tra=tra1,color='blue')
+    pet2 = plotPetal(arc[0],-arc[1],tra=tra2,color='red')
+
+    #Plot dashed line between corners closest to arcs
+    x1,x2,y1,y2=pet1[1][0][3],pet2[1][0][2],pet1[1][1][3],pet2[1][1][2]
+    plt.plot([pet1[1][0][3],pet2[1][0][2]],[pet1[1][1][3],pet2[1][1][2]],'k--')
+
+def convolveLSF(rays,binsize,std,weights=None,plot=False):
+    """Convolve a gaussian with the LSF determined by
+    histogramming the ray LSF
+    std should be supplied as a distance in mm"""
+    #Bin up rays in dispersion direction
+    n,b = np.histogram(rays[2],bins=\
+                       np.arange(rays[2].mean()-.5,rays[2].mean()+.5,binsize),\
+                       weights=weights)
+    b = np.array([np.mean([b[i],b[i+1]]) for i in range(len(b)-1)])
+    #Create convolution kernel
+    gaussk = conv.Gaussian1DKernel(std/binsize)
+    n2 = conv.convolve(n,gaussk)
+    #Determine FWHM
+    maxi = np.argmax(n2) #Index of maximum value
+    #Find positive bound
+    bp = b[maxi:]
+    fwhmp = bp[np.argmin(np.abs(n2[maxi:]-n2.max()/2))]-b[maxi]
+    bm = b[:maxi]
+    fwhmm = b[maxi]-bm[np.argmin(np.abs(n2[:maxi]-n2.max()/2))]
+    if plot is True:
+        plt.plot(b,n)
+        plt.plot(b,n2)
+    return fwhmm+fwhmp

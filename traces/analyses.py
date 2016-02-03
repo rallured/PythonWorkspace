@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 import pdb
+from utilities.imaging.fitting import circle,circleMerit
+from utilities.imaging.analysis import ptov,rms
+import utilities.imaging.man as man
 
 def centroid(rays,weights=None):
     """Compute the centroid of the rays in the xy plane
@@ -129,10 +132,29 @@ def interpolateVec(rays,I,Nx,Ny,method='linear'):
     gridx,gridy = np.meshgrid(np.linspace(x.min(),x.max(),Nx),\
                               np.linspace(y.min(),y.max(),Ny))
     dx = np.diff(gridx)[0][0]
+    dy = np.diff(np.transpose(gridy))[0][0]
     #Call griddata for interpolation
     res = griddata((x,y),interpVec,(gridx,gridy),method=method)
     
-    return res,dx
+    return res,dx,dy
+
+def measurePower(rays,Nx,Ny,method='linear'):
+    """Measure the radius of curvature in X and Y
+    axes of OPD
+    Assumes you have steered the beam to get rid of
+    any tilts
+    Sign of power equals transform in z to go to focus"""
+    #Get l,m
+    l,dx,dy = interpolateVec(rays,4,Nx,Ny,method=method)
+    m = interpolateVec(rays,5,Nx,Ny,method=method)[0]
+    #Get slices
+    xsl = man.stripnans(l[Ny/2])
+    ysl = man.stripnans(m[:,Nx/2])
+    #Estimate gradients
+    xpow = 1/np.gradient(xsl,dx)[Nx/2]
+    ypow = 1/np.gradient(ysl,dy)[Ny/2]
+    return -xpow,-ypow
+    
 
 def compareOPDandSlopes(rays,Nx,Ny,method='linear'):
     """

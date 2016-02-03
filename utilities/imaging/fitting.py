@@ -120,3 +120,17 @@ def sgolay2d ( z, window_size, order, derivative=None):
         c = np.linalg.pinv(A)[1].reshape((window_size, -1))
         r = np.linalg.pinv(A)[2].reshape((window_size, -1))
         return scipy.signal.fftconvolve(Z, -r, mode='valid'), scipy.signal.fftconvolve(Z, -c, mode='valid')
+
+def circle(x,y,xc,yc):
+    """Fit a circle to a set of x,y coordinates
+    Supply with a guess of circle center
+    Returns [xc,yc],[rmsRad,rad]
+    """
+    fun = lambda p: circleMerit(x,y,p[0],p[1])[0]
+    res = scipy.optimize.minimize(fun,np.array([xc,yc]),method='Nelder-Mead')
+    return res['x'],circleMerit(x,y,res['x'][0],res['x'][1])
+
+def circleMerit(x,y,xo,yo):
+    rad = np.sqrt((x-xo)**2+(y-yo)**2)
+    mrad = np.mean(rad)
+    return np.sqrt(np.mean((rad-mrad)**2)),mrad

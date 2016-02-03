@@ -3,6 +3,7 @@ from scipy.ndimage import rotate
 import zygo
 import pdb,glob
 import matplotlib.pyplot as plt
+import utilities.imaging.analysis as anal
 
 #Need to analyze Sydor metrology of glass wafers
 #Load in metrology data, and compute slope distributions
@@ -35,7 +36,11 @@ def slopeStatistics(filename):
         sl = np.abs(sl - np.mean(sl)) #Subtract average tilt
         sl = sl.flatten()
         sl = np.sort(sl)
-        fom.append(sl[round(.875*np.size(sl))]-sl[round(.125*np.size(sl))])
+        #Histogram slopes
+        y,x = np.histogram(sl,bins=np.linspace(-200.,200.,1000))
+        pdb.set_trace()
+        #fom.append(anal.fwhm(x[1:],y))
+        fom.append(
     return np.array(fom)
 
 #Loop through Sydor ascii files and plot FoM

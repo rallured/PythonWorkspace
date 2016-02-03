@@ -95,16 +95,16 @@ def convergingbeam(zset,rin,rout,tmin,tmax,num,lscat):
     Input z position, inner and outer radius,
     min and max theta
     """
-    rho = sqrt(rin**2+random.rand(num)*(rout**2-rin**2))
-    theta = tmin + random.rand(num)*(tmax-tmin)
-    x = rho*cos(theta)
-    y = rho*sin(theta)
+    rho = np.sqrt(rin**2+np.random.rand(num)*(rout**2-rin**2))
+    theta = tmin + np.random.rand(num)*(tmax-tmin)
+    x = rho*np.cos(theta)
+    y = rho*np.sin(theta)
     z = np.repeat(zset,num)
-    lscat = lscat * tan((random.rand(num) - .5)*np.pi)
+    lscat = lscat * np.tan((np.random.rand(num) - .5)*np.pi)
     lscat = lscat/60**2 * np.pi/180.
-    n = -cos(arctan(rho/zset)+lscat)
-    l = -sqrt(1-n**2)*cos(theta)
-    m = -sqrt(1-n**2)*sin(theta)
+    n = -np.cos(np.arctan(rho/zset)+lscat)
+    l = -np.sqrt(1-n**2)*np.cos(theta)
+    m = -np.sqrt(1-n**2)*np.sin(theta)
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)

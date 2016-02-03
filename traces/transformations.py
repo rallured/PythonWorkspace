@@ -1,7 +1,8 @@
 import numpy as np
 import transformationsf as tran
+import utilities.transformations as tr
 
-def transform(rays,tx,ty,tz,rx,ry,rz,ind=None):
+def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
     """
@@ -16,6 +17,20 @@ def transform(rays,tx,ty,tz,rx,ry,rz,ind=None):
         ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
     else:
         tran.transform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+
+    #Update transformation matrices
+    if coords is not None:
+        #Define rotation and translation matrices
+        rotm = rotationM(rx,ry,rz)
+        tranm = translationM(tx,ty,tz)
+        rotmi = rotationM(-rx,-ry,-rz)
+        tranmi = translationM(-tx,-ty,-tz)
+        #Dot rotation into forward transform
+        coords[0] = np.dot(rotm,coords[0])
+        coords[1] = np.dot(np.dot(rotm,tranm),coords[1])
+        coords[2] = np.dot(coords[2],rotim)
+        coords[3] = np.dot(coords[3],np.dot(tranim,rotim))
+    
     return
 
 
@@ -25,6 +40,18 @@ def itransform(rays,tx,ty,tz,rx,ry,rz):
     """
     x,y,z,l,m,n,ux,uy,uz = rays[1:]
     tran.itransform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+    return
+
+def steerY(rays):
+    """Rotate reference frame for zero mean y tilt"""
+    while np.abs(np.mean(rays[5])) > 1e-6:
+        transform(rays,0,0,0,-np.mean(rays[5]),0,0)
+    return
+
+def steerX(rays):
+    """Rotate reference frame for zero mean y tilt"""
+    while np.abs(np.mean(rays[4])) > 1e-6:
+        transform(rays,0,0,0,0,np.mean(rays[4]),0)
     return
 
 def reflect(rays,ind=None):
@@ -82,3 +109,22 @@ def vignette(rays,ind=None):
                             #requires position vector set to 0.
     
     return [rays[i][ind] for i in range(10)]
+
+#Transformation matrix helper functions
+def rotationM(rx,ry,rz):
+    """Return a rotation matrix, applying rotations in
+    X,Y,Z order
+    Negate the angle values to be consistent with transform function
+    Translation translates the reference frame
+    """
+    r1 = tr.rotation_matrix(-rx,[1,0,0])
+    r2 = tr.rotation_matrix(-ry,[0,1,0])
+    r3 = tr.rotation_matrix(-rz,[0,0,1])
+    return np.dot(r3,np.dot(r2,r1))
+
+def translationM(tx,ty,tz):
+    """
+    Return a translation matrix. Negate the values in order
+    to be consistent with the transform method.
+    Translation translates the reference frame"""
+    return tr.translation_matrix([-tx,-ty,-tz])
