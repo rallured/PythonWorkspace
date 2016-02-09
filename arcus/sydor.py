@@ -37,10 +37,10 @@ def slopeStatistics(filename):
         sl = sl.flatten()
         sl = np.sort(sl)
         #Histogram slopes
-        y,x = np.histogram(sl,bins=np.linspace(-200.,200.,1000))
-        pdb.set_trace()
+##        y,x = np.histogram(sl,bins=np.linspace(-200.,200.,1000))
+##        pdb.set_trace()
         #fom.append(anal.fwhm(x[1:],y))
-        fom.append(
+        fom.append(sl[round(.875*np.size(sl))]-sl[round(.125*np.size(sl))])
     return np.array(fom)
 
 #Loop through Sydor ascii files and plot FoM

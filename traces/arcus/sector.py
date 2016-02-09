@@ -499,11 +499,13 @@ def convolveLSF(rays,binsize,std,weights=None,plot=False):
     """Convolve a gaussian with the LSF determined by
     histogramming the ray LSF
     std should be supplied as a distance in mm"""
+    pdb.set_trace()
     #Bin up rays in dispersion direction
     n,b = np.histogram(rays[2],bins=\
                        np.arange(rays[2].mean()-.5,rays[2].mean()+.5,binsize),\
                        weights=weights)
     b = np.array([np.mean([b[i],b[i+1]]) for i in range(len(b)-1)])
+    pdb.set_trace()
     #Create convolution kernel
     gaussk = conv.Gaussian1DKernel(std/binsize)
     n2 = conv.convolve(n,gaussk)

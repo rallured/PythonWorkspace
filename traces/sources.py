@@ -5,6 +5,7 @@ import numpy as np
 def pointsource(ang,num):
     """Define point source with angular divergence
     Points in +z direction
+    Ang is half angle
     """
     #Radial direction cosine magnitude
     rho = np.sqrt(np.random.rand(num))*np.sin(ang)

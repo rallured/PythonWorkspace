@@ -171,6 +171,24 @@ def misalignmentTerm(N,align,app=75.):
     
     return d - np.nanmean(d)
 
+def cghmisalign1m(N,cghalign):
+    rays,l = traceToTestOptic1m(N,coloffset=200.)
+    rays2,l = traceToTestOptic1m(N,coloffset=200.,cghalign=cghalign)
+
+    perfectCyl1m(rays)
+    perfectCyl1m(rays2)
+
+    backToWFS1m(rays)
+    backToWFS1m(rays2,cghalign=cghalign)
+
+    pdb.set_trace()
+
+    opd1,dx,dy = anal.interpolateVec(rays,0,200,200)
+    opd2,dx,dy = anal.interpolateVec(rays2,0,200,200)
+    d = (opd1-opd2)/2.
+
+    return d - np.nanmean(d)
+
 
 def backToWFS220(rays):
     """
@@ -281,7 +299,7 @@ def traceToTestOptic220(N,app=75.):
     
     return rays
 
-def traceToTestOptic1m(N,app=75.,coloffset=0.):
+def traceToTestOptic1m(N,app=75.,coloffset=0.,cghalign=np.zeros(6)):
     """Trace a set of rays from the point source to the nominal
     test optic location
     Return the rays at the plane tangent to the nominal source position.
@@ -298,6 +316,8 @@ def traceToTestOptic1m(N,app=75.,coloffset=0.):
     tran.transform(rays,0,0,100.,0,0,0)
     #Apply proper CGH misalignment
     tran.transform(rays,0,0,0,-10.*pi/180,0,0)
+    #Apply CGH misalignment
+    tran.transform(rays,*cghalign)
     #Trace through CGH
     surf.flat(rays,nr=1.)
     tran.refract(rays,1.,nsil)
@@ -306,7 +326,7 @@ def traceToTestOptic1m(N,app=75.,coloffset=0.):
     tran.refract(rays,nsil,1.)
     surf.zernphase(rays,-cgh1m,80.,632.82e-6)
     #Reverse CGH misalignment
-##    tran.itransform(rays,0,0,0,0,-10.*pi/180,0)
+    tran.itransform(rays,*cghalign)
     #Go to line focus
     line = surf.focusY(rays,nr=1.)
     #Go to test optic
@@ -344,22 +364,27 @@ def perfectCyl1m(rays,align=np.zeros(6)):
     
     return
 
-def backToWFS1m(rays):
+def backToWFS1m(rays,cghalign=np.zeros(6)):
     """
     Trace rays from nominal test optic tangent plane back to WFS plane.
     This function can also be used with a point source to determine the
     Optimal focus positions of the field lenses.
     +z points toward CGH.
     """
+    #Reverse x,z misalignments
+    for i in [0,2,3,5]:
+        cghalign[i] = -cghalign[i]
     #Back to CGH
     tran.transform(rays,0,0,1000+line1m,0,0,0)
     surf.flat(rays,nr=1.)
     #Trace back through CGH
+    tran.transform(rays,*cghalign)
     surf.zernphase(rays,-cgh1m,80.,632.82e-6)
     tran.refract(rays,1.,nsil)
     tran.transform(rays,0,0,6.35,0,0,0)
     surf.flat(rays,nr=nsil)
     tran.refract(rays,nsil,1.)
+    tran.itransform(rays,*cghalign)
     tran.transform(rays,0,0,0,-10.*pi/180,0,0)
     #Go to collimator
     tran.transform(rays,0,0,100,0,0,0)
