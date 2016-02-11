@@ -4,6 +4,8 @@ import zygo
 import pdb,glob
 import matplotlib.pyplot as plt
 import utilities.imaging.analysis as anal
+import utilities.imaging.man as man
+from scipy.ndimage.filters import gaussian_filter1d
 
 #Need to analyze Sydor metrology of glass wafers
 #Load in metrology data, and compute slope distributions
@@ -63,3 +65,32 @@ def sydorPlot(f):
     plt.xlabel('Wafer Rotation Angle')
     plt.ylabel('Width (arcsec)')
     return None#largest
+
+def estimatePerf(f):
+    """Estimate performance of active area of first set of
+    nanoimprint gratings on Sydor glass
+    """
+    #Load image
+    i,phase,lat = zygo.readzygo(f)
+    lat = lat*1000.
+    phase = phase*1000.
+
+    pdb.set_trace()
+
+    #Choose region
+    subimg = anal.getSubApp(phase)
+
+    #Fill in NaN values using spline interpolation
+    subimg = man.nearestNaN(subimg,method='cubic')
+
+    #Determine gradient
+    gradx,grady = np.gradient(subimg,lat)
+    gy = grady.flatten()*np.sin(1.5*np.pi/180)
+
+    #Bin up and convolve with Gaussian
+    n,b = np.histogram(gy,bins=np.linspace(gy.min()*2,gy.max()*2,100))
+    b = np.array([np.mean([b[i],b[i+1]]) for i in range(len(b)-1)])
+    n2 = gaussian_filter1d(n,1.5/60**2*np.pi/180/2.35/(b[1]-b[0]))
+    pdb.set_trace()
+
+    return
