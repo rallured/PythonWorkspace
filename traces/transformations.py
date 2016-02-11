@@ -1,6 +1,7 @@
 import numpy as np
 import transformationsf as tran
 import utilities.transformations as tr
+import pdb
 
 def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
     """Coordinate transformation. translations are done first,
@@ -23,23 +24,36 @@ def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
         #Define rotation and translation matrices
         rotm = rotationM(rx,ry,rz)
         tranm = translationM(tx,ty,tz)
-        rotmi = rotationM(-rx,-ry,-rz)
+        rotmi = rotationM(rx,ry,rz,inverse=True)
         tranmi = translationM(-tx,-ty,-tz)
         #Dot rotation into forward transform
         coords[0] = np.dot(rotm,coords[0])
         coords[1] = np.dot(np.dot(rotm,tranm),coords[1])
-        coords[2] = np.dot(coords[2],rotim)
-        coords[3] = np.dot(coords[3],np.dot(tranim,rotim))
+        coords[2] = np.dot(coords[2],rotmi)
+        coords[3] = np.dot(coords[3],np.dot(tranmi,rotmi))
     
     return
 
 
-def itransform(rays,tx,ty,tz,rx,ry,rz):
+def itransform(rays,tx,ty,tz,rx,ry,rz,coords=None):
     """Inverse of coordinate transformations. -rz,-ry,-rx then
     translations.
     """
     x,y,z,l,m,n,ux,uy,uz = rays[1:]
     tran.itransform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+
+    #Update transformation matrices
+    if coords is not None:
+        #Define rotation and translation matrices
+        rotm = rotationM(rx,ry,rz,inverse=True)
+        tranm = translationM(-tx,-ty,-tz)
+        rotmi = rotationM(rx,ry,rz)
+        tranmi = translationM(tx,ty,tz)
+        #Dot rotation into forward transform
+        coords[0] = np.dot(rotm,coords[0])
+        coords[1] = np.dot(np.dot(rotm,tranm),coords[1])
+        coords[2] = np.dot(coords[2],rotmi)
+        coords[3] = np.dot(coords[3],np.dot(tranmi,rotmi))
     return
 
 def steerY(rays):
@@ -111,16 +125,21 @@ def vignette(rays,ind=None):
     return [rays[i][ind] for i in range(10)]
 
 #Transformation matrix helper functions
-def rotationM(rx,ry,rz):
+def rotationM(rx,ry,rz,inverse=False):
     """Return a rotation matrix, applying rotations in
     X,Y,Z order
     Negate the angle values to be consistent with transform function
     Translation translates the reference frame
     """
+    if inverse is True:
+        rx,ry,rz = -rx,-ry,-rz
     r1 = tr.rotation_matrix(-rx,[1,0,0])
     r2 = tr.rotation_matrix(-ry,[0,1,0])
     r3 = tr.rotation_matrix(-rz,[0,0,1])
-    return np.dot(r3,np.dot(r2,r1))
+    if inverse is True:
+        return np.dot(r1,np.dot(r2,r3))
+    else:
+        return np.dot(r3,np.dot(r2,r1))
 
 def translationM(tx,ty,tz):
     """
@@ -128,3 +147,30 @@ def translationM(tx,ty,tz):
     to be consistent with the transform method.
     Translation translates the reference frame"""
     return tr.translation_matrix([-tx,-ty,-tz])
+
+def applyT(rays,coords,inverse=False):
+    """Apply transformation matrix to raylist.
+    Only rotations to direction cosines.
+    Inverse means going back to global coordinate system.
+    Forward means going from global coordinate system to
+    local coordinate system.
+    """
+    i = 0
+    if inverse is True:
+        i = 2
+    #Extract position, wavevector, and surface normals
+    on = np.ones(np.shape(rays)[1])
+    pos = [rays[1],rays[2],rays[3],on]
+    wave = [rays[4],rays[5],rays[6],on]
+    norm = [rays[7],rays[8],rays[9],on]
+    #Apply relevant transformations
+    pos = np.dot(coords[i+1],pos)[:3]
+    wave = np.dot(coords[i],wave)[:3]
+    norm = np.dot(coords[i],norm)[:3]
+    pdb.set_trace()
+    #Construct and return new raylist
+    return [rays[0],\
+            pos[0],pos[1],pos[2],\
+            wave[0],wave[1],wave[2],\
+            norm[0],norm[1],norm[2]]
+    
