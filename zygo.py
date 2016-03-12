@@ -59,7 +59,6 @@ def readzygo(filename):
     while (l[0]!='#'):
         #Convert to array of floats
         l = array(l.split(' '))
-        pdb.set_trace()
         l = l[:-1].astype('float')
         #Merge into intensity array
         try:

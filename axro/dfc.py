@@ -140,8 +140,8 @@ def createDistSim(amp,freq,phase,filename):
     map for DFC2. Saves in usual ~/data directory
     """
     #Create distortion array
-    y,x = np.mgrid[0:150,0:150]
-    x,y = x*(100./150),y*(100./150)
+    y,x = np.mgrid[0:128,0:128]
+    x,y = x*(100./128),y*(100./128)
     d = amp*np.sin(2*np.pi*freq*y+phase)
 
     #Save as fits file
@@ -165,8 +165,8 @@ def flatCorrection(amp,freq,phase,dx=100./128):
 ##              'premath=RoundMath.dat')
     distortionf = 'dfcdist.fits'#datadir+'distortions/dfcdist.fits'
     shadef = datadir+'shademasks/DFCmask2.fits'
-    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150730IFs/150917_Gauss5.fits'#150917_Gauss2.fits'
-##    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150728_Resampled.fits'
+##    ifuncf = '/home/rallured/Dropbox/WFS/SystemAlignment/DFC2/150730IFs/150917_Gauss5.fits'#150917_Gauss2.fits'
+    ifuncf = '/home/rallured/data/solve_pzt/ifuncs/FlatFigureMirror/150915_RebinnedIFs.fits'
     res = slv.slopeOptimizer2(ifuncf=ifuncf,distortionf=distortionf,\
                               shadef=shadef,dx=dx,smax=100.)
 
@@ -201,6 +201,8 @@ def flatCorrection(amp,freq,phase,dx=100./128):
 ##    correction = sum((w**2*axpsdw)[f<.15])/sum(w**2*origpsdw)
 ##    correction = sum(w**2*axpsdw)/sum(w**2*origpsdw)
     correction = (anal.rms(np.diff(resid,axis=0))/anal.rms(np.diff(d2,axis=0)))**2
+
+    pdb.set_trace()
     
     return correction
 
@@ -303,7 +305,7 @@ def interpolatedFilter(model,dmodel,measurement,dmeas):
 def spiePlot():
     """Make up ripple induction plot for SPIE 2015 slides"""
     #Load data
-    os.chdir('/Users/ryanallured/Dropbox/WFS/'
+    os.chdir('/home/rallured/Dropbox/WFS/'
              'SystemAlignment/DFC2/Iteration_0_3/ForAlexey')
     dist = pyfits.getdata('dfcdist_0_3.fits')
     shade = pyfits.getdata('Shademask.fits')
@@ -339,10 +341,10 @@ def spiePlot():
     plt.title('Desired')
     plt.subplot(142)
     plt.imshow(preresid,vmax=dist.max(),vmin=dist.min())
-    plt.title('Predicted')
+    plt.title('Predicted-Desired')
     plt.subplot(143)
     plt.imshow(achresid,vmax=dist.max(),vmin=dist.min())
-    plt.title('Achieved')
+    plt.title('Achieved-Desired')
     plt.subplot(144)
     plt.imshow(indresid,vmax=dist.max(),vmin=dist.min())
     plt.title('Predicted-Achieved')

@@ -184,8 +184,6 @@ def zernsurf(x,y,cx,cy,rad,coeff,r=None,m=None):
     if r is None:
         r,m = zmodes(size(coeff))
 
-    pdb.set_trace()
-
     for i in range(size(r)):
         heights = heights + coeff[i]*zernike(r[i],m[i],rho,theta)
 

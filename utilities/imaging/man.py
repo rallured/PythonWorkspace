@@ -1,5 +1,5 @@
 #This submodule includes routines to manipulate image arrays
-from numpy import *
+import numpy as np
 from scipy.interpolate import griddata
 
 import pdb
@@ -10,13 +10,13 @@ def unpackimage(data,xlim=[-1,1],ylim=[-1,1],remove=True):
     y will relate to 1st index in order to correspond to oordinate in imshow
     if remove is True, NaNs will not be returned in the list of coordinates
     """
-    x,y = meshgrid(linspace(xlim[0],xlim[1],shape(data)[1]),\
-                   linspace(ylim[0],ylim[1],shape(data)[0]))
+    x,y = np.meshgrid(np.linspace(xlim[0],xlim[1],np.shape(data)[1]),\
+                   np.linspace(ylim[0],ylim[1],np.shape(data)[0]))
 ##    y = y.flatten()
 ##    x = x.flatten()
     
     if remove is True:
-        ind = invert(isnan(data.flatten()))
+        ind = np.invert(np.isnan(data.flatten()))
         return x.flatten()[ind],y.flatten()[ind],data.flatten()[ind]
 
     return x.flatten(),y.flatten(),data.flatten()
@@ -85,7 +85,7 @@ def tipTiltPiston(img,piston,tip,tilt,tx=None,ty=None):
 def nearestNaN(arr,method='nearest'):
     """Fill the NaNs in a 2D image array with the griddata
     nearest neighbor interpolation"""
-    ishape = shape(arr)
+    ishape = np.shape(arr)
     #Unpack image both with and without removing NaNs
     x0,y0,z0 = unpackimage(arr,remove=False)
     x1,y1,z1 = unpackimage(arr,remove=True)
@@ -100,17 +100,17 @@ def rebin(a,shape):
     return nanmean(nanmean(a.reshape(sh),axis=3),axis=1)
 
 def stripnans(d):
-    if len(shape(d)) is 1:
-        return d[~isnan(d)]
-    newsize = shape(d)[1]
-    while sum(isnan(d[0]))==newsize:
+    if len(np.shape(d)) is 1:
+        return d[~np.isnan(d)]
+    newsize = np.shape(d)[1]
+    while sum(np.isnan(d[0]))==newsize:
         d = d[1:]
-    while sum(isnan(d[-1]))==newsize:
+    while sum(np.isnan(d[-1]))==newsize:
         d = d[:-1]
-    newsize = shape(d)[0]
-    while sum(isnan(d[:,0]))==newsize:
+    newsize = np.shape(d)[0]
+    while sum(np.isnan(d[:,0]))==newsize:
         d = d[:,1:]
-    while sum(isnan(d[:,-1]))==newsize:
+    while sum(np.isnan(d[:,-1]))==newsize:
         d = d[:,:-1]
     return d
 

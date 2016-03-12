@@ -3,8 +3,8 @@
 #Piston/tip/tilt is done by arrays after translation/rotation is fixed
 #by fiducials
 import utilities.transformations as tr
-from numpy import *
-from matplotlib.pyplot import *
+import numpy as np
+import matplotlib.pyplot as plt
 import man
 from scipy.optimize import minimize
 from analysis import getPoints
@@ -18,9 +18,9 @@ def transformCoords(x,y,tx,ty,theta):
     Returns: x,y of new coords
     """
     trans = tr.translation_matrix([tx,ty,0])
-    rot = tr.rotation_matrix(theta,[0,0,1],point=[mean(x),mean(y),0])
-    pos0 = array((x,y,repeat(0.,size(x)),repeat(1.,size(x))))
-    pos1 = dot(trans,dot(rot,pos0))
+    rot = tr.rotation_matrix(theta,[0,0,1],point=[np.mean(x),np.mean(y),0])
+    pos0 = np.array((x,y,np.repeat(0.,np.size(x)),np.repeat(1.,np.size(x))))
+    pos1 = np.dot(trans,np.dot(rot,pos0))
 
     return pos1[0],pos1[1]
 
@@ -125,3 +125,92 @@ def stitchImages(img1,img2):
 
     #Return translations to automatically pad next image
     return img1,tx,ty
+
+def overlapTrans(x,y,tx,ty,theta,sx,sy):
+    """
+    Transform coordinates with a rotation about mean coordinate,
+    followed by translation, followed by scaling
+    """
+    x2,y2 = x*np.cos(theta)+y*np.sin(theta),\
+            -x*np.sin(theta)+y*np.cos(theta)
+    x2,y2 = x2+tx, y2+ty
+    x2,y2 = x2*sx, y2*sy
+    
+    return x2,y2
+
+def overlapMerit(x1,y1,z1,x2,y2,z2,tx,ty,theta,sx,sy):
+    """
+    Apply transformation on img2 and return RMS error
+    """
+    #Apply coordinate transformation
+    x3,y3 = overlapTrans(x2,y2,tx,ty,theta,sx,sy)
+    #Interpolate onto img1 grid
+    x3,y3,z2 = x3.flatten(),y3.flatten(),z2.flatten()
+    ind = ~np.isnan(z2)
+    x3,y3,z2 = x3[ind],y3[ind],z2[ind]
+    z4 = griddata((x3.flatten(),y3.flatten()),\
+                  z2.flatten(),(x1,y1),method='cubic')
+    #Determine overlap area
+    area = np.sum(np.logical_and(~np.isnan(z1),~np.isnan(z4)))
+    #Return error
+    resid = z1-z4
+    resid = resid - np.nanmean(resid)
+    return np.sqrt(np.nanmean(resid**2)),z4
+
+def overlapImages(img1,img2,scale=False):
+    """Function to interpolate a second image onto the first.
+    This is used to compare metrology carried out on a part
+    before and after some processing step. The first image may
+    be translated, rotated, and scaled with respect to the first
+    image. Scaling is due to magnification changes.
+    Procedure is to:
+    1) Set NaNs to zeros so that they want to overlap
+    2) Set up merit function as function of transformation
+       and scaling. Return RMS error.
+    3) Use optimizer to determine best transformation
+    4) Interpolate img2 to img1 using this transformation
+       and return transformed img2.
+    """
+    #Unpack images
+    x1,y1 = np.meshgrid(np.linspace(-1.,1.,np.shape(img1)[1]),\
+                        np.linspace(-1.,1.,np.shape(img1)[0]))
+    x2,y2 = np.meshgrid(np.linspace(-1.,1.,np.shape(img2)[1]),\
+                        np.linspace(-1.,1.,np.shape(img2)[0]))
+    #Get centroids of each image
+    cx1 = np.mean(x1[~np.isnan(img1)])
+    cy1 = np.mean(y1[~np.isnan(img1)])
+    cx2 = np.mean(x1[~np.isnan(img2)])
+    cy2 = np.mean(y1[~np.isnan(img2)])
+
+    #Save NaN index
+    nans = np.isnan(img1)
+
+    #Set up merit function
+    if scale is False:
+        fun = lambda p: overlapMerit(x1,y1,img1,x2,y2,img2,\
+                                     p[0],p[1],p[2],1,1)[0]
+        start = [cx1-cx2+.01,cy1-cy2+.01,0.1]
+        print start
+    else:
+        fun = lambda p: overlapMerit(x1,y1,img1,x2,y2,img2,\
+                                     *p)[0]
+        start = [0.1,0.1,.1,1,1]
+
+    #Optimize!
+    pdb.set_trace()
+    res = minimize(fun,start,method='Powell',\
+                   options={'disp':True,'maxfev':1000,\
+                            'ftol':.0001,\
+                            'xtol':.0001})
+
+    #Construct transformed img2
+    imgnew = overlapMerit(x1,y1,img1,x2,y2,img2,\
+                          res['x'][0],res['x'][1],res['x'][2],\
+                          1,1)[1]
+    img1[nans] = np.nan
+    imgnew[nans] = np.nan
+
+    pdb.set_trace()
+
+    return imgnew
+    

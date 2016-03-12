@@ -6,6 +6,10 @@ import pdb
 def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
+    coords[0] - global to local rotation only
+    coords[1] - global to local rotations and translations
+    coords[2] - local to global rotations only
+    coords[3] - local to global rotations and translations
     """
     x,y,z,l,m,n,ux,uy,uz = rays[1:]
     if ind is not None:
@@ -56,16 +60,16 @@ def itransform(rays,tx,ty,tz,rx,ry,rz,coords=None):
         coords[3] = np.dot(coords[3],np.dot(tranmi,rotmi))
     return
 
-def steerY(rays):
+def steerY(rays,coords=None):
     """Rotate reference frame for zero mean y tilt"""
     while np.abs(np.mean(rays[5])) > 1e-6:
-        transform(rays,0,0,0,-np.mean(rays[5]),0,0)
+        transform(rays,0,0,0,-np.mean(rays[5]),0,0,coords=coords)
     return
 
-def steerX(rays):
+def steerX(rays,coords=None):
     """Rotate reference frame for zero mean y tilt"""
     while np.abs(np.mean(rays[4])) > 1e-6:
-        transform(rays,0,0,0,0,np.mean(rays[4]),0)
+        transform(rays,0,0,0,0,-np.mean(rays[4]),0,coords=coords)
     return
 
 def reflect(rays,ind=None):
@@ -89,7 +93,7 @@ def refract(rays,n1,n2):
     tran.refract(l,m,n,ux,uy,uz,n1,n2)
     return
 
-def radgrat(rays,hubdist,dpermm,order,wave,ind=None):
+def radgrat(rays,dpermm,order,wave,ind=None):
     """Infinite radial grating. Assumes grating in x,y plane
     with grooves converging at hubdist in positive y direction
     dpermm is nm/mm
@@ -98,10 +102,10 @@ def radgrat(rays,hubdist,dpermm,order,wave,ind=None):
     x,y,z,l,m,n = rays[1:7]
     if ind is not None:
         tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
-        tran.radgrat(tx,ty,tl,tm,tn,hubdist,dpermm,order,wave)
+        tran.radgrat(tx,ty,tl,tm,tn,dpermm,order,wave)
         x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
     else:
-        tran.radgrat(x,y,l,m,n,hubdist,dpermm,order,wave)
+        tran.radgrat(x,y,l,m,n,dpermm,order,wave)
     return
 
 def grat(rays,d,order,wave):
@@ -167,7 +171,6 @@ def applyT(rays,coords,inverse=False):
     pos = np.dot(coords[i+1],pos)[:3]
     wave = np.dot(coords[i],wave)[:3]
     norm = np.dot(coords[i],norm)[:3]
-    pdb.set_trace()
     #Construct and return new raylist
     return [rays[0],\
             pos[0],pos[1],pos[2],\

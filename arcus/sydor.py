@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import utilities.imaging.analysis as anal
 import utilities.imaging.man as man
 from scipy.ndimage.filters import gaussian_filter1d
+import utilities.imaging.fitting as fit
 
 #Need to analyze Sydor metrology of glass wafers
 #Load in metrology data, and compute slope distributions
@@ -94,3 +95,51 @@ def estimatePerf(f):
     pdb.set_trace()
 
     return
+
+def examineSecondBatch(filename):
+    """Determine optimal RMS slope in dispersion direction for
+    a given measurement
+    """
+    #Load image
+    i,phase,lat = zygo.readzygo(filename)
+    lat = lat*1000.
+    #Fill missing values with interpolated value
+    phase = man.nearestNaN(phase)
+
+    #Loop through rotation angles and compute
+    #RMS slope over region of interest
+    fom = []
+    ptov = []
+    for ang in np.linspace(0.,360.,180):
+        #Rotate image by appropriate angle
+        d = rotate(phase,ang)
+        #Select region of interest
+        sh = np.shape(d)
+        d = d[round(sh[0]/2-25./2/lat):round(sh[0]/2+25./2/lat),\
+                round(sh[1]/2+(47.-32./2)/lat):round(sh[1]/2+(47.+32./2)/lat)]
+        #Remove tilts
+        res = fit.legendre2d(d,xo=1,yo=1)
+        d = d-res[0]
+        #Get ptov fom
+        ptov.append(anal.ptov(d))
+        #Transform to slope in dispersion direction
+        sl = np.diff(d*1000./lat*180/np.pi*60**2,axis=0)
+        sl2 = np.copy(sl)
+##        sl[round(sh[0]/2-25./2/lat):round(sh[0]/2+25./2/lat),\
+##                round(sh[1]/2+(42.-32./2)/lat):round(sh[1]/2+(42.+32./2)/lat)]\
+##                = np.nan
+
+        
+##        sl = sl[round(sh[0]/2-25./2/lat):round(sh[0]/2+25./2/lat),\
+##                round(sh[1]/2+(47.-32./2)/lat):round(sh[1]/2+(47.+32./2)/lat)]
+
+        #Compute rms of slope
+        sl = np.abs(sl - np.mean(sl)) #Subtract average tilt
+        sl = sl.flatten()
+        sl = np.sort(sl)
+        #Histogram slopes
+##        y,x = np.histogram(sl,bins=np.linspace(-200.,200.,1000))
+##        pdb.set_trace()
+        #fom.append(anal.fwhm(x[1:],y))
+        fom.append(sl[round(.875*np.size(sl))]-sl[round(.125*np.size(sl))])
+    return np.array(fom),np.array(ptov)

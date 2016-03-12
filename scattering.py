@@ -2,7 +2,7 @@ from numpy import *
 from matplotlib.pyplot import *
 #from plotting import mycontour
 import pdb
-from conicsolve import primrad,primfocus,woltparam
+from traces.conicsolve import primrad,primfocus,woltparam
 import math
 
 #Given an axial mirror profile and nominal Wolter Parameters,

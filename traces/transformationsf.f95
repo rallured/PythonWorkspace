@@ -198,12 +198,12 @@ end subroutine itransform
 !Radially grooved grating diffraction
 !Assumes grating in x y plane, with grooves converging at 
 !hubdist in positive y direction
-subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
+subroutine radgrat(x,y,l,m,n,num,dpermm,order,wave)
   !Declarations
   integer, intent(in) :: num
   real*8, intent(in) :: x(num),y(num)
   real*8, intent(inout) :: l(num),m(num),n(num)
-  real*8, intent(in) :: hubdist,dpermm,wave,order
+  real*8, intent(in) :: dpermm,wave,order
   integer :: i
   real*8 :: d, yaw, pi, dum, det, sn
 
@@ -212,10 +212,10 @@ subroutine radgrat(x,y,l,m,n,num,hubdist,dpermm,order,wave)
   !Loop through rays, compute new diffracted ray direction
   do i=1,num
     !Compute local d spacing in nm
-    d = dpermm * sqrt((hubdist-abs(y(i)))**2 + x(i)**2)
+    d = dpermm * sqrt(y(i)**2 + x(i)**2)
     !Compute local yaw
-    sn = abs(y(i))/y(i)
-    yaw = pi/2 + atan(x(i)*sn/(hubdist-abs(y(i))))
+    sn = y(i) / abs(y(i))
+    yaw = pi/2 + atan(x(i)/abs(y(i)))
     !print *, x(i),y(i),d,yaw
     !print *, l(i),m(i),n(i)
 

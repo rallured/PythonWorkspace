@@ -287,21 +287,21 @@ def spoSecondary(rays,R0,F,d=.605,ind=None):
     spoCone(rays,R0,tg,ind=ind)
     return
 
-def focus(rays,fn,weights=None,nr=None):
+def focus(rays,fn,weights=None,nr=None,coords=None):
     dz1 = fn(rays,weights=weights)
-    tran.transform(rays,0,0,dz1,0,0,0)
+    tran.transform(rays,0,0,dz1,0,0,0,coords=coords)
     flat(rays,nr=nr)
     dz2 = fn(rays,weights=weights)
-    tran.transform(rays,0,0,dz2,0,0,0)
+    tran.transform(rays,0,0,dz2,0,0,0,coords=coords)
     flat(rays,nr=nr)
     
     return dz1+dz2
 
-def focusY(rays,weights=None,nr=None):
-    return focus(rays,analyticYPlane,weights=weights,nr=nr)
+def focusY(rays,weights=None,nr=None,coords=None):
+    return focus(rays,analyticYPlane,weights=weights,nr=nr,coords=coords)
 
-def focusX(rays,weights=None,nr=None):
-    return focus(rays,analyticXPlane,weights=weights,nr=nr)
+def focusX(rays,weights=None,nr=None,coords=None):
+    return focus(rays,analyticXPlane,weights=weights,nr=nr,coords=coords)
 
-def focusI(rays,weights=None,nr=None):
-    return focus(rays,analyticImagePlane,weights=weights,nr=nr)
+def focusI(rays,weights=None,nr=None,coords=None):
+    return focus(rays,analyticImagePlane,weights=weights,nr=nr,coords=coords)

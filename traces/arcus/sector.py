@@ -44,8 +44,19 @@ def meritFunction():
     """Go through the science cases, trace the relevant lines,
     sum the observation times
     """
-    #Case G-2, NRL velocity measurements, intrinsic width ~ 300-500 km/s
-    #Need velocity uncertainty < 100 km/s
+    #Set up system
+    yaw = grat.blazeYaw(1.5*pi/180,2.4,3,160.)
+    bestfoc = sec.traceSector(300.,800.,12e3,100,span=375.,\
+                              blazeYaw=yaw,bestFocus=None,order=-3,wave=2.4)
+    marg = sec.traceSector(300.,800.,12e3,100,span=375.,blazeYaw=yaw,\
+                           bestFocus=bestfoc,order=-3,wave=2.4,\
+                           findMargin=True)
+    
+    #Case G1-1, column densities as function of radial distance
+    #from cluster center
+    wave = 2.16
+    o = np.arange(1,8)
+    o = o[(4.4<wave*o) & (wave*o<8.8)]
 
     return None
     
@@ -80,7 +91,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
                             wave=wave[i],blazeYaw=blazeYaw,\
                             bestFocus=bestFoc,order=order,marg=marg)[:2]
         #Add in grating efficiency and CCD QE
-        a = a * geff(wave[i]) * ccdQE(wave[i])
+##        a = a * geff(wave[i]) * ccdQE(wave[i])
         res[i] = r
         area[i] = a
         sys.stdout.write('Wave: %.2f, Area: %.2f, Res: %.2f\r'\
@@ -140,14 +151,19 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave)
 
+    #Account for grating efficiency
+    geff = gratEff(order)
+    #Add in grating efficiency and CCD QE
+    weights = weights * geff(wave) * ccdQE(wave)
+
     #Go to focal plane
     tran.transform(rays,0,0,bestFocus,0,0,0)
     surf.flat(rays)
 
     #Get rid of rays that made it through
-    ind = rays[1] > 0
-    rays = PT.vignette(rays,ind=ind)
-    weights = weights[ind]
+##    ind = rays[1] > 0
+##    rays = PT.vignette(rays,ind=ind)
+##    weights = weights[ind]
     #Get rid of outliers
     ind = np.abs(rays[2]-np.average(rays[2]))<10.
     rays = PT.vignette(rays,ind=ind)
@@ -284,7 +300,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
         i = i+1
 ##        pdb.set_trace()
         PT.reflect(rays,ind=ind2)
-        tran.radgrat(rays,0.,160./hubdist,order,wave,ind=ind2)
+        tran.radgrat(rays,160./hubdist,order,wave,ind=ind2)
         PT.transform(rays,0,0,0,ang,0,0)
 ##        PT.transform(rays2,0,0,0,ang,0,0)
         PT.flat(rays)
@@ -499,13 +515,11 @@ def convolveLSF(rays,binsize,std,weights=None,plot=False):
     """Convolve a gaussian with the LSF determined by
     histogramming the ray LSF
     std should be supplied as a distance in mm"""
-    pdb.set_trace()
     #Bin up rays in dispersion direction
     n,b = np.histogram(rays[2],bins=\
                        np.arange(rays[2].mean()-.5,rays[2].mean()+.5,binsize),\
                        weights=weights)
     b = np.array([np.mean([b[i],b[i+1]]) for i in range(len(b)-1)])
-    pdb.set_trace()
     #Create convolution kernel
     gaussk = conv.Gaussian1DKernel(std/binsize)
     n2 = conv.convolve(n,gaussk)
