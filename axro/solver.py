@@ -23,6 +23,7 @@ def ampMeritFunction(voltages,distortion,ifuncs):
     Simply compute sum(ifuncs*voltages-distortion)**2)
     """
     #Numpy way
+    r = np.dot(ifuncs,voltages)-distortion
     res = np.mean((np.dot(ifuncs,voltages)-distortion)**2)
     return res
 
@@ -57,6 +58,35 @@ def ampMeritDerivative2(voltages,f,g,**kwargs):
     res = np.dot(2*(np.dot(ifuncs,voltages)-distortion),ifuncs)/\
            np.size(distortion)
     return res.tolist(), [], 0
+
+def rawOptimizer(ifs,dist,bounds=None,smin=0.,smax=5.):
+    """Assumes ifs and dist are both in slope or amplitude space.
+    No conversion to slope will occur."""
+    #Create bounds list
+    if bounds is None:
+        bounds = []
+        for i in range(np.shape(ifs)[0]):
+            bounds.append((smin,smax))
+
+    #Get ifs in right format
+    ifs = ifs.transpose(1,2,0) #Last index is cell number
+
+    #Reshape ifs and distortion
+    sh = np.shape(ifs)
+    ifsFlat = ifs.reshape(sh[0]*sh[1],sh[2])
+    distFlat = dist.flatten()
+
+    #Call optimizer algoritim
+    optv = fmin_slsqp(ampMeritFunction,np.zeros(sh[2]),\
+                      bounds=bounds,args=(distFlat,ifsFlat),\
+                      iprint=2,fprime=ampMeritDerivative,iter=200,\
+                      acc=1.e-10)
+
+    #Reconstruct solution
+    sol = np.dot(ifs,optv)
+
+    return sol,optv
+    
 
 def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
                         distortionf=None,shadef=None,\
