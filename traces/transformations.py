@@ -100,12 +100,17 @@ def radgrat(rays,dpermm,order,wave,ind=None):
     wave is in nm
     """
     x,y,z,l,m,n = rays[1:7]
+    #Choose correct radgrat function
+    if type(wave) == np.ndarray:
+        fn = tran.radgratW
+    else:
+        fn = tran.radgrat
     if ind is not None:
         tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
-        tran.radgrat(tx,ty,tl,tm,tn,dpermm,order,wave)
+        fn(tx,ty,tl,tm,tn,dpermm,order,wave)
         x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
     else:
-        tran.radgrat(x,y,l,m,n,dpermm,order,wave)
+        fn(x,y,l,m,n,dpermm,order,wave)
     return
 
 def grat(rays,d,order,wave):

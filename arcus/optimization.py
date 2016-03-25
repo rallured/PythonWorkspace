@@ -33,3 +33,9 @@ def lineDetection(wave,Fl,Fc,A,R,dE=100.,S=5.):
     print 'Continuum counts: ' + str(nc)
 
     return merit
+
+def lineVeocity(wave,Fl,Fc,A,R,dE=100.,dV=5.):
+    """Compute observation time required to measure a
+    velocity to a given uncertainty dV in km/sec.
+    """
+    merit = (c*sigma_0/energy)**2 / (dV**2*np.sum(F_l**2*A/(F_l+dE*(F_c))))

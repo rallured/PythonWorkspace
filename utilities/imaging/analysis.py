@@ -145,7 +145,10 @@ def getPoints(img,log=False):
 
     return x,y
 
-def getSubApp(img,log=False):
+def getSubApp(img,log=False,points=None):
     """Return a subarray defined by rectangle enclosed by two points"""
-    x,y = getPoints(img,log=log)
+    if points is None:
+        x,y = getPoints(img,log=log)
+    else:
+        x,y = points
     return img[y.min():y.max(),x.min():x.max()]

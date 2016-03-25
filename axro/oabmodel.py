@@ -1,9 +1,13 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import pyfits
 from scipy.interpolate import griddata
 import pdb
 import traces.conicsolve as con
 import traces.PyTrace as PT
+import pyfits
+from utilities.imaging.analysis import rms
+import utilities.imaging.fitting as fit
 
 #Global directory variables for problem
 datadir = '/home/rallured/data/solve_pzt/'
@@ -37,7 +41,7 @@ def convertOABInfluence(filename,Nx,Ny,method='cubic'):
     d = np.transpose(griddata((x,arc),rPert,(gy,gx),method=method))
     d[np.isnan(d)] = 0.
 
-    return d[1:-1,1:-1]
+    return d[1:-1,1:-1],gx,gy
 
 def oabDistortion(amp,freq,phase,filename):
     """Similar to the original createDistortion, this introduces
@@ -93,12 +97,69 @@ def wolterDistortion(filename,Nx,Ny):
     rpert = 1000.-np.sqrt(PT.x**2+PT.y**2)
     return rpert.reshape((200,200)),z.reshape((200,200)),t.reshape((200,200))
 
-def analyzeOABCorrection():
-    """Compute the correction to the OAB cylinder and
-    analyze the resulting performance. Should compute
-    a resulting RMS diameter assuming equal and uncorrelated
-    performance with the secondary.
-    In reality, the performance *will* likely be correlated
-    due to sag addition.
-    """
-    
+def determineHFDFC2Stress():
+    """Determine required stress*thickness for correctin of
+    HFDFDC2 after PZT processing."""
+    #Load in data and create coordinate grids
+    fig = pyfits.getdata('/home/rallured/Dropbox/AXRO/HFDFC/'
+                        '110x110_50x250_200Hz_xyscan_'
+                        'Height_transformed_4in_deltaR_matrix.fits')/1e6
+    xf,yf = np.meshgrid(np.linspace(-.045,.045,400),\
+                        np.linspace(-.045,.045,400))
+    #Fill in NaNs with linear interpolation
+    xf2,yf2 = xf[~np.isnan(fig)],yf[~np.isnan(fig)]
+    fig2 = griddata((xf2,yf2),fig[~np.isnan(fig)],(xf,yf))
+    #Perform SG smoothing
+    gf = fit.sgolay2d(fig2,41,3,derivative='col')
+    #Load stress data
+    uni = pyfits.getdata('/home/rallured/Dropbox/AXRO/HFDFC/Uni.fits')
+    xu,yu = np.meshgrid(np.linspace(-.05,.05,200),\
+                        np.linspace(-.05,.05,200))
+    #Interpolate stress onto figure grid
+    uni2 = griddata((xu.flatten(),yu.flatten()),uni.flatten(),\
+                       (xf,yf))
+    #Compute gradients
+    dx = .09/(399) #Grid size in meters
+    gf = gf/dx
+    gs = np.gradient(uni2,dx)[0]
+    #Remove tilt
+    gf = gf - np.nanmean(gf)
+    gs = gs - np.nanmean(gs)
+    #Determine coefficient needed to match axial sags
+    fun = lambda c: rms(gf-c*gs)
+    coeff = np.linspace(-5,5,1000)
+    fom = [fun(c) for c in coeff]
+    pdb.set_trace()
+
+def determineHFDFC2StressSurf():
+    """Determine required stress*thickness for correctin of
+    HFDFDC2 after PZT processing."""
+    #Load in data and create coordinate grids
+    fig = pyfits.getdata('/home/rallured/Dropbox/AXRO/HFDFC/'
+                        '110x110_50x250_200Hz_xyscan_'
+                        'Height_transformed_4in_deltaR_matrix.fits')/1e6
+    xf,yf = np.meshgrid(np.linspace(-.045,.045,400),\
+                        np.linspace(-.045,.045,400))
+    #Fill in NaNs with linear interpolation
+    xf2,yf2 = xf[~np.isnan(fig)],yf[~np.isnan(fig)]
+    fig2 = griddata((xf2,yf2),fig[~np.isnan(fig)],(xf,yf))
+    #Perform SG smoothing
+    fig2 = fit.sgolay2d(fig2,41,3)
+    #Load stress data
+    uni = pyfits.getdata('/home/rallured/Dropbox/AXRO/HFDFC/Uni.fits')
+    xu,yu = np.meshgrid(np.linspace(-.05,.05,200),\
+                        np.linspace(-.05,.05,200))
+    #Interpolate stress onto figure grid
+    uni2 = griddata((xu.flatten(),yu.flatten()),uni.flatten(),\
+                       (xf,yf))
+    #Remove piston
+    fig2 = fig2 - np.nanmean(fig2)
+    uni2 = uni2 - np.nanmean(uni2)
+    #Remove azimuthal variations to fairly high order
+    fig2 = fig2 - fit.legendre2d(fig2,xo=4,yo=1)[0]
+    uni2 = uni2 - fit.legendre2d(uni2,xo=4,yo=1)[0]
+    #Determine coefficient needed to match axial sags
+    fun = lambda c: rms(fig2-c*uni2)
+    coeff = np.linspace(-5,5,1000)
+    fom = [fun(c) for c in coeff]
+    pdb.set_trace()

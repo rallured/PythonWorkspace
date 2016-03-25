@@ -99,18 +99,28 @@ def rebin(a,shape):
     sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
     return nanmean(nanmean(a.reshape(sh),axis=3),axis=1)
 
-def stripnans(d):
+def stripnans(d,removeAll=False):
+    """
+    Need to fix removeAll. Likely need to remove rows/columns
+    in a circular fashion until all perimeter NaNs are eliminated.
+    """
     if len(np.shape(d)) is 1:
         return d[~np.isnan(d)]
-    newsize = np.shape(d)[1]
-    while sum(np.isnan(d[0]))==newsize:
+    if removeAll is False:
+        newsize = np.shape(d)[1]
+    else:
+        newsize = 1
+    while sum(np.isnan(d[0]))>=newsize:
         d = d[1:]
-    while sum(np.isnan(d[-1]))==newsize:
+    while sum(np.isnan(d[-1]))>=newsize:
         d = d[:-1]
-    newsize = np.shape(d)[0]
-    while sum(np.isnan(d[:,0]))==newsize:
+    if removeAll is False:
+        newsize = np.shape(d)[0]
+    else:
+        newsize = 1
+    while sum(np.isnan(d[:,0]))>=newsize:
         d = d[:,1:]
-    while sum(np.isnan(d[:,-1]))==newsize:
+    while sum(np.isnan(d[:,-1]))>=newsize:
         d = d[:,:-1]
     return d
 
@@ -118,6 +128,21 @@ def transformation(x,y,r=0.,tx=0.,ty=0.):
     """Return x and y vectors after applying a rotation about
     the origin and then translations in x and y
     """
-    x,y = cos(r)*x+sin(r)*y,-sin(r)*x+cos(r)*y
+    x,y = np.cos(r)*x+np.sin(r)*y,-np.sin(r)*x+np.cos(r)*y
     x,y = x+tx,y+ty
     return x,y
+
+def rotateImage(img,rot):
+    """Apply a rotation about the center of an image using
+    griddata
+    """
+    sh = np.shape(img)
+    x,y = np.meshgrid(np.linspace(-1,1,sh[1]),np.linspace(-1,1,sh[0]))
+    dx = 2./(sh[1]-1)
+    dy = 2./(sh[0]-1)
+    x,y = transformation(x,y,r=rot)
+    x2,y2 = np.meshgrid(np.arange(x.min(),x.max()+dx,dx),\
+                        np.arange(y.min(),y.max()+dy,dy))
+    #Interpolate from x,y to x2,y2
+    img2 = griddata((x.flatten(),y.flatten()),img.flatten(),(x2,y2))
+    return stripnans(img2)

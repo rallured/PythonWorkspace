@@ -13,13 +13,14 @@ ifs = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/'
                      'HFDFC/160312_IFTest/IFMeas/160313_MaskedIFs.fits')
 ifs2 = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/'
                      'HFDFC/160312_IFTest/IFMeas/160313_MaskedIFs_NoTilt.fits')
+ifs3 = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/HFDFC/160316IFs/160317_MedianSGSmooth.fits')
 
 def maskandstrip(img):
     """Apply HFDFC mask and strip NaNs from an image"""
     img[mask==0] = np.nan
     return man.stripnans(img)
 
-def createDist(amp,freq,phase):
+def createDist(amp,freq,phase,mag=9.75):
     """Creates a sinusoidal ripple distortion
     map for HFDFC.
     Frequency and amplitude need be in same units
@@ -27,7 +28,7 @@ def createDist(amp,freq,phase):
     #Create distortion array
     y,x = np.mgrid[0:128,0:128]
     x,y = x*(100./92),y*(100./92)
-    d = amp*2*np.pi*freq*np.sin(2*np.pi*freq*y+phase)
+    d = amp*2*np.pi*freq*np.sin(2*np.pi*freq*y+phase)*mag
 
     #Apply mask
     d = maskandstrip(d)

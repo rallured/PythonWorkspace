@@ -143,3 +143,44 @@ def examineSecondBatch(filename):
         #fom.append(anal.fwhm(x[1:],y))
         fom.append(sl[round(.875*np.size(sl))]-sl[round(.125*np.size(sl))])
     return np.array(fom),np.array(ptov)
+
+def examineSecondImprints(gratimgs,oppimages,subs=None):
+    """Examine the slope error in the dispersion direction
+    for the off-center gratings imprinted on the second
+    batch of Sydor substrates.
+    First loop through and get points of 2 left corners
+    Compute appropriate rotation angle and rotate the images
+    Then loop through and get the subapertures based on the
+    metrology of the grating side.
+    Use the subapertures from the opposite side and compute
+    the slope distribution width.
+    Supply list of grating side images and list of opposite
+    side images.
+    """
+    #Latscale
+    dx = 0.000367647
+    if subs is None:
+        #Determine rotation angle
+        rotpts = [anal.getPoints(g) for g in gratimgs]
+        rot = [np.arctan((p[0][1]-p[0][0])/(p[1][1]-p[1][0])) for p in rotpts]
+        rotgrat = [man.rotateImage(gratimgs[i],-rot[i]) \
+                   for i in range(len(gratimgs))]
+        rotopp = [man.rotateImage(oppimages[i],-rot[i])\
+                  for i in range(len(gratimgs))]
+        #Get subapps
+        pts = [anal.getPoints(g) for g in rotgrat]
+        subs = [anal.getSubApp(rotopp[i],points=pts[i])\
+                for i in range(len(gratimgs))]
+    pdb.set_trace()
+
+    #Compute slope distribution width
+    sl = [np.gradient(s,dx)[1] for s in subs]
+    for i in range(len(sl)):
+        sl[i] = sl[i].flatten()
+        sl[i] = sl[i][~np.isnan(sl[i])]
+        sl[i] = np.abs(sl[i] - np.mean(sl[i])) #Subtract average tilt
+        sl[i] = np.sort(sl[i])
+
+    foms = [s[round(.875*np.size(s))]-s[round(.125*np.size(s))] for s in sl]
+
+    return foms

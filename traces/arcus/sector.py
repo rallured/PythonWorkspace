@@ -30,6 +30,15 @@ o = np.genfromtxt('/home/rallured/Dropbox/'
                   'Arcus/Raytrace/Order.txt')
 eff = np.genfromtxt('/home/rallured/Dropbox/'
                     'Arcus/Raytrace/Eff.txt')
+
+#Nominal OPG design
+bestfoc = -11733.773388505848
+#Standard deviation in microns for allowable
+#contribution to LSF of everything aside from
+#design aberrations (i.e. SPO quality, alignments, everything else)
+marg = 0.048027499983957431
+
+
 def gratEff(order):
     return interpolate.interp1d(w,eff[:,o==order],kind='linear',axis=0)
 
@@ -97,6 +106,7 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
         sys.stdout.write('Wave: %.2f, Area: %.2f, Res: %.2f\r'\
                          % (wave[i],area[i],res[i]))
         sys.stdout.flush()
+        
     return res,area
 
 def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
@@ -299,7 +309,7 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     while np.sum(ind2)>0:
         i = i+1
 ##        pdb.set_trace()
-        PT.reflect(rays,ind=ind2)
+        PT.reflect(rays,ind=ind2)            
         tran.radgrat(rays,160./hubdist,order,wave,ind=ind2)
         PT.transform(rays,0,0,0,ang,0,0)
 ##        PT.transform(rays2,0,0,0,ang,0,0)
