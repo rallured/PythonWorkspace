@@ -35,9 +35,16 @@ def CXCreflIr(ang,energy,rough):
     Roughness in RMS nm
     """
     #Get proper optical constants
-    ind = np.argmin(abs(ener-energy/1000.))
-    b = beta[ind]*.95
-    d = delta[ind]*.95
+    if type(energy) == float:
+        ind = np.argmin(abs(ener-energy/1000.))
+        b = beta[ind]*.95
+        d = delta[ind]*.95
+    else:
+        b,d = np.zeros(len(energy)),np.zeros(len(energy))
+        for i in range(len(energy)):
+            ind = np.argmin(abs(ener-energy[i]/1000.))
+            b[i] = beta[ind]*.95
+            d[i] = delta[ind]*.95
     n = 1 - d + 1j*b
     n2 = abs(n)**2
     #Compute reflectivity in each polarization plane

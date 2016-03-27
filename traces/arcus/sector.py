@@ -111,7 +111,8 @@ def investigateSector(Rin,Rout,F,N,wave,span=20.,d=.605,t=.775,gap=50.,\
 
 def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
                 inc=1.5*pi/180,l=95.,bestFocus=None,order=0,\
-                blazeYaw=0.,wave=1.,marg=0.,findMargin=False):
+                blazeYaw=0.,wave=1.,marg=0.,findMargin=False,\
+                analyzeLine=True):
     """Trace Arcus sector
     """
     #Trace parameters
@@ -131,16 +132,22 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     for i in range(M):
         #Full angular span of each shell
         spanv[i] = 2*np.arcsin(span/2/R[i])
-        #Geometric area in each shell
+        #Geometric area in each shell - 10^4 is unit conversion
         weights[i*N:(i+1)*N] = ((R[i]+d)**2-R[i]**2) * spanv[i]/2 / 10000.
+
+    #Assign random wavelength to each ray
+    if wave=='uniform':
+        wave = np.random.uniform(1.,5.,size=M*N)
 
     #Trace rays through SPO modules
     rays,refl = traceSPO(R,L,focVec,N,M,spanv,wave,d=d,t=t)
+    #Refl needs to be array if wave is array
     weights = weights*refl
 
     #Determine outermost radius of grating array
     PT.transform(rays,0,0,focVec[-1]-(L.max()+gap+95.),0,0,0)
     PT.flat(rays)
+    #outerrad should be fixed
     outerrad = np.max(sqrt(rays[1]**2+rays[2]**2))
     hubdist = sqrt(outerrad**2 + (focVec[-1]-(L.max()+gap+95.))**2)
     angle = np.arctan(outerrad/(focVec[-1]-(L.max()+gap+95.)))
@@ -164,11 +171,19 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
     #Account for grating efficiency
     geff = gratEff(order)
     #Add in grating efficiency and CCD QE
-    weights = weights * geff(wave) * ccdQE(wave)
+    #geff and ccdQE need to be arrays if wave is array
+    pdb.set_trace()
+    g = geff(wave)
+    g = g.reshape(np.size(g))
+    weights = weights * g * ccdQE(wave)
 
     #Go to focal plane
     tran.transform(rays,0,0,bestFocus,0,0,0)
     surf.flat(rays)
+
+    pdb.set_trace()
+    if analyzeLine is False:
+        return rays,weights,wave
 
     #Get rid of rays that made it through
 ##    ind = rays[1] > 0
@@ -230,7 +245,7 @@ def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775):
         PT.reflect(rays)
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#np.arcsin(l*ux+m*uy+n*uz)
-        refl = CXCreflIr(inc,1239.8/wave,.5)
+        refl = CXCreflIr(inc,1239.8/wave[i*N:(i+1)*N],.5)
         #Vignette
         ind  = np.logical_and(rays[3]<=L[i],rays[3]>=0.)
         if np.sum(ind) < N:
@@ -241,7 +256,7 @@ def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775):
         PT.reflect(rays)
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
-        ref[i*N:(i+1)*N] = refl * CXCreflIr(inc,1239.8/wave,.5)
+        ref[i*N:(i+1)*N] = refl * CXCreflIr(inc,1239.8/wave[i*N:(i+1)*N],.5)
         #Vignette
         ind  = np.logical_and(rays[3]<=0.,rays[3]>=-L[i])
         if np.sum(ind) < N:

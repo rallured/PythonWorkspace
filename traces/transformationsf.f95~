@@ -198,7 +198,7 @@ end subroutine itransform
 !Radially grooved grating diffraction
 !Assumes grating in x y plane, with grooves converging at 
 !hubdist in positive y direction
-subroutine radgrat(x,y,l,m,n,num,dpermm,order,wave)
+subroutine radgrat(x,y,l,m,n,wave,num,dpermm,order)
   !Declarations
   integer, intent(in) :: num
   real*8, intent(in) :: x(num),y(num)
@@ -233,7 +233,7 @@ end subroutine radgrat
 !Radially grooved grating diffraction with wavelength vector
 !Assumes grating in x y plane, with grooves converging at 
 !hubdist in positive y direction
-subroutine radgratW(x,y,l,m,n,wave,num,hubdist,dpermm,order)
+subroutine radgratW(x,y,l,m,n,wave,num,dpermm,order)
   !Declarations
   integer, intent(in) :: num
   real*8, intent(in) :: x(num),y(num)
@@ -247,20 +247,19 @@ subroutine radgratW(x,y,l,m,n,wave,num,hubdist,dpermm,order)
   !Loop through rays, compute new diffracted ray direction
   do i=1,num
     !Compute local d spacing in nm
-    d = dpermm * sqrt((hubdist-y(i))**2 + x(i)**2)
+    d = dpermm * sqrt(y(i)**2 + x(i)**2)
     !Compute local yaw
-    yaw = pi/2 + atan(x(i)/(hubdist-y(i)))
+    sn = y(i) / abs(y(i))
+    yaw = pi/2 + atan(x(i)/abs(y(i)))
     !print *, x(i),y(i),d,yaw
     !print *, l(i),m(i),n(i)
 
     !Evanescence?
-    det = l(i)**2+m(i)**2
-    if (det<1) then
-      !Compute new direction cosines
-      l(i) = l(i) + sin(yaw)*order*wave(num)/d
-      m(i) = m(i) - cos(yaw)*order*wave(num)/d
-      n(i) = sqrt(1. - l(i)**2 - m(i)**2)
-    end if
+    !det = l(i)**2+m(i)**2
+    !Compute new direction cosines - evanescence will result in NaNs
+    l(i) = l(i) + sin(yaw)*order*wave(i)/d
+    m(i) = m(i) - cos(yaw)*order*wave(i)/d
+    n(i) = sqrt(1. - l(i)**2 - m(i)**2)
   end do
 
 end subroutine radgratW

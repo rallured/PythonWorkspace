@@ -102,15 +102,15 @@ def radgrat(rays,dpermm,order,wave,ind=None):
     x,y,z,l,m,n = rays[1:7]
     #Choose correct radgrat function
     if type(wave) == np.ndarray:
-        fn = tran.radgratW
+        fn = tran.radgratw
     else:
         fn = tran.radgrat
     if ind is not None:
-        tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
-        fn(tx,ty,tl,tm,tn,dpermm,order,wave)
+        tx,ty,tl,tm,tn,tw = x[ind],y[ind],l[ind],m[ind],n[ind],wave[ind]
+        fn(tx,ty,tl,tm,tn,tw,dpermm,order)
         x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
     else:
-        fn(x,y,l,m,n,dpermm,order,wave)
+        fn(x,y,l,m,n,wave,dpermm,order)
     return
 
 def grat(rays,d,order,wave):
