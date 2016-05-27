@@ -35,7 +35,7 @@ def CXCreflIr(ang,energy,rough):
     Roughness in RMS nm
     """
     #Get proper optical constants
-    if type(energy) == float:
+    if np.size(energy) == 1:
         ind = np.argmin(abs(ener-energy/1000.))
         b = beta[ind]*.95
         d = delta[ind]*.95
@@ -69,46 +69,46 @@ def traceWSShell(num,theta,r0,z0,phigh,plow,shigh,slow,\
     a,p,d,e = con.woltparam(r0,z0)
     r1 = PT.wsPrimRad(plow,1.,r0,z0)#np.tan(a/2.)*(plow-10000.) + r0
     r2 = PT.wsPrimRad(phigh,1.,r0,z0)#np.tan(a/2.)*(phigh-10000.) + r0
-    PT.annulus(r1,r2,num)
-    PT.transform(0,0,0,np.pi,0,0)
-    PT.transform(0,0,z0,0,0,0)
+    rays = PT.annulus(r1,r2,num)
+    PT.transform(rays,0,0,0,np.pi,0,0)
+    PT.transform(rays,0,0,z0,0,0,0)
 
     #Trace to primary
-    PT.wsPrimary(r0,z0,1.)
+    PT.wsPrimary(rays,r0,z0,1.)
     #Handle vignetting
-    PT.vignette()
-    ind = np.logical_and(PT.z<phigh,PT.z>plow)
-    PT.vignette(ind=ind)
+    ind = np.logical_and(rays[3]<phigh,rays[3]>plow)
+    rays = PT.vignette(rays,ind=ind)
     #Vignette rays hitting backside of mirror
-    dot = PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz
+    dot = rays[4]*rays[7]+rays[5]*rays[8]+rays[6]*rays[9]
     ind = dot < 0.
-    PT.vignette(ind=ind)
+    rays = PT.vignette(rays,ind=ind)
     #If all rays are vignetted, return
-    if np.size(PT.x) < 1:
+    if np.size(rays[1]) < 1:
         return 0.,0.,0.
     #Apply pointing error
-    PT.l = PT.l + np.sin(theta)
-    PT.n = -np.sqrt(1 - PT.l**2)
+    rays = [rays[0],rays[1],rays[2],rays[3],\
+            rays[4]+np.sin(theta),rays[5],-np.sqrt(1-np.sin(theta)**2),\
+            rays[7],rays[8],rays[9]]
+##    PT.l = PT.l + np.sin(theta)
+##    PT.n = -np.sqrt(1 - PT.l**2)
     #Reflect
     PT.reflect()
     #Compute mean incidence angle for reflectivity
     ang = np.abs(np.mean(np.arcsin(dot))) #radians
     refl1 = CXCreflIr(ang,energy,rough)
     #Total rays entering primary aperture
-    N1 = np.size(PT.x)
+    N1 = np.size(rays[1])
 
     #Trace to secondary
     PT.wsSecondary(r0,z0,1.)
-    #Vignette anything that did not converge
-    PT.vignette()
     #Vignette anything outside the physical range of the mirror
-    ind = np.logical_and(PT.z>slow,PT.z<shigh)
-    PT.vignette(ind=ind)
+    ind = np.logical_and(rays[3]>slow,rays[3]<shigh)
+    rays = PT.vignette(rays,ind=ind)
     #Vignette anything hitting the backside
-    dot = PT.l*PT.ux+PT.m*PT.uy+PT.n*PT.uz
+    dot = rays[4]*rays[7]+rays[5]*rays[8]+rays[6]*rays[9]
     ind = dot < 0.
-    PT.vignette(ind=ind)
-    if np.size(PT.x) < 1:
+    rays = PT.vignette(rays,ind=ind)
+    if np.size(rays[1]) < 1:
         return 0.,0.,0.
     PT.reflect()
     #Compute mean incidence angle for reflectivity
@@ -116,32 +116,29 @@ def traceWSShell(num,theta,r0,z0,phigh,plow,shigh,slow,\
     refl2 = CXCreflIr(ang,energy,rough)
 
     #Trace to focal plane
-    PT.flat()
+    rays = PT.flat(rays)
 
-    #Find Chase focus
-    delta = 0.
-    if chaseFocus or bestFocus:
-        cx,cy = PT.centroid()
-        r = np.sqrt(cx**2+cy**2)
-        delta = .0625*(1.+1)*(r**2*(phigh-plow)/10000.**2)\
-                *(1/np.tan(a))**2
-        PT.transform(0,0,delta,0,0,0)
-        PT.flat()
+##    #Find Chase focus
+##    delta = 0.
+##    if chaseFocus or bestFocus:
+##        cx,cy = PT.centroid()
+##        r = np.sqrt(cx**2+cy**2)
+##        delta = .0625*(1.+1)*(r**2*(phigh-plow)/10000.**2)\
+##                *(1/np.tan(a))**2
+##        PT.transform(0,0,delta,0,0,0)
+##        PT.flat()
+##
+##    #Find best focus
+##    delta2 = 0.
+##    delta3 = 0.
+##    if bestFocus:
+##        try:
+##            tran.focusI(rays,weights=
+##        except:
+##            pdb.set_trace()
+##        PT.flat()
 
-    #Find best focus
-    delta2 = 0.
-    delta3 = 0.
-    if bestFocus:
-        try:
-            delta2 = PT.findimageplane(20.,100)
-            PT.transform(0,0,delta2,0,0,0)
-            delta3 = PT.findimageplane(1.,100)
-            PT.transform(0,0,delta3,0,0,0)
-        except:
-            pdb.set_trace()
-        PT.flat()
-
-    return refl1*refl2
+    return refl1*refl2,rays
     #return PT.hpd(), PT.rmsCentroid(), delta
 
 def evaluateShell(theta,alpha):
@@ -206,43 +203,45 @@ def SXperformance(theta,energy,rough,bestsurface=False,optsurface=False):
             if geo[1][s] > 0.:
                 sys.stdout.write('Shell: %03i \r' % s)
                 sys.stdout.flush()
-                r = traceWSShell(1000,t,rx[1][s],z[s],z[s]+225.,z[s]+25.,\
+                r,rays = traceWSShell(1000,t,rx[1][s],z[s],z[s]+225.,z[s]+25.,\
                                      z[s]-25.,z[s]-225.,energy,rough)
                 r = r*geo[1][s]*rx[9][s] #Reflectivity*area*alignmentbars*vign
                 #Account for thermal shield in shells 220-321
                 if s > 219:
                     r = r * therm[1][np.abs(energy/1000.-therm[0]).argmin()]
-                r = np.repeat(r,np.size(PT.x))
+                r = np.repeat(r,np.size(rays[1]))
                 weights = np.append(weights,r)
                 PT.conic(1107.799202,-1.)
-                xi = np.append(xi,PT.x)
-                yi = np.append(yi,PT.y)
-                l = np.append(l,PT.l)
-                m = np.append(m,PT.m)
-                n = np.append(n,PT.n)
+                xi = np.append(xi,rays[1])
+                yi = np.append(yi,rays[2])
+                l = np.append(l,rays[4])
+                m = np.append(m,rays[5])
+                n = np.append(n,rays[6])
                 if s%10==0:
-                    plt.plot(PT.x[:100],PT.y[:100],'.')
-                plate[s] = PT.centroid()[0]
+                    plt.plot(rays[1][:100],rays[2][:100],'.')
+                plate[s] = anal.centroid(rays,weights=r)[0]
         print time.time()-tstart
 
         #Have list of photon positions and weights
         #Need to compute centroid and then FoM
         #Normalize weights
         weights = weights/np.sum(weights)
-        PT.x = np.array(xi,order='F')
-        PT.y = np.array(yi,order='F')
-        PT.z = np.zeros(np.size(xi)).astype('float')
-        PT.l = np.array(l,order='F')
-        PT.m = np.array(m,order='F')
-        PT.n = np.array(n,order='F')
-        PT.ux = np.zeros(np.size(xi)).astype('float')
-        PT.uy = np.zeros(np.size(xi)).astype('float')
-        PT.uz = np.zeros(np.size(xi)).astype('float')
+        xi = np.array(xi,order='F')
+        yi = np.array(yi,order='F')
+        zi = np.zeros(np.size(xi)).astype('float')
+        li = np.array(l,order='F')
+        mi = np.array(m,order='F')
+        ni = np.array(n,order='F')
+        uxi = np.zeros(np.size(xi)).astype('float')
+        uyi = np.zeros(np.size(xi)).astype('float')
+        uzi = np.zeros(np.size(xi)).astype('float')
+        rays = [np.zeros(np.size(xi)).astype('float'),\
+                xi,yi,zi,\
+                li,mi,ni,\
+                uxi,uyi,uzi]
         if bestsurface:
-            PT.transform(0,0,.25,0,0,0)
-            delta[t==theta] = PT.findimageplane(.5,201,weights=weights)
-            PT.transform(0,0,delta[t==theta],0,0,0)
-            PT.flat()
+            rays = tran.transform(rays,0,0,.25,0,0,0)
+            surf.focusI(rays,weights=weights)
         if optsurface:
             PT.conic(1107.799202,-1.) #Emprically found best surface 1128.058314
         

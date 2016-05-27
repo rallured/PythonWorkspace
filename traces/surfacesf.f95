@@ -454,3 +454,51 @@ subroutine paraxialY(x,y,z,l,m,n,ux,uy,uz,num,F)
   !$omp end parallel do
 
 end subroutine paraxialY
+
+!Trace rays to a torus. Outer radius is in xy plane, inner radius is
+!orthogonal. Geometry and equations taken from 
+!http://www.emeyex.com/site/projects/raytorus.pdf
+!Will also need routine to determine groove geometry
+!and apply grating equation over torus
+!Shifted equations to be with respect to tangent plane
+
+subroutine torus(x,y,z,l,m,n,ux,uy,uz,num,rin,rout)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: rin,rout
+  real*8 :: F,Fx,Fy,Fz,Fp,delt,brack,dum
+  integer :: i
+
+  !Loop through rays and trace to mirror
+  !$omp parallel do private(delt,F,Fx,Fy,Fp,brack)
+  do i=1,num
+    delt = 100.
+    do while(abs(delt)>1.e-10)
+      F = (z(i)**2+2*z(i)*(rin+rout) + 2*rin*rout*y(i)**2 + x(i)**2)**2 + (4*rout**2*(x(i)**2-rin**2))
+      brack = z(i)**2 + 2*z(i)*(rin+rout) + 2*rin*rout*y(i)**2 + x(i)**2
+      Fx = 4*brack*x(i) + 8*rout**2*x(i)
+      Fy = 4*brack*y(i)
+      Fz = 4*brack*(z(i)+rin+rout)
+      Fp = Fx*l(i) + Fy*m(i) + Fz*n(i)
+      delt = -F/Fp
+      print *, x(i),y(i),z(i)
+      print *, F, Fp
+      print * ,delt
+      read *, dum
+      x(i) = x(i) + l(i)*delt
+      y(i) = y(i) + m(i)*delt
+      z(i) = z(i) + n(i)*delt
+    end do
+    Fp = sqrt(Fx*Fx+Fy*Fy)
+    ux(i) = Fx/Fp
+    uy(i) = Fy/Fp
+    uz(i) = Fz/Fp
+    !print *, x(i),y(i),z(i)
+    !print *, ux(i),uy(i),uz(i)
+    !read *, dum
+  end do
+  !$omp end parallel do
+
+end subroutine torus

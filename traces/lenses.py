@@ -177,6 +177,23 @@ def collimator6(rays,reverse=False):
     singlet(rays,9324.,1124.,20.,1.5150885,reverse=reverse)
     return
 
+def edmundCollimator(rays,reverse=False):
+    """
+    Traces through the 5" collimator from Edmund.
+    Standard orientation is  collimation of point source
+    Reverse is focusing of plane wave
+    """
+    if reverse is True:
+        singlet(rays,1131.72,780.87,15.42,1.51501)
+        tran.transform(rays,0,0,.1,0,0,0)
+        singlet(rays,-779.37,2704.01,10.92,1.64363)
+    else:
+        singlet(rays,2704.01,-779.37,10.92,1.64363)
+        tran.transform(rays,0,0,.1,0,0,0)
+        singlet(rays,780.87,1131.72,15.42,1.51501)
+    return
+    
+
 def LJ1516_L2(rays,reverse=False):
     singletCyl(rays,0,516.8,3.2,1.5150885,reverse=reverse)
     return

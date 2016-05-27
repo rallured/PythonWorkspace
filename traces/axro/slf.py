@@ -33,6 +33,7 @@ def sourceToChamber(N,misalign=np.zeros(6)):
     #Go to mirror node and apply rotational misalignment
     tran.transform(rays,220.,0,0,misalign[3],misalign[4],misalign[5])
     tran.transform(rays,-220.,0,0,0,0,0)
+    pdb.set_trace()
     #Place Wolter surfaces
     tran.transform(rays,0,0,-8400.,0,0,0)
     surf.wolterprimary(rays,220.,8400.)

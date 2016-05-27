@@ -304,11 +304,11 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,zmax,zmin,dphi,coeff,axial
     uy(i) = Fy/Fp
     uz(i) = Fz/Fp
     !Set rays outside mirror definition to NaN
-    if (abs(zarg)>1 .or. abs(targ) > 1) then
-      x(i) = 0.
-      y(i) = 0.
-      z(i) = 0.
-    end if
+    !if (abs(zarg)>1 .or. abs(targ) > 1) then
+    !  x(i) = 0.
+    !  y(i) = 0.
+    !  z(i) = 0.
+    !end if
     !print *, x(i),y(i),z(i)
     !print *, ux(i),uy(i),uz(i)
     !read *, dum

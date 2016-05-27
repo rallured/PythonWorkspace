@@ -6,6 +6,7 @@ import zernikemod
 import woltsurf as wolt
 import traces.transformations as tran
 from traces.analyses import analyticYPlane,analyticXPlane,analyticImagePlane
+import traces.conicsolve as con
 
 def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
@@ -90,6 +91,14 @@ def conic(rays,R,K,nr=None):
         surf.conicopd(opd,x,y,l,m,n,ux,uy,uz,R,K,nr)
     else:
         surf.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
+    return
+
+def torus(rays,rin,rout):
+    """Wrapper for toroidal surface. Outer radius
+    is in xy plane, inner radius is orthogonal.
+    """
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
+    surf.torus(x,y,z,l,m,n,ux,uy,uz,rin,rout)
     return
 
 def cyl(rays,rad,nr=None):

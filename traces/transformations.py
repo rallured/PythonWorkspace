@@ -106,7 +106,11 @@ def radgrat(rays,dpermm,order,wave,ind=None):
     else:
         fn = tran.radgrat
     if ind is not None:
-        tx,ty,tl,tm,tn,tw = x[ind],y[ind],l[ind],m[ind],n[ind],wave[ind]
+        tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
+        if np.size(wave)==1:
+            tw = wave
+        else:
+            tw = wave[ind]
         fn(tx,ty,tl,tm,tn,tw,dpermm,order)
         x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
     else:
