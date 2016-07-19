@@ -27,17 +27,20 @@ def shiftNaN(img,n=1,axis=0):
     """
     #Construct array to insert
     if axis is 0:
-        ins = repeat(nan,abs(n)*shape(img)[1]).reshape(abs(n),shape(img)[1])
+        ins = np.repeat(np.nan,np.abs(n)*\
+                     np.shape(img)[1]).reshape(np.abs(n),np.shape(img)[1])
     else:
-        ins = repeat(nan,abs(n)*shape(img)[0]).reshape(abs(n),shape(img)[0])
+        ins = np.repeat(np.nan,np.abs(n)*\
+                     np.shape(img)[0]).reshape(np.abs(n),np.shape(img)[0])
     #If direction=0, shift to positive
     if n > 0:
-        img = delete(img,arange(shape(img)[1]-n,shape(img)[1]),axis=axis)
-        img = insert(img,0,ins,axis=axis)
+        img = np.delete(img,np.arange(np.shape(img)[1]-\
+                                      n,np.shape(img)[1]),axis=axis)
+        img = np.insert(img,0,ins,axis=axis)
     else:
-        n = abs(n)
-        img = delete(img,arange(n),axis=axis)
-        img = insert(img,-1,ins,axis=axis)
+        n = np.abs(n)
+        img = np.delete(img,np.arange(n),axis=axis)
+        img = np.insert(img,-1,ins,axis=axis)
     return img
 
 def padNaN(img,n=1,axis=0):
@@ -48,15 +51,17 @@ def padNaN(img,n=1,axis=0):
     """
     #Construct array to insert
     if axis is 0:
-        ins = repeat(nan,abs(n)*shape(img)[1]).reshape(abs(n),shape(img)[1])
+        ins = np.repeat(np.nan,np.abs(n)*\
+                        shape(img)[1]).reshape(np.abs(n),np.shape(img)[1])
     else:
-        ins = repeat(nan,abs(n)*shape(img)[0]).reshape(abs(n),shape(img)[0])
-        ins = transpose(ins)
+        ins = np.repeat(np.nan,np.abs(n)*\
+                        np.shape(img)[0]).reshape(np.abs(n),np.shape(img)[0])
+        ins = np.transpose(ins)
     #If direction=0, shift to positive
     if n < 0:
-        img = concatenate((ins,img),axis=axis)
+        img = np.concatenate((ins,img),axis=axis)
     else:
-        img = concatenate((img,ins),axis=axis)
+        img = np.concatenate((img,ins),axis=axis)
     return img
 
 def padRect(img):
