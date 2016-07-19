@@ -11,6 +11,8 @@ import traces.grating as grat
 
 import pdb
 
+
+
 def traceSource(N):
     """Trace rays from PANTER point source to position of
     SPO optics
@@ -52,7 +54,7 @@ def placeSPO(rays):
 
     return
 
-def findGratingPosition(N,hubdist=11832.911,order=1,wave=4.4):
+def findGratingPosition(N,hubdist=11832.911,order=1,wave=4.4,disp=0.):
     """Place the SPO pair, find the focus, and then go back
     up to grating placement
     """
@@ -81,7 +83,7 @@ def findGratingPosition(N,hubdist=11832.911,order=1,wave=4.4):
     #Add yaw
     yaw = grat.blazeYaw(1.5*pi/180,2.4,3,160.)
     tran.transform(rays,0,0,0,0,0,yaw,coords=gratc2)
-    tran.transform(rays,0,-hubdist,0,0,0,0,coords=gratc2)
+    tran.transform(rays,0,-hubdist+disp,0,0,0,0,coords=gratc2)
     tran.reflect(rays)
     tran.radgrat(rays,160./hubdist,order,wave)
     pdb.set_trace()

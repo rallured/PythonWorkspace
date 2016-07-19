@@ -1,7 +1,8 @@
 import numpy as np
 from numpy import sin,cos,exp,sqrt,pi,tan
 import matplotlib.pyplot as plt
-import pdb,sys,pickle,pyfits
+from mpl_toolkits.mplot3d import Axes3D
+import pdb,sys,pickle,pyfits,os
 import traces.grating as grat
 import utilities.plotting as plotting
 from traces.axro.SMARTX import CXCreflIr
@@ -26,15 +27,16 @@ ccd = np.genfromtxt('/home/rallured/Dropbox/Arcus/Raytrace/160513_CCDInfo.csv',\
                     delimiter=',')
 ccd = np.transpose(ccd)
 detector = np.prod(ccd[1:],axis=0)
-ccdQE = interpolate.interp1d(1239.8/ccd[0],detector,kind='linear')
+ccdQE = interpolate.interp1d(1239.8/ccd[0],detector,kind='linear',\
+                             bounds_error=False,fill_value=0.)
 
 #Nominal OPG design
-bestfoc = -11778.498893609752
+bestfoc = -11778.498893609752 + 1.3342160017350473 - 5.
 #Standard deviation in microns for allowable
 #contribution to LSF of everything aside from
 #design aberrations (i.e. SPO quality, alignments, everything else)
 marg = 0.048027499983957431
-outerradNom = 798.895210199+1.
+outerradNom = 798.895210199+2.
 yaw = 0.022509613654884453
 
 ###Load efficiency data and return interpolation function
@@ -48,10 +50,9 @@ yaw = 0.022509613654884453
 ##    return interpolate.interp1d(w,eff[:,o==order],kind='linear',axis=0)
 
 d = np.genfromtxt('/home/rallured/Dropbox/Arcus/'
-                  'Raytrace/160512_RandyEfficiencies.csv',delimiter=',')
+                  'Raytrace/160613_RandyEfficiencies.csv',delimiter=',')
 d = np.transpose(d)
-d = d[:4]
-w,eff,o = d[1]/10.,d[2],d[3]
+w,eff,o = d
 def gratEff(order):
     return interpolate.interp1d(w[o==order],eff[o==order],kind='linear',\
                                 fill_value=0.,bounds_error=False)
@@ -248,47 +249,38 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
 def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
                 inc=1.5*pi/180,l=95.,bestFocus=bestfoc,order=0,\
                 blazeYaw=yaw,wave=1.,marg=marg,findMargin=False,\
-                analyzeLine=True,offX=0.,offY=0.,calcCentroid=False):
+                analyzeLine=True,offX=0.,offY=0.,calcCentroid=False,\
+               vis=False):
     """Trace Arcus sector
     """
-##    #Trace parameters
-##    R = np.arange(Rin,Rout,t) #Vector of shell radii
-##    tg = .25*np.arctan((R+d/2)/F) #Primary graze angles
-##    L = d/tan(tg) #Primary length
-##    #L = 4*F*d/R #Vector of mirror lengths
-##    M = np.size(R) #Number of shells
-##
-##    #Create focal length vector to implement spherical principle surface
-##    #This should be changed based on nominal focal lengths of
-##    #modules from cosine.
-##    focConst = F**2#+Rin**2
-##    focVec = sqrt(focConst-R**2)
 
-##    #Weight vector for shell radii
-##    weights = np.zeros(M*N)
-##    spanv = np.zeros(M)
-##    for i in range(M):
-##        #Full angular span of each shell
-##        spanv[i] = 2*np.arcsin(span/2/R[i])
-##        #Geometric area in each shell - 10^4 is unit conversion
-##        weights[i*N:(i+1)*N] = ((R[i]+d)**2-R[i]**2) * spanv[i]/2 / 10000.
+    sys.stdout.write(str(wave)+'\t'+str(order)+'\r')
+    sys.stdout.flush()
 
-    #Compute efficiency and determine whether to proceed
-    geff = gratEff(order)
-    #Add in grating efficiency and CCD QE
-    #geff and ccdQE need to be arrays if wave is array
-    g = geff(wave)
-    if g==0.:
-        return 0,0
-    g = g.reshape(np.size(g))
+    if wave is not 'uniform':
+        #Compute efficiency and determine whether to proceed
+        geff = gratEff(order)
+        #Add in grating efficiency and CCD QE
+        #geff and ccdQE need to be arrays if wave is array
+        g = geff(wave)
+        det = ccdQE(wave)
+        if g*det==0.:
+            return 0,0
+        g = g.reshape(np.size(g))
 
     #Assign random wavelength to each ray
     if wave=='uniform':
-        rays,weights,minfoc,lmax,wave = defineSPOaperture(N,wave,\
-                                                          offX=offX,offY=offY)
+        rays,weights,minfoc,lmax,wave,coords = defineSPOaperture(N,wave,\
+                                offX=offX,offY=offY,\
+                                vis=vis)
+        
+    else:
+        rays,weights,minfoc,lmax,coords = defineSPOaperture(N,wave,offX=offX,\
+                                offY=offY,\
+                                vis=vis)
 
     #Trace rays through SPO modules
-    rays,weights,minfoc,lmax = defineSPOaperture(N,wave,offX=offX,offY=offY)
+
 ##    rays = plotting.pload('/home/rallured/Dropbox/Arcus/'
 ##                 'Raytrace/Performance/160516_SPORays.pkl')
 ##    weights = pyfits.getdata('/home/rallured/Dropbox/Arcus/'
@@ -300,33 +292,35 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
     #Determine outermost radius of grating array
     #outerrad should be fixed
     outerrad = outerradNom#np.max(sqrt(rays[1]**2+rays[2]**2))
-    hubdist = sqrt(outerrad**2 + (minfoc-(lmax+gap+95.))**2)
+    foc = tran.applyTPos(0,0,0,coords,inverse=True)
+    hubdist = sqrt(outerrad**2 + foc[2]**2)
+    print hubdist
     angle = np.arctan(outerrad/(minfoc-(lmax+gap+95.)))
     thetag = angle - 1.5*pi/180.
     
 ##    print 'Outerrad: %f\nHubdist: %f\nLmax: %f\nOuter Focus: %f\n' % \
 ##          (outerrad,hubdist,L.max(),focVec[-1])
-##    pdb.set_trace()
 
     #Trace grating array - need to add in grating efficiency and
     #CCD quantum efficiency
     if bestFocus is None:
         return gratArray(rays,outerrad,hubdist,angle,inc,l=l,\
                          weights=weights,order=-3,blazeYaw=blazeYaw,\
-                         wave=2.4)
+                         wave=2.4,coords=coords)
 ##        return traceSector(Rin,Rout,F,N,span=span,d=d,t=t,gap=gap,\
 ##                inc=inc,l=l,bestFocus=bestFocus,order=order,\
 ##                blazeYaw=blazeYaw,wave=wave,marg=marg)
         
     gratArray(rays,outerrad,hubdist,angle,inc,l=l,bestFocus=bestFocus,\
                   weights=weights,order=order,blazeYaw=blazeYaw,wave=wave,\
-              offX=offX)
+              offX=offX,vis=vis,coords=coords)
 
     #Grating vignetting
     weights = weights * (1 - abs(offX)/inc)
 
-    #Account for grating efficiency
-    weights = weights * g * ccdQE(wave)
+    if np.size(wave)==1:
+        #Account for grating efficiency
+        weights = weights * g * det
 
     #Vignette rays with no weight (evanescence)
 ##    rays = tran.vignette(rays,weights>0.)
@@ -334,11 +328,18 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
 ##        return 0.,0.
 
     #Go to focal plane
-    tran.transform(rays,0,0,bestFocus,0,0,0)
+    tran.transform(rays,0,0,bestFocus,0,0,0,coords=coords)
     surf.flat(rays)
 
+    if vis is True:
+        pyfits.writeto('FocalPlanePos.fits',\
+                       np.array([rays[1],rays[2],rays[3]]),\
+                       clobber=True)
+        pyfits.writeto('Wavelengths.fits',\
+                       wave,clobber=True)
+
     if analyzeLine is False:
-        return rays,weights,wave
+        return rays,weights
 
     #Get rid of outliers
     ind = np.abs(rays[2]-np.average(rays[2]))<10.
@@ -346,7 +347,7 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
     weights = weights[ind]
 
     if calcCentroid is True:
-        cent = anal.centroid(rays,weights)
+        cent = anal.centroid(rays,weights=weights)
         if cent[0] < 100 or cent[1] < 100:
             pdb.set_trace()
         return anal.centroid(rays,weights=weights)
@@ -379,89 +380,12 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
-    print 'Order: %i, Wave: %.2f\n'%(order,wave)
+##    print 'Order: %i, Wave: %.2f\n'%(order,wave)
     return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2]),\
            rays,weights
 
-def traceGridForJoern():
-    """Trace a grid of energies and create x,y position lists with
-    weights at each energy. Also do this for off-axis angles.
-    Trace +-3 arcmin in 11 steps
-    Trace 1 through 5 nm in 11 steps
-    """
-    offX = np.linspace(-1.5*.3e-3,1.5*.3e-3,4)
-    offY = np.copy(offX)
-    wave = np.linspace(1.,5.,20)
 
-    
-
-
-
-    oxa = [ox for w in w3 for ox in offX for oy in offY]
-    oya = [oy for w in w3 for ox in offX for oy in offY]
-    wa = [w for w in w3 for ox in offX for oy in offY]
-    
-##    res1 = [traceSector(300.,800.,12e3,100,span=375.,order=-1,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w1 for ox in offX \
-##           for oy in offY]
-##    res2 = [traceSector(300.,800.,12e3,100,span=375.,order=-2,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w2 for ox in offX \
-##           for oy in offY]
-    res3 = [traceSector(300.,800.,12e3,100,span=375.,order=-3,\
-                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-                 offX=ox,offY=oy)[4:] for w in w3 for ox in offX \
-           for oy in offY]
-
-    #Loop through and save fits files
-    
-##    res4 = [traceSector(300.,800.,12e3,100,span=375.,order=-4,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w4 for ox in offX \
-##           for oy in offY]
-##    res5 = [traceSector(300.,800.,12e3,100,span=375.,order=-5,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w5 for ox in offX \
-##           for oy in offY]
-##    res6 = [traceSector(300.,800.,12e3,100,span=375.,order=-6,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w6 for ox in offX \
-##           for oy in offY]
-##    res7 = [traceSector(300.,800.,12e3,100,span=375.,order=-7,\
-##                blazeYaw=yaw,wave=w,bestFocus=bestfoc,marg=marg,\
-##                 offX=ox,offY=0)[4] for w in w7 for ox in offX \
-##           for oy in offY]
-##    return [res1,res2,res3,res4,res5,res6,res7]
-    return res3
-
-def saveScanStep(res,wave,offx,offy,order,filename):
-    """Save the results of a scan step to a FITS file.
-    Put the wavelength and off axis position as header keywords.
-    Save the X,Y positions and the weight vector in a table.
-    """
-    #Create header
-    head = pyfits.Header()
-    head['WAVE'] = str(wave) + ' nm'
-    head['OFFX'] = str(offx) + ' rad'
-    head['OFFY'] = str(offy) + ' rad'
-    head['ORDER'] = str(order)
-    hdu = pyfits.PrimaryHDU(header=head)
-
-    #Create table
-    col1 = pyfits.Column(name='X',format='E',unit='mm',array=res[0][1])
-    col2 = pyfits.Column(name='Y',format='E',unit='mm',array=res[0][2])
-    col3 = pyfits.Column(name='Weight',format='E',unit='cm^2',array=res[1])
-    cols = pyfits.ColDefs([col1,col2,col3])
-    tbhdu = pyfits.BinTableHDU.from_columns(cols)
-
-    #Save to fits file
-    hdulist = pyfits.HDUList([hdu,tbhdu])
-    hdulist.writeto(filename,clobber=True)
-
-    return
-
-def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.):
+def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
     """
     Define a set of rays based on Ed's SPO module layout design.
     Radii come from his spreadsheet from 160503
@@ -488,6 +412,11 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.):
     #Module widths
     span = [50.159,49.839,49.614,89.363,82.476,77.572,86.892,82.053]
 
+    #Visualization bookkeeping
+    if vis is True:
+        xp,yp,zp = [],[],[]
+        xs,ys,zs = [],[],[]
+    coords = [tran.tr.identity_matrix()]*4
     
     for i in range(8):
         #Loop through module angles
@@ -528,18 +457,52 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.):
             #Perform SPO module trace
             aa = a*np.pi/180
             if wave=='uniform':
-                twave = np.random.uniform(3.6,3.6*2,size=M*N)
-                trays,tref = traceSPO(R,L,focVec,N,M,spanv,twave,\
-                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
-                                  offY=np.cos(aa)*offY+np.sin(aa)*offX)
+                twave = np.random.uniform(4.4,4.4*2,size=M*N)
+##                trays,tref = traceSPO(R,L,focVec,N,M,spanv,twave,\
+##                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
+##                                  offY=np.cos(aa)*offY+np.sin(aa)*offX,\
+##                                      )
+                if vis is True:
+                    trays,tref,prim,sec = traceSPO(R,L,focVec,N,M,spanv,twave,\
+                                  offX=offX,\
+                                  offY=offY,\
+                                      ang=aa,vis=True)
+                    xp = np.concatenate((xp,prim[0]))
+                    yp = np.concatenate((yp,prim[1]))
+                    zp = np.concatenate((zp,prim[2]))
+                    xs = np.concatenate((xs,sec[0]))
+                    ys = np.concatenate((ys,sec[1]))
+                    zs = np.concatenate((zs,sec[2]))
+                else:
+                    trays,tref = traceSPO(R,L,focVec,N,M,spanv,twave,\
+                                  offX=offX,\
+                                  offY=offY,\
+                                      ang=aa)
             else:
-                trays,tref = traceSPO(R,L,focVec,N,M,spanv,wave,\
-                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
-                                  offY=np.cos(aa)*offY+np.sin(aa)*offX)
+##                trays,tref = traceSPO(R,L,focVec,N,M,spanv,wave,\
+##                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
+##                                  offY=np.cos(aa)*offY+np.sin(aa)*offX,\
+##                                      )
+                if vis is True:
+                    trays,tref,prim,sec = traceSPO(R,L,focVec,N,M,spanv,wave,\
+                                  offX=offX,\
+                                  offY=offY,\
+                                      ang=aa,vis=True)
+                    xp = np.concatenate((xp,prim[0]))
+                    yp = np.concatenate((yp,prim[1]))
+                    zp = np.concatenate((zp,prim[2]))
+                    xs = np.concatenate((xs,sec[0]))
+                    ys = np.concatenate((ys,sec[1]))
+                    zs = np.concatenate((zs,sec[2]))
+                else:
+                    trays,tref = traceSPO(R,L,focVec,N,M,spanv,wave,\
+                                  offX=offX,\
+                                  offY=offY,\
+                                      ang=aa)
             tweights = tweights*tref
             
             #Rotate to appropriate angle
-            tran.transform(trays,0,0,0,0,0,aa)
+##            tran.transform(trays,0,0,0,0,0,aa)
             
             #Attempt to concatenate, if fail then set rays,ref to trays,tref
             try:
@@ -554,15 +517,20 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.):
                     fwave = twave
 
     #Get to plane of outermost grating
-    PT.transform(rays,0,0,focVec[-1]-(L.max()+gap+95.),0,0,0)
-    PT.flat(rays)
+    tran.transform(rays,0,0,focVec[-1]-(L.max()+gap+95.),0,0,0,coords=coords)
+    surf.flat(rays)
+
+    if vis is True:
+        pyfits.writeto('PrimaryPos.fits',np.array([xp,yp,zp]),clobber=True)
+        pyfits.writeto('SecondaryPos.fits',np.array([xs,ys,zs]),clobber=True)
 
     if wave=='uniform':
-        return rays,weights,focVec[-1],lmax,fwave
-    
-    return rays,weights,focVec[-1],lmax
+        return rays,weights,focVec[-1],lmax,fwave,coords
 
-def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.):
+    return rays,weights,focVec[-1],lmax,coords
+
+def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.,\
+             vis=None,ang=None,coords=None):
     """Trace SPO surfaces sequentially. Collect rays from
     each SPO shell and set them to the PT rays at the end.
     Start at the inner radius, use the wafer and pore thicknesses
@@ -571,38 +539,58 @@ def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.):
     """
     #Ray bookkeeping arrays
     trays = [np.zeros(M*N) for n in range(10)]
+    if vis is True:
+        xp,yp,zp = [],[],[]
+        xs,ys,zs = [],[],[]
 
     #Loop through shell radii and collect rays
     ref = np.zeros(M*N)
     for i in range(M):
         #Set up source annulus
-        rays = PT.subannulus(R[i],R[i]+d,spanv[i],N)
+        rays = sources.subannulus(R[i],R[i]+d,spanv[i],N,zhat=-1.)
         z,n = rays[3],rays[6]
-        #Transform rays to be above xy plane
-        PT.transform(rays,0,0,0,pi,0,0)#n = -n
-        PT.transform(rays,0,0,-100.,0,0,0)
+##        #Transform rays to be above xy plane
+##        tran.transform(rays,0,0,-100.,0,0,0,coords=coords)
+        #Apply angular offset
+        tran.transform(rays,0,0,0,0,0,ang)
+        #Get initial positions
+        glob = None
+        if vis is True:
+            #Initial ray positions
+            x0,y0,z0 = np.copy(rays[1]),np.copy(rays[2]),np.copy(rays[3])
+##
+##            #Establish 3d figure
+##            fig = plt.figure('vis')
+##            ax = fig.add_subplot(111,projection='3d')
         #Trace to primary
-        PT.spoPrimary(rays,R[i],focVec[i])
+        surf.spoPrimary(rays,R[i],focVec[i])
+        
+        #Export primary ray positions in global reference frame
+        if vis is True:
+            tran.transform(rays,0,0,-focVec[i],0,0,0)
+            xp = np.concatenate((xp,rays[1]))
+            yp = np.concatenate((yp,rays[2]))
+            zp = np.concatenate((zp,rays[3]))
+            tran.transform(rays,0,0,focVec[i],0,0,0)
+                           
         #Add offsets if they apply
         rays = [rays[0],rays[1],rays[2],rays[3],\
                 rays[4]+offX,rays[5]+offY,\
                 -np.sqrt(rays[6]**2-offX**2-offY**2),\
                 rays[7],rays[8],rays[9]]
-        PT.reflect(rays)
+        tran.reflect(rays)
+                           
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#np.arcsin(l*ux+m*uy+n*uz)
         if np.size(wave)==1:
             refl = sporef(inc*180/np.pi,1239.8/wave)
         else:
             refl = np.diag(sporef(inc*180/np.pi,1239.8/wave[i*N:(i+1)*N]))
-        #Vignette
-##        ind  = np.logical_and(rays[3]<=L[i],rays[3]>=0.)
-##        if np.sum(ind) < N:
-##            pdb.set_trace()
-##        PT.vignette(rays,ind)
+        
         #Trace to secondary
-        PT.spoSecondary(rays,R[i],focVec[i])
-        PT.reflect(rays)
+        surf.spoSecondary(rays,R[i],focVec[i])            
+        tran.reflect(rays)
+                           
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
         if np.size(wave)==1:
@@ -611,54 +599,49 @@ def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.):
         else:
             ref[i*N:(i+1)*N] = refl * np.diag(sporef(inc*180/np.pi\
                                              ,1239.8/wave[i*N:(i+1)*N]))
-        #Vignette
-##        ind  = np.logical_and(rays[3]<=0.,rays[3]>=-L[i])
-##        if np.sum(ind) < N:
-##            pdb.set_trace()
-##        PT.vignette(rays,ind)
+        
         #Set plane to be at focus
-        PT.transform(rays,0,0,-focVec[i],0,0,0)
+        tran.transform(rays,0,0,-focVec[i],0,0,0,coords=coords)
         #Collect rays
         try:
-##            tx[i*N:(i+1)*N] = PT.x
-##            ty[i*N:(i+1)*N] = PT.y
-##            tz[i*N:(i+1)*N] = PT.z
-##            tl[i*N:(i+1)*N] = PT.l
-##            tm[i*N:(i+1)*N] = PT.m
-##            tn[i*N:(i+1)*N] = PT.n
-##            tux[i*N:(i+1)*N] = PT.ux
-##            tuy[i*N:(i+1)*N] = PT.uy
-##            tuz[i*N:(i+1)*N] = PT.uz
             for t in range(1,7):
                 temp = trays[t]
                 temp[i*N:(i+1)*N] = rays[t]
         except:
             pdb.set_trace()
 
+    #Export secondary ray positions in global coordinate frame    
+    if vis is True:
+        return trays,ref,[xp,yp,zp],[trays[1],trays[2],trays[3]]
+        
     return trays,ref
 
 def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
-              weights=None,order=0,blazeYaw=0.,wave=1.,offX=0.):
+              weights=None,order=0,blazeYaw=0.,wave=1.,offX=0.,\
+              coords=None,vis=False):
     """Trace rays leaving SPO petal to the fanned grating array.
     Start with outermost radius and rotate grating array about
     the hub. Define outermost grating position by max ray radius
     at desired axial height.
     Rays have been traced to bottom of outermost grating.
     """
+    #Visualization bookkeeping
+    xg,yg,zg = [np.zeros(len(rays[1]))]*3
+    
     x,y = rays[1:3]
     #Dummy rays to ensure return of reference frame
 ##    rays2 = sources.subannulus(220.,223.,10.*pi/180,100)
     #Put origin at bottom of outermost grating
-    PT.transform(rays,outerrad,0,0,0,0,0)
+    tran.transform(rays,outerrad,0,0,0,0,0,coords=coords)
 ##    PT.transform(rays2,outerrad,0,0,0,0,0)
     #Go to proper incidence angle of grating
-    PT.transform(rays,0,0,0,0,0,-pi/2)
-    PT.transform(rays,0,0,0,-pi/2-angle+inc,0,0)
+    tran.transform(rays,0,0,0,0,0,-pi/2,coords=coords)
+    tran.transform(rays,0,0,0,-pi/2-angle+inc,0,0,coords=coords)
 ##    PT.transform(rays2,0,0,0,0,0,-pi/2)
 ##    PT.transform(rays2,0,0,0,-pi/2-angle+inc,0,0)
     #Go to hub
-    PT.transform(rays,0,0,0,0,0,blazeYaw) #Put in blaze
-    PT.transform(rays,0,hubdist,0,0,0,0)
+    tran.transform(rays,0,0,0,0,0,blazeYaw,coords=coords) #Put in blaze
+    tran.transform(rays,0,hubdist,0,0,0,0,coords=coords)
 ##    PT.transform(rays2,0,0,0,0,0,blazeYaw) #Put in blaze
 ##    PT.transform(rays2,0,hubdist,0,0,0,0)
     #Trace out gratings until no rays hit a grating
@@ -667,9 +650,12 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     #Reflect
     #Apply Grating
     #Next
-    PT.flat(rays)
+    #Edit to only flat rays with a substantial incidence angle
+    indg = np.abs(np.arcsin(rays[6])) > .001
+    surf.flat(rays,ind=indg)
     rho = -sqrt(x**2+y**2)*np.sign(y)
     ind = np.logical_and(rho>hubdist,rho<l+hubdist)
+##    pdb.set_trace()
     ind2 = np.copy(ind)
     ang = l*sin(inc-offX)/hubdist*.95
     
@@ -679,31 +665,42 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     while np.sum(prev)<len(rays[1]):
         i = i+1
         if np.sum(ind2)>0:
-            PT.reflect(rays,ind=ind2)
+            tran.reflect(rays,ind=ind2)
             tran.radgrat(rays,160./hubdist,order,wave,ind=ind2)
-        PT.transform(rays,0,0,0,ang,0,0)
+        tran.transform(rays,0,0,0,ang,0,0,coords=coords)
 ##        PT.transform(rays2,0,0,0,ang,0,0)
-        PT.flat(rays)
+        indg = np.abs(np.arcsin(rays[6])) > .001
+        indg = np.logical_and(np.invert(prev),indg)
+        surf.flat(rays,ind=indg)
+##        pdb.set_trace()
+        #Determine rays hitting new grating
         rho = -sqrt(x**2+y**2)*np.sign(y)
-        prev = np.logical_or(prev,ind) #Add rays hitting new grating
         ind = np.logical_and(rho>hubdist,rho<l+hubdist)
-        #ind = np.logical_and(PT.y<-hubdist,PT.y>-l-hubdist)
         ind2 = np.logical_and(np.invert(prev),ind) #Remove previous rays
+        prev = np.logical_or(prev,ind) #Add rays hitting new grating
         #sys.stdout.write('%i \r' % i)
         #sys.stdout.flush()
+    tran.reflect(rays,ind=ind2)
+    tran.radgrat(rays,160./hubdist,order,wave,ind=ind2)
 
 ##    #Go to focal plane
 ##    PT.transform(rays,0,-hubdist,0,0,0,0)
 ##    PT.transform(rays,0,0,0,0,0,-blazeYaw) #Reverse blaze
 ##    #Currently at bottom point of innermost grating
 ##    pdb.set_trace()
+
+    if vis is True:
+        #Get hub position
+        hub = tran.applyTPos(0,0,0,coords,inverse=True)
+        pyfits.writeto('HubPos.fits',np.array(hub),clobber=True)
+    
     #Get back to original outermost grating reference frame
-    PT.transform(rays,0,0,0,-ang*i,0,0)
-    PT.transform(rays,0,-hubdist,0,0,0,0)
-    PT.transform(rays,0,0,0,0,0,-blazeYaw)
-    PT.transform(rays,0,0,0,pi/2+angle-inc,0,0)
-    PT.transform(rays,0,0,0,0,0,pi/2)
-    PT.transform(rays,-outerrad,0,0,0,0,0)
+    tran.transform(rays,0,0,0,-ang*i,0,0,coords=coords)
+    tran.transform(rays,0,-hubdist,0,0,0,0,coords=coords)
+    tran.transform(rays,0,0,0,0,0,-blazeYaw,coords=coords)
+    tran.transform(rays,0,0,0,pi/2+angle-inc,0,0,coords=coords)
+    tran.transform(rays,0,0,0,0,0,pi/2,coords=coords)
+    tran.transform(rays,-outerrad,0,0,0,0,0,coords=coords)
 
 ##    PT.transform(rays2,0,0,0,-ang*i,0,0)
 ##    PT.transform(rays2,0,-hubdist,0,0,0,0)
@@ -711,8 +708,18 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
 ##    PT.transform(rays2,0,0,0,pi/2+angle-inc,0,0)
 ##    PT.transform(rays2,0,0,0,0,0,pi/2)
 ##    PT.transform(rays2,-outerrad,0,0,0,0,0)
+
+    #Export grating ray positions
+    if vis is True:
+        rays2 = tran.applyT(rays,coords,inverse=True)
+        pyfits.writeto('GratingPos.fits',\
+                       np.array([rays2[1],rays2[2],rays2[3]]),\
+                       clobber=True)
+        pdb.set_trace()
+
+    
     #Should be there
-    PT.flat(rays)
+    surf.flat(rays)
     
 ##    PT.transform(rays,0,hubdist,0,0,0,0)
 ##    PT.transform(rays,0,0,0,-ang*i+pi/2+angle-inc,0,0)
@@ -832,6 +839,7 @@ def matchArc(arc):
     #Get gradients
     dx = np.diff(arc2[0])[0]
     gr = np.gradient(arc2[1],dx)
+    pdb.set_trace()
 
     #Apply rotation to match slopes
     angle = pi/2+np.arctan(gr[-1])+np.arctan(gr[0])
@@ -852,12 +860,36 @@ def matchArc(arc):
     #Get even closer
     dist = np.sqrt((arc[0][0]-arc3[0][-1])**2+(arc[1][0]-arc3[1][-1])**2)
     lever = np.sqrt((arc[0][0]-arc[0][-1])**2+(arc[1][0]-arc[1][-1])**2)
-    angle = dist/lever
-    tra2 = np.dot(tr.rotation_matrix(angle,[0,0,1],point=\
+    angle2 = dist/lever
+    tra2 = np.dot(tr.rotation_matrix(angle2,[0,0,1],point=\
                                      [arc3[0][0],arc3[1][0],0]),tra)
 
     #Return transformation
-    return tra2,angle
+    return tra2,angle+angle2
+
+def plotTwoArcAlign(tra,ang,offX=0.,offY=0.,figure=None,label=None):
+    """
+
+    """
+    arc = traceArcus(1,wave='uniform',order=-1,analyzeLine=False,\
+                     offX=offX,offY=offY)[0]
+    arc2 = traceArcus(1,wave='uniform',order=-1,analyzeLine=False,\
+                      offX=np.cos(ang)*offX-np.sin(ang)*offY,\
+                      offY=-np.cos(ang)*offY-np.sin(ang)*offX)[0]
+    
+    #Trace 
+    arc = [arc[1],arc[2],np.zeros(len(arc[1])),np.ones(len(arc[1]))]
+    arc2 = [arc2[1],-arc2[2],np.zeros(len(arc2[1])),np.ones(len(arc2[1]))]
+    arc3 = np.dot(tra,arc2)
+
+    plt.figure(figure)
+    plotting.isoplot(arc[0],arc[1],'.',markersize=4,label=label)
+    plt.plot(arc3[0],arc3[1],'.',markersize=4,label='Arc 2')
+    #plt.text(620,300,'Arc 1',size=20,color='blue')
+    #plt.text(620,280,'Arc 2',size=20,color='green')
+    
+    
+    return
 
 def makeLayout(arc,sepAngle):
     tra,angle = matchArc(arc) #Get nominal transformation for paired petal
@@ -965,7 +997,7 @@ def offAxis(wave=3.6,order=-1):
     Create array of spot shifts from nominal centroid
     """
     #Define off axis angles
-    offx = np.linspace(-5*.3e-3,5*.3e-3,11)
+    offx = np.linspace(-1*.3e-3,1*.3e-3,11)
     offy = np.copy(offx)
 
     #Nominal spot location
@@ -994,3 +1026,113 @@ def offAxis(wave=3.6,order=-1):
     cent[:,:,1] = nomy - cent[:,:,1]
 
     return [shiftx,shifty], cent
+
+def saveScanStep(res,wave,offx,offy,order,filename):
+    """Save the results of a scan step to a FITS file.
+    Put the wavelength and off axis position as header keywords.
+    Save the X,Y positions and the weight vector in a table.
+    """
+    if res[0] == 0:
+        return
+    
+    #Create header
+    head = pyfits.Header()
+    head['WAVE'] = (wave,'[nm]') #(value,comment)
+    head['OFFX'] = (offx,'[rad]')
+    head['OFFY'] = (offy,'[rad]')
+    head['ORDER'] = (order,'[integer]')
+    hdu = pyfits.PrimaryHDU(header=head)
+
+    #Divide by CCD+filter for Joern
+    newweight = res[-1]/ccdQE(wave)
+
+    #Create table
+    col1 = pyfits.Column(name='X',format='E',unit='mm',array=res[0][1])
+    col2 = pyfits.Column(name='Y',format='E',unit='mm',array=res[0][2])
+    col3 = pyfits.Column(name='Weight',format='E',unit='cm^2',array=res[1])
+    cols = pyfits.ColDefs([col1,col2,col3])
+    tbhdu = pyfits.BinTableHDU.from_columns(cols)
+
+    #Save to fits file
+    hdulist = pyfits.HDUList([hdu,tbhdu])
+    hdulist.writeto(filename,clobber=True)
+
+    return
+
+def makeOpticalLayoutPlot():
+    """
+    Make plots demonstrating optical prescription
+    """
+    os.chdir('/home/rallured/Dropbox/Arcus/Raytrace/FocalPlaneLayout')
+    hub = pyfits.getdata('HubPos.fits')
+    xf,yf,zf = pyfits.getdata('FocalPlanePos.fits')
+    xg,yg,zg = pyfits.getdata('GratingPos.fits')
+    xp,yp,zp = pyfits.getdata('PrimaryPos.fits')
+    xs,ys,zs = pyfits.getdata('SecondaryPos.fits')
+    
+    #Set zero order and hub locations
+    plt.figure('disp')
+    hubdist = 11805.475
+    ygrid = np.linspace(-3000,3000,101)
+    plt.plot(yf,zf,'.',label='Diffraction Arc')
+    plt.plot(hub[1],hub[2],'*',markersize=14,label='Hub')
+    plt.plot(0,0,'*',markersize=14,label='SPO Focus')
+    grat = lambda yg: np.sqrt(hubdist**2-(yg-hub[1])**2-(hub[0]**2))
+    plt.plot(ygrid,grat(ygrid),\
+             label='Grating Principle Surface')
+    spo = np.sqrt(12e3**2-ygrid**2)
+    plt.plot(ygrid,spo,label='SPO Principle Surface')
+    plt.plot([-180,hub[1]],[grat(-180),hub[2]],'k--')
+    plt.plot([180,hub[1]],[grat(180),hub[2]],'k--')
+    plt.plot([-180,0],[spo[0],0],'k--')
+    plt.plot([180,0],[spo[-1],0],'k--')
+    plt.ylim([-1000,13e3])
+##    plt.xlim([-400,600])
+    plt.grid()
+    plt.title('Arcus Prescription Projected in Dispersion Plane')
+    plt.xlabel('Dispersion Distance (mm)')
+    plt.ylabel('Axial Distance (mm)')
+##    plt.legend(loc='lower left')
+
+    plt.figure('cross')
+    xgrid = np.linspace(-3000,3000,101)
+    plt.plot(xf,zf,'.',label='Diffraction Arc')
+    plt.plot(hub[0],hub[2],'*',markersize=14,label='Hub')
+    plt.plot(0,0,'*',markersize=14,label='SPO Focus')
+    grat = lambda xg: np.sqrt(hubdist**2-(xg-hub[0])**2-(hub[1]**2))
+    plt.plot(xgrid,grat(xgrid),\
+             label='Grating Principle Surface')
+    spo = np.sqrt(12e3**2-xgrid**2)
+    plt.plot(xgrid,spo,label='SPO Principle Surface')
+    plt.plot([300,hub[0]],[grat(300),hub[2]],'k--')
+    plt.plot([800,hub[0]],[grat(800),hub[2]],'k--')
+    plt.plot([300,0],[spo[0],0],'k--')
+    plt.plot([800,0],[spo[-1],0],'k--')
+    plt.ylim([-1000,13e3])
+##    plt.xlim([-100,900])
+    plt.grid()
+    plt.title('Arcus Prescription Projected in Cross-Dispersion Plane')
+    plt.xlabel('Cross Dispersion Distance (mm)')
+    plt.ylabel('Axial Distance (mm)')
+##    plt.legend(loc='lower left')
+
+##    wave = pyfits.getdata('Wavelengths.fits')
+##    wave = wave - wave.min()
+##    wave = wave/wave.max()
+##    fit = plt.figure()
+##    ax = fit.add_subplot(111,projection='3d')
+##    cm = plt.get_cmap('rainbow')
+##    
+##    for i in range(len(wave)):
+##        ax.plot([xg[i],xf[i]],[yg[i],yf[i]],[zg[i],zf[i]],color=cm(wave[i]))
+##    
+
+def depthoffocus(rays,weights):
+    tran.transform(rays,0,0,-20,0,0,0)
+    surf.flat(rays)
+    lsf = [convolveLSF(rays,.001,marg,weights=weights)]
+    for i in range(80):
+        tran.transform(rays,0,0,.5,0,0,0)
+        surf.flat(rays)
+        lsf.append(convolveLSF(rays,.001,marg,weights=weights))
+    return lsf

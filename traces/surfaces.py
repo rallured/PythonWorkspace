@@ -7,6 +7,7 @@ import woltsurf as wolt
 import traces.transformations as tran
 from traces.analyses import analyticYPlane,analyticXPlane,analyticImagePlane
 import traces.conicsolve as con
+import pdb
 
 def flat(rays,ind=None,nr=None):
     """Trace rays to the XY plane
@@ -26,15 +27,19 @@ def flat(rays,ind=None,nr=None):
         surf.flat(x,y,z,l,m,n,ux,uy,uz)
     return
 
-def zernsurf(rays,coeff,rad,rorder=None,aorder=None):
+def zernsurf(rays,coeff,rad,rorder=None,aorder=None,nr=None):
     """Wrapper for Zernike surface
     Coordinates are usual arctan2(y,x)
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     if rorder is None:
         rorder,aorder = zernikemod.zmodes(np.size(coeff))
-    zern.tracezern(x,y,z,l,m,n,ux,uy,uz,coeff,\
+    if nr is None:
+        zern.tracezern(x,y,z,l,m,n,ux,uy,uz,coeff,\
                    np.array(rorder),np.array(aorder),rad)
+    else:
+        zern.tracezernopd(opd,x,y,z,l,m,n,ux,uy,uz,coeff,\
+                   np.array(rorder),np.array(aorder),rad,nr)
 ##    rho = np.sqrt(x**2+y**2)
 ##    ind = np.where(rho<=rad)
 ##    vignette(ind=ind)

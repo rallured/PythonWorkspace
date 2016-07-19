@@ -117,7 +117,7 @@ def zmodes(N):
                 radial.append(r)
             m = m + 2
         r = r + 1 #Increment radial order
-    return radial[:N], azimuthal[:N]
+    return array(radial[:N],order='F'), array(azimuthal[:N],order='F')
 
 #Formulate Zernike least squares fitting matrix
 #Requires rho and theta vectors, normalized to rhomax=1

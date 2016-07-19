@@ -100,6 +100,108 @@ subroutine tracezern(x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad)
 
 end subroutine tracezern
 
+!Function to trace set of rays to Zernike surface
+!Inputs are position and cosines of rays
+!Array of Zernike coefficients
+!Output is position of rays at surface
+!and new cosines after reflection
+subroutine tracezernOPD(opd,x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad,nr)
+  !Declarations
+  implicit none
+  integer, intent(in) :: arrsize, num
+  real*8, intent(in) :: coeff(arrsize),rad
+  real*8, intent(inout) :: opd(num),x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  integer, intent(in) :: rorder(arrsize),aorder(arrsize)
+  integer :: i,c
+  real*8 :: F,Frho,Ftheta,Frhox,Frhoy,Fthetax,Fthetay,Fx,Fy,Fz,Fp,rho,theta,delta,t
+  real*8 :: zern(arrsize),rhoder(arrsize),thetader(arrsize)
+  real*8 :: zernike,zernrhoder,zernthetader
+  real*8 :: dum
+
+  !Loop through each individual ray, trace to surface, and reflect
+  !Establish convergence criteria (surface function should be < 1.e-12)
+  !$omp parallel do private(t,delta,rho,theta,F,Frho,Ftheta,Frhox,Frhoy,Fthetax,Fthetay,Fx,Fy,Fz,Fp,i,c,zern,rhoder,thetader)
+  do i=1,num
+    t = 0.
+    delta = 100.
+    !count = 0
+    !print *, x(i), y(i), z(i)
+    !print *, l(i), m(i), n(i)
+    !read *, dum
+    do while (abs(delta) > 1.e-10)
+      !count = count + 1
+      !Convert to cylindrical coordinates
+      rho = sqrt(x(i)**2+y(i)**2)
+      theta = atan2(y(i),x(i))
+      !Compute surface function and derivatives
+      F = z(i)
+      Frho = 0.
+      Ftheta = 0.
+      call zernset(rho/rad,theta,rorder,aorder,arrsize,zern,rhoder,thetader)
+      !print *, zern
+      !read *, dum
+      do c=1,arrsize
+        !F = F - coeff(c)*zernike(rho/rad,theta,rorder(c),aorder(c))
+        !Frho = Frho - coeff(c)*zernrhoder(rho/rad,theta,rorder(c),aorder(c))/rad
+        !Ftheta = Ftheta - coeff(c)*zernthetader(rho/rad,theta,rorder(c),aorder(c))
+        F = F - coeff(c)*zern(c)
+        Frho = Frho - coeff(c)*rhoder(c)/rad
+        Ftheta = Ftheta - coeff(c)*thetader(c)
+        !print *, rho/rad, " ", theta, " ", rorder(c), " ", aorder(c)
+        !print *, zern(c), rhoder(c)
+        !print *, coeff(c)
+        !print *, F
+        !read *, dum
+      end do
+      !print *, rho/rad
+      !print *, theta
+      !print *, zernrhoder(rho/rad,theta,rorder(c),aorder(c))
+      !print *, zernthetader(rho/rad,theta,rorder(c),aorder(c))
+      !Convert back to cartesian coordinates
+      !print *, Frho, Ftheta
+      !read *, dum
+      Frhox = (x(i)/rho) * Frho
+      Frhoy = (y(i)/rho) * Frho
+      Fthetax = (-y(i)/rho) * Ftheta/rho
+      Fthetay = (x(i)/rho) * Ftheta/rho
+      !if (rho==0) then
+      !  Frhox = Frho
+      !  Frhoy = 0.
+      !  Fthetax = 0.
+      !  Fthetay = 0.
+      !end if
+      Fx = Frhox + Fthetax
+      Fy = Frhoy + Fthetay
+      Fz = 1.
+      !print *, Fx, Fy, Fz
+      !print *, l(i), m(i), n(i)
+      !read *, dum
+      !Compute delta and new ray position
+      Fp = Fx*l(i) + Fy*m(i) + Fz*n(i)
+      !print *, 'Fp:' , Fp
+      !read *, dum
+      delta = -F/Fp
+      !print *, F, Fp, delta
+      !read *, dum
+      x(i) = x(i) + l(i)*delta
+      y(i) = y(i) + m(i)*delta
+      z(i) = z(i) + n(i)*delta
+      !Keep track of total length ray is traced
+      t = t + delta
+    end do
+    !print *, "Number of iterations: ", count
+    !We have converged, do any vignetting and compute surface normal
+    Fp = sqrt(Fx*Fx+Fy*Fy+Fz*Fz)
+    ux(i) = Fx/Fp
+    uy(i) = Fy/Fp
+    uz(i) = Fz/Fp
+    !Iterate OPD
+    opd(i) = opd(i) + t*nr
+  end do
+  !$omp end parallel do
+
+end subroutine tracezernOPD
+
 !Trace a Zernike standard phase surface as in ZEMAX
 subroutine zernphase(opd,x,y,z,l,m,n,ux,uy,uz,num,coeff,rorder,aorder,arrsize,rad,wave)
   !Declarations

@@ -55,9 +55,9 @@ def itransform(rays,tx,ty,tz,rx,ry,rz,coords=None):
         tranmi = translationM(tx,ty,tz)
         #Dot rotation into forward transform
         coords[0] = np.dot(rotm,coords[0])
-        coords[1] = np.dot(np.dot(rotm,tranm),coords[1])
+        coords[1] = np.dot(np.dot(tranm,rotm),coords[1])
         coords[2] = np.dot(coords[2],rotmi)
-        coords[3] = np.dot(coords[3],np.dot(tranmi,rotmi))
+        coords[3] = np.dot(coords[3],np.dot(rotmi,tranmi))
     return
 
 def steerY(rays,coords=None):
@@ -186,3 +186,11 @@ def applyT(rays,coords,inverse=False):
             wave[0],wave[1],wave[2],\
             norm[0],norm[1],norm[2]]
     
+def applyTPos(x,y,z,coords,inverse=False):
+    """Apply transformation to list of points"""
+    i = 0
+    if inverse is True:
+        i = 2
+    pos = [x,y,z,np.ones(np.size(x))]
+    pos = np.dot(coords[i+1],pos)[:3]
+    return pos

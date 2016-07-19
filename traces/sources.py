@@ -56,9 +56,10 @@ def annulus(rin,rout,num):
     opd = np.copy(l)
     return opd,x,y,z,l,m,n,ux,uy,uz
 
-def subannulus(rin,rout,dphi,num):
+def subannulus(rin,rout,dphi,num,zhat=1.):
     """Create a subapertured annulus source in +z direction
     Annulus is centered about theta=0 which points to +x
+    If negz is set -1, rays will point in -z hat
     """
     rho = np.sqrt(rin**2+np.random.rand(num)*(rout**2-rin**2))
     theta = np.random.rand(num)*dphi - dphi/2.
@@ -67,7 +68,7 @@ def subannulus(rin,rout,dphi,num):
     z = np.repeat(0.,num)
     l = np.repeat(0.,num)
     m = np.repeat(0.,num)
-    n = np.repeat(1.,num)
+    n = np.repeat(zhat,num)
     ux = np.copy(l)
     uy = np.copy(l)
     uz = np.copy(l)
@@ -117,16 +118,16 @@ def convergingbeam2(zset,xmin,xmax,ymin,ymax,num,lscat):
     Place at nominal focus
     Input z position and rectangular bounds
     """
-    x = xmin + random.rand(num)*(xmax-xmin)
-    y = ymin + random.rand(num)*(ymax-ymin)
-    rho = sqrt(x**2+y**2)
-    theta = arctan2(y,x)
+    x = xmin + np.random.rand(num)*(xmax-xmin)
+    y = ymin + np.random.rand(num)*(ymax-ymin)
+    rho = np.sqrt(x**2+y**2)
+    theta = np.arctan2(y,x)
     z = np.repeat(zset,num)
-    lscat = lscat * tan((random.rand(num) - .5)*np.pi)
+    lscat = lscat * np.tan((np.random.rand(num) - .5)*np.pi)
     lscat = lscat/60**2 * np.pi/180.
-    n = -cos(arctan(rho/zset)+lscat)
-    l = -sqrt(1-n**2)*cos(theta)
-    m = -sqrt(1-n**2)*sin(theta)
+    n = -np.cos(np.arctan(rho/zset)+lscat)
+    l = -np.sqrt(1-n**2)*np.cos(theta)
+    m = -np.sqrt(1-n**2)*np.sin(theta)
     ux = np.repeat(0.,num)
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)

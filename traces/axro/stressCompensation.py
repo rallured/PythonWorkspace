@@ -94,5 +94,8 @@ def pairRaytrace(secondaryTilt,despace):
     #Go to focus
     surf.focusI(rays)
 
+    #Get centroid
+    cx,cy = anal.centroid(rays)
+
     #Return merit function
-    return rays#anal.hpd(rays)/8400.,numout/numin
+    return anal.rmsCentroid(rays)/8400.*180/np.pi*60**2,numout/numin,cx,cy

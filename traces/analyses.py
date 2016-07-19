@@ -56,7 +56,7 @@ def hpdY(rays,weights=None):
     Does rho need to be absolute value???
     """
     y = rays[2]
-    cy = np.average(PT.y,weights=weights)
+    cy = np.average(y,weights=weights)
     rho = np.abs(y-cy)
     if weights is not None:
         ind = np.argsort(rho)
@@ -107,14 +107,14 @@ def analyticXPlane(rays,weights=None):
     dz = -bx/ax
     return dz
 
-def grazeAngle(rays):
+def grazeAngle(rays,flat=False):
     """Find the graze angle of the rays with the current
     surface normal."""
     return np.arcsin(rays[4]*rays[7] +\
                      rays[5]*rays[8] +\
                      rays[6]*rays[9])
 
-def interpolateVec(rays,I,Nx,Ny,method='linear'):
+def interpolateVec(rays,I,Nx,Ny,xr=None,yr=None,method='linear'):
     """
     Interpolate a ray vector onto a 2D grid based on the X and Y
     positions of the rays. Assume that the rays randomly fill a
@@ -129,8 +129,11 @@ def interpolateVec(rays,I,Nx,Ny,method='linear'):
     x,y = rays[1:3]
     interpVec = rays[I]
     #Set up new grid
-    gridx,gridy = np.meshgrid(np.linspace(x.min(),x.max(),Nx),\
-                              np.linspace(y.min(),y.max(),Ny))
+    if xr is None:
+        xr=[x.min(),x.max()]
+        yr=[y.min(),y.max()]
+    gridx,gridy = np.meshgrid(np.linspace(xr[0],xr[1],Nx),\
+                              np.linspace(yr[0],yr[1],Ny))
     dx = np.diff(gridx)[0][0]
     dy = np.diff(np.transpose(gridy))[0][0]
     #Call griddata for interpolation
