@@ -52,7 +52,7 @@ def padNaN(img,n=1,axis=0):
     #Construct array to insert
     if axis is 0:
         ins = np.repeat(np.nan,np.abs(n)*\
-                        shape(img)[1]).reshape(np.abs(n),np.shape(img)[1])
+                        np.shape(img)[1]).reshape(np.abs(n),np.shape(img)[1])
     else:
         ins = np.repeat(np.nan,np.abs(n)*\
                         np.shape(img)[0]).reshape(np.abs(n),np.shape(img)[0])

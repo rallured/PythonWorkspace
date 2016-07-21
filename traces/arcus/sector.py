@@ -1076,7 +1076,7 @@ def makeOpticalLayoutPlot():
     ygrid = np.linspace(-3000,3000,101)
     plt.plot(yf,zf,'.',label='Diffraction Arc')
     plt.plot(hub[1],hub[2],'*',markersize=14,label='Hub')
-    plt.plot(0,0,'*',markersize=14,label='SPO Focus')
+    plt.plot(0,0,'D',markersize=10,label='SPO Focus')
     grat = lambda yg: np.sqrt(hubdist**2-(yg-hub[1])**2-(hub[0]**2))
     plt.plot(ygrid,grat(ygrid),\
              label='Grating Principle Surface')
@@ -1098,7 +1098,7 @@ def makeOpticalLayoutPlot():
     xgrid = np.linspace(-3000,3000,101)
     plt.plot(xf,zf,'.',label='Diffraction Arc')
     plt.plot(hub[0],hub[2],'*',markersize=14,label='Hub')
-    plt.plot(0,0,'*',markersize=14,label='SPO Focus')
+    plt.plot(0,0,'D',markersize=10,label='SPO Focus')
     grat = lambda xg: np.sqrt(hubdist**2-(xg-hub[0])**2-(hub[1]**2))
     plt.plot(xgrid,grat(xgrid),\
              label='Grating Principle Surface')
@@ -1125,7 +1125,31 @@ def makeOpticalLayoutPlot():
 ##    
 ##    for i in range(len(wave)):
 ##        ax.plot([xg[i],xf[i]],[yg[i],yf[i]],[zg[i],zf[i]],color=cm(wave[i]))
-##    
+##
+    #Find arc semi-circle
+    res = fit.circle(xf,yf,hub[0],hub[1])
+    rad = res[1][1]
+    
+    x0 = 608.30180066485173
+    x24 = 609.16280460037842
+    y24 = 530.69291879569744
+    plt.figure('Arc')
+    plotting.isoplot(x0,0,'>',markersize=14)
+    plt.plot(xf,yf,'.')
+    plt.plot(0,0,'D',markersize=10)
+    plt.plot(x24,y24,'<',markersize=14)
+    plt.plot(hub[0],hub[1],'*',markersize=14)
+    yd = np.linspace(hub[1]-rad,hub[1]+rad,1000)
+    plt.plot(hub[0]+np.sqrt(rad**2-(yd-hub[1])**2),yd,'k--')
+    plt.plot([hub[0],x24],[hub[1],y24],'k--')
+    plt.plot([hub[0],x0],[hub[1],0],'k--')
+    plt.plot([hub[0],hub[0]+rad],[hub[1],hub[1]],'k--')
+    plt.title('Arcus Prescription Projected in Focal Plane')
+    plt.xlabel('Cross Dispersion Distance (mm)')
+    plt.ylabel('Dispersion Distance (mm)')
+    plt.xlim([-100,800])
+    plt.ylim([-200,750])
+    plt.grid()
 
 def depthoffocus(rays,weights):
     tran.transform(rays,0,0,-20,0,0,0)
