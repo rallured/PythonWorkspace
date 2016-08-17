@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import traces.PyTrace as PT
 import pdb
+
+import traces.sources as sources
+import traces.transformations as tran
+import traces.surfaces as surf
 
 #Set up incident beam trace and determine sensitivity to beam
 #impact location.
@@ -30,30 +33,30 @@ def alignTrace(inc,impact,grating,detector,order=0):
     #Set up source with single ray, diffraction plane
     #is XZ, glancing angle from XY plane, ray starts out
     #pointing +x and -z
-    PT.pointsource(0.,1)
-    PT.transform(0,0,0,0,-np.pi/2-inc,0)
+    rays = sources.pointsource(0.,1)
+    tran.transform(rays,0,0,0,0,-np.pi/2-inc,0)
     #Perform beam impact misalignment transform, rotation first
-    PT.transform(*np.concatenate(((0,0,0),impact[3:])))
-    PT.transform(*np.concatenate((impact[:3],(0,0,0))))
+    tran.transform(rays,*np.concatenate(((0,0,0),impact[3:])))
+    tran.transform(rays,*np.concatenate((impact[:3],(0,0,0))))
     #Perform grating misalignment
-    PT.transform(*grating)
+    tran.transform(rays,*grating)
     #Linear grating
-    PT.flat()
-    PT.reflect()
-    PT.grat(160.,order,262.)
+    surf.flat(rays)
+    tran.reflect(rays)
+    tran.grat(rays,160.,order,262.)
     #Reverse misalignment transformation
-    PT.itransform(*grating)
+    tran.itransform(rays,*grating)
     #Go to detector depending on order
     if order is not 0:
-        PT.transform(-200.,0,0,0,0,0)
+        tran.transform(rays,-200.,0,0,0,0,0)
     else:
-        PT.transform(200.,0,0,0,0,0)
+        tran.transform(rays,200.,0,0,0,0,0)
     #Trace to detector
-    PT.transform(0,0,0,0,-np.pi/2,0)
-    PT.transform(*detector)
-    PT.flat()
+    tran.transform(rays,0,0,0,0,-np.pi/2,0)
+    tran.transform(rays,*detector)
+    surf.flat(rays)
     #Return ray position
-    return PT.x,PT.y
+    return rays[1],rays[2]
 
 def computeYaw(inc,impact,grating,detr,detd):
     """Traces both orders and computes yaw of grating

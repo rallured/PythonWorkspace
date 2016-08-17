@@ -49,10 +49,13 @@ yaw = 0.022509613654884453
 ##def gratEff(order):
 ##    return interpolate.interp1d(w,eff[:,o==order],kind='linear',axis=0)
 
+##d = np.genfromtxt('/home/rallured/Dropbox/Arcus/'
+##                  'Raytrace/160613_RandyEfficiencies.csv',delimiter=',')
 d = np.genfromtxt('/home/rallured/Dropbox/Arcus/'
-                  'Raytrace/160613_RandyEfficiencies.csv',delimiter=',')
+                  'Raytrace/160721_3nmEfficiencies.csv',delimiter=',')
 d = np.transpose(d)
 w,eff,o = d
+w = w/10.
 def gratEff(order):
     return interpolate.interp1d(w[o==order],eff[o==order],kind='linear',\
                                 fill_value=0.,bounds_error=False)
@@ -238,7 +241,7 @@ def traceSector(Rin,Rout,F,N,span=20.,d=.605,t=.775,gap=50.,\
         return marg,rays
     fwhm = convolveLSF(rays,.001,marg,weights=weights)
     resolution = cy/fwhm
-    area = np.sum(weights)*.799*.83*.8*.8#Grat plates, azimuthal ribs, packing^2
+    area = np.sum(weights)*.799*.83*.8*.9#Grat plates, azimuthal ribs, usable area
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
@@ -294,7 +297,6 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
     outerrad = outerradNom#np.max(sqrt(rays[1]**2+rays[2]**2))
     foc = tran.applyTPos(0,0,0,coords,inverse=True)
     hubdist = sqrt(outerrad**2 + foc[2]**2)
-    print hubdist
     angle = np.arctan(outerrad/(minfoc-(lmax+gap+95.)))
     thetag = angle - 1.5*pi/180.
     
@@ -376,12 +378,13 @@ def traceArcus(N,span=20.,d=.605,t=.775,gap=50.,\
         return marg,rays
     fwhm = convolveLSF(rays,.001,marg,weights=weights)
     resolution = cy/fwhm
-    area = np.sum(weights)*.799*.83*.8#Grat plates, azimuthal ribs, packing^2
+    weights = weights**.799*.83*.8*.9#Grat plates, azimuthal ribs, packing
+    area = np.sum(weights)
     #print resolution
     #print area
     #print sqrt((cy/3000)**2 - lsf**2)/F * 180/pi*60**2
 ##    print 'Order: %i, Wave: %.2f\n'%(order,wave)
-    return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2]),\
+    return resolution, area, np.nanmean(rays[1]), np.nanmean(rays[2]),fwhm,\
            rays,weights
 
 
@@ -457,7 +460,7 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
             #Perform SPO module trace
             aa = a*np.pi/180
             if wave=='uniform':
-                twave = np.random.uniform(4.4,4.4*2,size=M*N)
+                twave = np.random.uniform(4.2,4.2*2,size=M*N)
 ##                trays,tref = traceSPO(R,L,focVec,N,M,spanv,twave,\
 ##                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
 ##                                  offY=np.cos(aa)*offY+np.sin(aa)*offX,\
@@ -861,11 +864,11 @@ def matchArc(arc):
     dist = np.sqrt((arc[0][0]-arc3[0][-1])**2+(arc[1][0]-arc3[1][-1])**2)
     lever = np.sqrt((arc[0][0]-arc[0][-1])**2+(arc[1][0]-arc[1][-1])**2)
     angle2 = dist/lever
-    tra2 = np.dot(tr.rotation_matrix(angle2,[0,0,1],point=\
-                                     [arc3[0][0],arc3[1][0],0]),tra)
+    new = tr.rotation_matrix(angle2,[0,0,1],point=[arc3[0][0],arc3[1][0],0])
+    tra2 = np.dot(new,tra)
 
     #Return transformation
-    return tra2,angle+angle2
+    return tra2,angle,angle2,new,tra
 
 def plotTwoArcAlign(tra,ang,offX=0.,offY=0.,figure=None,label=None):
     """
@@ -1046,10 +1049,13 @@ def saveScanStep(res,wave,offx,offy,order,filename):
     #Divide by CCD+filter for Joern
     newweight = res[-1]/ccdQE(wave)
 
+    #Temporary weight factor
+    weights = res[1]#*.799*.83*.8*.9#Grat plates, azimuthal ribs, packing
+
     #Create table
     col1 = pyfits.Column(name='X',format='E',unit='mm',array=res[0][1])
     col2 = pyfits.Column(name='Y',format='E',unit='mm',array=res[0][2])
-    col3 = pyfits.Column(name='Weight',format='E',unit='cm^2',array=res[1])
+    col3 = pyfits.Column(name='Weight',format='E',unit='cm^2',array=weights)
     cols = pyfits.ColDefs([col1,col2,col3])
     tbhdu = pyfits.BinTableHDU.from_columns(cols)
 
@@ -1160,3 +1166,63 @@ def depthoffocus(rays,weights):
         surf.flat(rays)
         lsf.append(convolveLSF(rays,.001,marg,weights=weights))
     return lsf
+
+def joernScan(prefix,res=None):
+    wave = []
+    dw = .22
+    wave.append(np.arange(.2,6.+dw,dw))
+    wave.append(np.arange(3.,6.+dw,dw))
+    wave.append(np.arange(1.5,5.5+dw,dw))
+    wave.append(np.arange(1.,3.5+dw,dw))
+    wave.append(np.arange(.5,2.5+dw,dw))
+    wave.append(np.arange(.2,2+dw,dw))
+    wave.append(np.arange(.2,1.5+dw,dw))
+    wave.append(np.arange(.2,1.5+dw,dw))
+
+    order = np.arange(0,-8,-1)
+    offx = np.linspace(-11*.3e-3,11*.3e-3,7)
+    offy = np.linspace(-8*.3e-3,8*.3e-3,7)
+
+    
+    if res is None:
+        res = []
+        for i in range(8):
+            res.append([traceArcus(1,wave=w,order=order[i],offX=ox,offY=oy,\
+                                   analyzeLine=False) for w in wave[i] \
+                        for ox in offx for oy in offy])
+
+    for i in range(8):
+        wa = [w for w in wave[i] for ox in offx for oy in offy]
+        oxa = [ox for w in wave[i] for ox in offx for oy in offy]
+        oya = [oy for w in wave[i] for ox in offx for oy in offy]
+        fn = [prefix+'_'+str(order[i])+'_%04i.fits' % n\
+              for n in range(len(wa))]
+        [saveScanStep(r,w,ox,oy,order[i],f) for r,w,ox,oy,f in \
+         zip(res[i],wa,oxa,oya,fn)]
+    
+    return res
+    
+def twoChannelLayout():
+    tr = pyfits.getdata('/home/rallured/Dropbox/Arcus/'
+                        'Raytrace/FocalPlaneLayout/160817_Transformation.fits')
+    arc = traceArcus(1,wave='uniform',order=-1,analyzeLine=False)[0]
+    x,y = arc[1],arc[2]
+    arc = np.array([x,y,np.zeros(len(x)),np.ones(len(x))])
+
+    plotting.isoplot(arc[0],arc[1],'.')
+    arc2 = np.copy(arc)
+    arc2[1] = -arc2[1]
+    arc2 = np.dot(tr,arc2)
+    plt.plot(arc2[0],arc2[1],'.')
+
+    #Get SPO aperture
+    rays = defineSPOaperture(1,wave='uniform')[0]
+    r = np.array([rays[1],rays[2],np.zeros(3494),np.ones(3494)])
+    plt.plot(rays[1],rays[2],'.')
+    r2 = np.dot(tr,r)
+    plt.plot(r2[0],r2[1],'.')
+
+    #Plot optical axes
+    plt.plot(0,0,'*')
+    oa2 = np.dot(tr,[0,0,0,1])
+    plt.plot(oa2[0],oa2[1],'*')

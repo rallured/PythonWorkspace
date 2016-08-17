@@ -8,6 +8,45 @@ import traces.conicsolve as conic
 import traces.analyses as anal
 import pdb
 
+def singleOptic(N,misalign=np.zeros(6)):
+    """Trace single primary mirror from SLF finite
+    source distance.
+    """
+    #Define some Wolter parameters
+    r1 = conic.primrad(8600.,220.,8400.)
+    dphi = 100./220./2
+    #Set up subannulus
+    rays = sources.subannulus(220.,r1,dphi*1.25,N)
+##    #Set direction cosines
+##    srcdist = 89.61e3+(1.5e3-misalign[2])
+##    raydist = sqrt(srcdist**2+\
+##                   (rays[1]-misalign[0])**2+\
+##                   (rays[2]-misalign[1])**2)
+##    l = (rays[1]-misalign[0])/raydist
+##    m = (rays[2]-misalign[1])/raydist
+##    n = -sqrt(1. - l**2 - m**2)
+##    rays = [rays[0],rays[1],rays[2],rays[3],l,m,n,rays[7],rays[8],rays[9]]
+    #Go to mirror node and apply rotational misalignment
+    tran.transform(rays,220.,0,0,misalign[3],misalign[4],misalign[5])
+    tran.transform(rays,-220.,0,0,0,0,0)
+    #Place Wolter surfaces
+    tran.transform(rays,0,0,-8400.,0,0,0)
+    surf.wolterprimary(rays,220.,8400.)
+    tran.reflect(rays)
+    #Vignette rays not landing in active mirror area
+    indz = np.logical_and(rays[3]>8426.,rays[3]<8526.)
+    ind = np.logical_and(np.abs(rays[2])<50.,indz)
+    rays = tran.vignette(rays,ind=ind)
+    #Go to focus
+    surf.flat(rays)
+    f = surf.focusI(rays)-8400.
+
+    return rays#anal.hpd(rays)/abs(f)*180/pi*60**2,abs(f)
+
+def singleOptic2(n,misalign=np.zeros(6)):
+
+    return
+
 def sourceToChamber(N,misalign=np.zeros(6)):
     """
     Trace randomly sampled rays from the TruFocus X-ray source
@@ -29,11 +68,9 @@ def sourceToChamber(N,misalign=np.zeros(6)):
     m = (rays[2]-misalign[1])/raydist
     n = -sqrt(1. - l**2 - m**2)
     rays = [rays[0],rays[1],rays[2],rays[3],l,m,n,rays[7],rays[8],rays[9]]
-    pdb.set_trace()
     #Go to mirror node and apply rotational misalignment
     tran.transform(rays,220.,0,0,misalign[3],misalign[4],misalign[5])
     tran.transform(rays,-220.,0,0,0,0,0)
-    pdb.set_trace()
     #Place Wolter surfaces
     tran.transform(rays,0,0,-8400.,0,0,0)
     surf.wolterprimary(rays,220.,8400.)
@@ -43,7 +80,6 @@ def sourceToChamber(N,misalign=np.zeros(6)):
     ind = np.logical_and(np.abs(rays[2])<50.,indz)
     rays = tran.vignette(rays,ind=ind)
     #Place secondary
-    pdb.set_trace()
     surf.woltersecondary(rays,220.,8400.)
     tran.reflect(rays)
     #Vignette rays not landing in active mirror area
@@ -58,10 +94,11 @@ def sourceToChamber(N,misalign=np.zeros(6)):
     tran.itransform(rays,220,0,0,0,0,0)
     #Now back in nominal intersection coordinate system
     #Go to focus
-    print surf.focusI(rays)
+    f = -9253.3858232
+    tran.transform(rays,0,0,f,0,0,0)
+    surf.flat(rays)
     
-    
-    return rays
+    return rays#anal.hpd(rays)/abs(f)*60**2*180/pi
 
 def placeWolterPair(rays,misalign=np.zeros(6)):
     """

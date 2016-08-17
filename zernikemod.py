@@ -117,7 +117,8 @@ def zmodes(N):
                 radial.append(r)
             m = m + 2
         r = r + 1 #Increment radial order
-    return array(radial[:N],order='F'), array(azimuthal[:N],order='F')
+    return array(radial[:N],order='F').astype('int'),\
+           array(azimuthal[:N],order='F').astype('int')
 
 #Formulate Zernike least squares fitting matrix
 #Requires rho and theta vectors, normalized to rhomax=1
@@ -173,25 +174,20 @@ def carttopolar(x,y,cx,cy,rad):
 
 #Reconstruct surface on unique x and y vectors for zernike coefficients
 def zernsurf(x,y,cx,cy,rad,coeff,r=None,m=None):
-    if sum(unique(x)==x) == size(x):
+    if size(unique(x)) == size(x):
         x,y = meshgrid(x,y)
-        x = x.flatten()
-        y = y.flatten()
     rho = sqrt((x-cx)**2+(y-cy)**2)/rad
     theta = arctan2((y-cy),(x-cx))
-    heights = zeros(size(rho))
+    heights = zeros(shape(x))
 
     if r is None:
         r,m = zmodes(size(coeff))
 
     for i in range(size(r)):
-        heights = heights + coeff[i]*zernike(r[i],m[i],rho,theta)
+        heights = heights + coeff[i]*zernike(int(r[i]),int(m[i]),rho,theta)
 
     #Set outside pixels to NaN
     heights[where(rho>1.)] = NaN
-
-    #Reshape heights into image
-    heights = reshape(heights,(size(unique(x)),size(unique(y))))
 
     return heights.data
 
