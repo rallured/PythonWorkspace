@@ -7,6 +7,7 @@ import traces.transformations as tran
 import traces.conicsolve as conic
 import traces.analyses as anal
 import pdb
+import scipy.signal as sig
 
 def singleOptic(N,misalign=np.zeros(6)):
     """Trace single primary mirror from SLF finite
@@ -43,9 +44,70 @@ def singleOptic(N,misalign=np.zeros(6)):
 
     return rays#anal.hpd(rays)/abs(f)*180/pi*60**2,abs(f)
 
-def singleOptic2(n,misalign=np.zeros(6)):
+def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
+                 returnRays=False):
+    """Alternative SLF finite source trace"""
+    #Establish subannulus of rays
+    rays = sources.subannulus(220.,221.,az*1.5/220.,n,zhat=-1.)
+    #Transform to node position
+    tran.transform(rays,220,0,0,0,0,0)
+    #Set up finite source distance
+    raydist = sqrt(srcdist**2+rays[1]**2+rays[2]**2)
+    l = rays[1]/raydist
+    m = rays[2]/raydist
+    n = -sqrt(1.-l**2-m**2)
+    rays = [raydist,rays[1],rays[2],rays[3],l,m,n,rays[7],rays[8],rays[9]]
+    #Align perfectly to beam
+    tran.steerX(rays)
+    #Apply misalignment
+    tran.transform(rays,*misalign)
+    #Place mirror
+    surf.wolterprimarynode(rays,220,8400.)
+    #Vignette rays not landing in active mirror area
+    indz = np.logical_and(rays[3]>26.,rays[3]<126.)
+    ind = np.logical_and(np.abs(rays[2])<az,indz)
+    rays = tran.vignette(rays,ind=ind)
+    #Reverse misalignment
+    tran.itransform(rays,*misalign)
+    #Reflect and go to surface
+    tran.reflect(rays)
+    f = surf.focusI(rays)
+##    f = -20500
+##    tran.transform(rays,0,0,-20500.,0,0,0)
+##    surf.flat(rays)
+    #Get centroid
+    cx,cy = anal.centroid(rays)
 
-    return
+    if returnRays is True:
+        return rays
+    
+    return anal.hpd(rays)/abs(f)*180/pi*60**2,f,cx
+
+def examineAzimuthalStripSize():
+    strip = np.linspace(10.,50,11)
+    pitch = np.linspace(0,10*.3e-3,100)
+
+    foc = []
+    perf = []
+    lat = []
+    angle = []
+    for s in strip:
+        #Compute performance as function of pitch
+        res = np.transpose(\
+            np.array(\
+                [singleOptic2(10000,misalign=[0,0,0,0,t,0],\
+                              az=s) for t in pitch]))
+        #Find optimal performance
+        per = sig.savgol_filter(res[0],11,3)
+        ind = np.argmin(per)
+        angle.append(pitch[ind])
+        perf.append(res[0][ind])
+        foc.append(res[1][ind])
+        lat.append(res[2][ind])
+
+    return np.array([perf,foc,lat,angle])
+        
+        
 
 def sourceToChamber(N,misalign=np.zeros(6)):
     """

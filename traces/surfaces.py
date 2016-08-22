@@ -149,11 +149,14 @@ def wolterprimary(rays,r0,z0):
     wolt.wolterprimary(x,y,z,l,m,n,ux,uy,uz,r0,z0)
     return
 
-def wIprimarynode(rays,r0,z0):
+def wolterprimarynode(rays,r0,z0):
     """Place Wolter node at current origin,
-    focus at (0,0,-z0)
+    focus at (-r0,0,-z0)
     """
-    
+    tran.transform(rays,-r0,0,-z0,0,0,0)
+    wolterprimary(rays,r0,z0)
+    tran.itransform(rays,-r0,0,-z0,0,0,0)
+    return
 
 def woltersecondary(rays,r0,z0):
     """Wrapper for Wolter secondary surface - no vignetting
