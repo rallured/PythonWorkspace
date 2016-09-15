@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import *
 from matplotlib.pyplot import *
 import pdb
@@ -12,6 +13,18 @@ def primrad(z,r0,z0):
     e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
 
     return sqrt(p**2+2*p*z+(4*e**2*p*d)/(e**2-1))
+
+def primsag(z1,r0,z0):
+    """
+    Calculate amount of sag as a function of mirror
+    length (z1-z0), and Wolter prescription (r0,z0)
+    Assume that mirror starts out at node
+    """
+    z = np.linspace(z0,z1,100)
+    r = primrad(z,r0,z0)
+    fit = np.polyfit(z,r,2)
+    return fit[0]*((z1-z0)/2.)**2
+    
 
 def secrad(z,r0,z0):
     alpha = .25*arctan(r0/z0)

@@ -92,24 +92,32 @@ def gradientDetermination(img,L,ang):
     #Compute interferogram parameters
     fc = 2*ang/405e-6/np.sqrt(2) #carrier frequency
     dx = 150./999 #pixel size
-    freq = np.fft.fftshift(np.fft.fftfreq(1000,dx))
-    fci = np.argmin(np.abs(freq-fc))-500
+    freq = np.fft.fftfreq(1000,dx)
+    fx,fy = np.meshgrid(freq,freq)
     
     #Take the 2D FFT
-    f = np.fft.fftshift(np.fft.fft2(img))
+    f = np.fft.fft2(img)
 
-    #Try windowing one of the harmonics
-    fwin = f[500+fci/2:500+3*fci/2,\
-             500-fci/2:500+fci/2]
-    pdb.set_trace()
-    f[:500+fci/2] = 0.
-    f[500+3*fci/2:] = 0.
-    f[:,:500-fci/2] = 0.
-    f[:,500+fci/2:] = 0.
-    
-    pdb.set_trace()
+    #Window the harmonics
+    fwy = np.copy(f)
+    fwy[fy<fc/2.] = 0.
+    fwy[abs(fx)>fc/2.] = 0.
 
-    return np.fft.fftshift(f)
+    fwx = np.copy(f)
+    fwx[fx<fc/2.] = 0.
+    fwx[abs(fy)>fc/2.] = 0.
+
+    #Create conversion factor
+    k = 2*np.pi/405e-6
+    conv = -1./L/ang/np.sqrt(2)/k
+
+    #Convert to gradients
+    fiy = np.fft.ifft2(fwy)*np.exp(-1j*2*np.pi*fc*y)
+    ysl = np.fft.fftshift(np.angle(fiy))*conv
+    fix = np.fft.ifft2(fwx)*np.exp(-1j*2*np.pi*fc*x)
+    xsl = np.fft.fftshift(np.angle(fix))*conv
+
+    return xsl,ysl
     
 
 

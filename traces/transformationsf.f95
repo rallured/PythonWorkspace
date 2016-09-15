@@ -211,11 +211,12 @@ subroutine radgrat(x,y,l,m,n,wave,num,dpermm,order)
 
   !Loop through rays, compute new diffracted ray direction
   do i=1,num
+    !Save sign of n
+    sn = n(i) / abs(n(i))
     !Compute local d spacing in nm
     d = dpermm * sqrt(y(i)**2 + x(i)**2)
     !Compute local yaw
-    sn = y(i) / abs(y(i))
-    yaw = pi/2 + atan(x(i)/abs(y(i)))
+    yaw = pi/2 - atan(x(i)/abs(y(i)))
     !print *, x(i),y(i),d,yaw
     !print *, l(i),m(i),n(i)
 
@@ -224,7 +225,7 @@ subroutine radgrat(x,y,l,m,n,wave,num,dpermm,order)
     !Compute new direction cosines - evanescence will result in NaNs
     l(i) = l(i) + sin(yaw)*order*wave/d
     m(i) = m(i) - cos(yaw)*order*wave/d
-    n(i) = sqrt(1. - l(i)**2 - m(i)**2)
+    n(i) = sn*sqrt(1. - l(i)**2 - m(i)**2)
     
   end do
 

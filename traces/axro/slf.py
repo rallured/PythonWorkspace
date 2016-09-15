@@ -45,10 +45,10 @@ def singleOptic(N,misalign=np.zeros(6)):
     return rays#anal.hpd(rays)/abs(f)*180/pi*60**2,abs(f)
 
 def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
-                 returnRays=False):
+                 returnRays=False,f=None):
     """Alternative SLF finite source trace"""
     #Establish subannulus of rays
-    rays = sources.subannulus(220.,221.,az*1.5/220.,n,zhat=-1.)
+    rays = sources.subannulus(220.,221.,az*1.2/220.,n,zhat=-1.)
     #Transform to node position
     tran.transform(rays,220,0,0,0,0,0)
     #Set up finite source distance
@@ -65,16 +65,17 @@ def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
     surf.wolterprimarynode(rays,220,8400.)
     #Vignette rays not landing in active mirror area
     indz = np.logical_and(rays[3]>26.,rays[3]<126.)
-    ind = np.logical_and(np.abs(rays[2])<az,indz)
+    ind = np.logical_and(np.abs(rays[2])<az/2.,indz)
     rays = tran.vignette(rays,ind=ind)
     #Reverse misalignment
     tran.itransform(rays,*misalign)
     #Reflect and go to surface
     tran.reflect(rays)
-    f = surf.focusI(rays)
-##    f = -20500
-##    tran.transform(rays,0,0,-20500.,0,0,0)
-##    surf.flat(rays)
+    if f is None:
+        f = surf.focusI(rays)
+    else:
+        tran.transform(rays,0,0,f,0,0,0)
+        surf.flat(rays)
     #Get centroid
     cx,cy = anal.centroid(rays)
 
@@ -83,14 +84,16 @@ def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
     
     return anal.hpd(rays)/abs(f)*180/pi*60**2,f,cx
 
-def examineAzimuthalStripSize():
-    strip = np.linspace(10.,50,11)
-    pitch = np.linspace(0,10*.3e-3,100)
+def examineAzimuthalStripSize(strip=np.linspace(2.5,15.,5)):
+    pitch = np.linspace(0,10*.3e-3,200)
 
     foc = []
     perf = []
     lat = []
     angle = []
+    yawbound = []
+    pbound = []
+    dbound = []
     for s in strip:
         #Compute performance as function of pitch
         res = np.transpose(\
@@ -104,8 +107,34 @@ def examineAzimuthalStripSize():
         perf.append(res[0][ind])
         foc.append(res[1][ind])
         lat.append(res[2][ind])
+        #Find alignment sensitivities
+        drange = np.linspace(-500.,500.,101)
+        angrange = np.linspace(-.3e-3,.3e-3,101)
+        yawres = np.transpose(np.array([singleOptic2(1000,misalign=\
+                                                  [0,0,0,y,angle[-1],0],\
+                                                  f=foc[-1],az=s) \
+                                     for y in angrange]))
+        plt.figure('yaw')
+        plt.plot(angrange*180/pi*60**2,sig.savgol_filter(yawres[0],11,3),\
+                 label=str(s))
+        yawbound.append(abs(angrange[np.argmin(abs(yawres[0]-1.))]))
+        pres = np.transpose(np.array([singleOptic2(1000,misalign=\
+                                                  [0,0,0,0,p+angle[-1],0],\
+                                                  f=foc[-1],az=s) \
+                                     for p in angrange]))
+        plt.figure('pitch')
+        plt.plot(angrange*180/pi*60**2,sig.savgol_filter(pres[0],11,3),\
+                 label=str(s))
+        pbound.append(abs(angrange[np.argmin(abs(pres[0]-1))]))
+        dres = np.transpose(np.array([singleOptic2(1000,misalign=\
+                                                  [0,0,0,0,angle[-1],0],\
+                                                  f=foc[-1]+d,az=s) \
+                                     for d in drange]))
+        plt.figure('d')
+        plt.plot(drange,sig.savgol_filter(dres[0],11,3),label=str(s))
+        dbound.append(abs(drange[np.argmin(abs(dres[0]-1))]))
 
-    return np.array([perf,foc,lat,angle])
+    return np.array([perf,foc,lat,angle,yawbound,pbound,dbound])
         
         
 

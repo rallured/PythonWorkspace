@@ -660,6 +660,9 @@ def gratArray(rays,outerrad,hubdist,angle,inc,l=95.,bestFocus=None,\
     ind = np.logical_and(rho>hubdist,rho<l+hubdist)
 ##    pdb.set_trace()
     ind2 = np.copy(ind)
+    #offx subtracted to prevent numerical vignetting...this
+    #is accounted for with numerical factors, so don't want
+    #any rays to be missed
     ang = l*sin(inc-offX)/hubdist*.95
     
     i = 0
@@ -1192,6 +1195,38 @@ def joernScan(prefix,res=None):
                         for ox in offx for oy in offy])
 
     for i in range(8):
+        wa = [w for w in wave[i] for ox in offx for oy in offy]
+        oxa = [ox for w in wave[i] for ox in offx for oy in offy]
+        oya = [oy for w in wave[i] for ox in offx for oy in offy]
+        fn = [prefix+'_'+str(order[i])+'_%04i.fits' % n\
+              for n in range(len(wa))]
+        [saveScanStep(r,w,ox,oy,order[i],f) for r,w,ox,oy,f in \
+         zip(res[i],wa,oxa,oya,fn)]
+    
+    return res
+
+def joernScan2(prefix,res=None):
+    wave = []
+    dw = .22
+    wave.append(np.array([1240./350.,1240/400.]))
+    wave.append(np.array([1240./200.,1240/250.]))
+    wave.append(np.array([1240./220.,1240./350.,1240/400.]))
+    wave.append(np.array([1240./350.,1240/400.]))
+    wave.append(np.array([1240./700.,1240/750.,1240./800,1240./1600]))
+
+    order = np.arange(-1,-6,-1)
+    offx = np.linspace(-11*.3e-3,11*.3e-3,7)
+    offy = np.linspace(-8*.3e-3,8*.3e-3,7)
+
+    
+    if res is None:
+        res = []
+        for i in range(5):
+            res.append([traceArcus(1,wave=w,order=order[i],offX=ox,offY=oy,\
+                                   analyzeLine=False) for w in wave[i] \
+                        for ox in offx for oy in offy])
+
+    for i in range(5):
         wa = [w for w in wave[i] for ox in offx for oy in offy]
         oxa = [ox for w in wave[i] for ox in offx for oy in offy]
         oya = [oy for w in wave[i] for ox in offx for oy in offy]
