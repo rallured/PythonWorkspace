@@ -46,12 +46,14 @@ def createWavefront(rad,num,coeff,rorder=None,aorder=None,\
     return rays,mask
 
 def traceThroughPrimary(rays,mask,primalign=np.zeros(6),\
-                        detalign=np.zeros(6)):
+                        detalign=np.zeros(6),primCoeffs=None):
     """
     Trace rays through the primary mirror and then down to a focus.
     Need to simulate an initial misalignment and then applying
     an optimization algorithm to align primary to beam.
     Merit function should include the random error in spot centroiding
+    primCoeffs is a list of coefficients, axial orders, and azimuthal orders
+    Use global coordinate systems to determine sign conventions
     """
     #Move to primary reference frame - rays 200 mm above node
     tran.transform(rays,0,0,-200.,0,0,0)
@@ -61,7 +63,12 @@ def traceThroughPrimary(rays,mask,primalign=np.zeros(6),\
     tran.transform(rays,*primalign,coords=glo)
     tran.itransform(rays,conic.primrad(8450.,220.,8400.),0,50,0,0,0,coords=glo)
     tran.transform(rays,0,0,-8400.,0,0,0,coords=glo)
-    surf.wolterprimary(rays,220.,8400.)
+    #Trace to Wolter surface
+    if primCoeffs is None:
+        surf.wolterprimary(rays,220.,8400.)
+    else:
+        surf.primaryLL(rays,220.,8400.,8500.,8400.,100./220.,\
+                       *primCoeffs)
     rays = tran.applyT(rays,glo,inverse=True)
     #Rays are now at primary in global coordinate system
     #(origin on optical axis and at nominal node height)
@@ -73,7 +80,19 @@ def traceThroughPrimary(rays,mask,primalign=np.zeros(6),\
     surf.flat(rays)
     #Pick out spot centroids
     cen = [anal.centroid(rays,weights=mask==i) for i in range(mask[-1]+1)]
+    cen = np.transpose(np.array(cen))
+    #Add centroiding error
+    cen = cen + np.random.normal(scale=cenSig,size=np.shape(cen))
     
     return cen
     
+def alignPrimary(detalign=np.zeros(6)):
+    """
+    Simulate the process of aligning the primary mirror to the
+    plane wave. Assume a starting misalignment of the primary as
+    input to the optimizer, and then allow the angular degrees
+    of freedom to vary.
+    Most of this can be done using scipy.optimize.minimize
+    Question of which algorithm to use, likely Nelder-Mead
+    """
     

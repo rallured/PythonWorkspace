@@ -7,6 +7,7 @@ import traces.sources as source
 import traces.surfaces as surf
 import traces.analyses as anal
 import traces.transformations as tran
+import traces.grating as grat
 
 def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3):
     """
@@ -30,7 +31,8 @@ def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3):
     n = -np.sqrt(1.-l**2-m**2)
     rays = [raydist,rays[1],rays[2],rays[3],l,m,n,rays[7],rays[8],rays[9]]
     #Align perfectly to beam
-    tran.steerX(rays)
+    #tran.steerX(rays)
+    tran.transform(rays,0,0,0,0,-np.mean(rays[4]),0)
     
     #Move to SPO optical axis and trace through shells
     tran.transform(rays,-mx,0,0,0,0,0)
@@ -75,7 +77,6 @@ def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911):
     left = np.repeat(True,len(rays[1]))
     record = np.zeros(len(rays[1]))
     for i in range(15):
-        print i
         #If no rays left, we are done
         if np.sum(left) == 0:
             continue
@@ -112,7 +113,7 @@ def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911):
 def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
          hubdist=11832.911,yaw=0.,wave=6.,order=1,\
          opgalign=[0,0,0,0,0,0],f=None,\
-         rrays=False,glob=False):
+         rrays=False,glob=False,rcen=False):
     """
     Trace through the SPO module, then place the OPG module
     at its nominal position, allowing for misalignments about the
@@ -130,8 +131,10 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     #defined using Flangan formula, this should leave you
     #at the center of the beam, therefore the center of the
     #OPG module
-    tran.steerX(rays,coords=coords)
-    tran.steerY(rays,coords=coords)
+    tran.transform(rays,0,0,0,0,-np.mean(rays[4]),0,coords=coords)
+    #tran.steerX(rays,coords=coords)
+    #tran.steerY(rays,coords=coords)
+    tran.transform(rays,0,0,0,pi-np.mean(rays[5]),0,0,coords=coords)
     f0 = surf.focusI(rays,coords=coords)
     tran.transform(rays,np.mean(rays[1]),np.mean(rays[2]),0,0,0,0,\
                    coords=coords)
@@ -159,6 +162,9 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
         except:
             pdb.set_trace()
 
+    if rcen is True:
+        return anal.centroid(rays)
+
     if rrays is True:
         if glob is True:
             tran.transform(rays,0,0,f,0,0,0)
@@ -167,3 +173,29 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     #Return LSF in arcseconds
     return anal.hpdY(rays)/12e3*180/pi*60**2
 
+def linearity(polyOrder=1,wavelength=np.linspace(0.,1.57*4.,100),\
+              opgalign=[0,0,0,0,0,0]):
+    """
+    Trace a range of wavelengths, determine spot centroids,
+    and then fit x centroid vs wavelength to a polynomial.
+    Return polynomial coefficients and both RMS and PV
+    deviation.
+    """
+    #Get alignment parameters
+    yaw = grat.blazeYaw(1.5*np.pi/180,1.575757,3,160.)
+    rays,rec = test(1000,yaw=yaw,order=6,wave=1.575757/2.,rrays=True)
+    f = -surf.focusY(rays)
+
+    #Perform linearity scan
+    cen = [test(10000,yaw=yaw,order=1,rcen=True,opgalign=opgalign,wave=w,f=f) \
+           for w in wavelength]
+    cen = np.transpose(np.array(cen))
+
+    #Perform polynomial fit
+    fit = np.polyfit(wavelength,cen[1],polyOrder)
+    recon = np.polyval(fit,wavelength)
+
+    rms = np.sqrt(np.mean((recon-cen[1])**2))
+    pv = np.max(np.abs(recon-cen[1]))
+    
+    return cen,(rms,pv)
