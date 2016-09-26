@@ -2,8 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+import Tkinter as Tk
 import tkFileDialog
 import threading
+
+import CamControl as cc
+import centroid_analyze as cent_anal
+import astropy.io.fits as pyfits
+
+import pdb
 
 #Global variables
 drefcen = (0,0)
@@ -11,10 +18,18 @@ dcurcen = (0,0)
 rrefcen = (0,0)
 rcurcen = (0,0)
 
+#Initializing cameras.
+cc.PrepareDevice()
+diff_id = 0
+ref_id = 1
+diff_exp = 1000  # 4000
+ref_exp = 50       # 150
+
 #Calibration factors
-calP = 0.
-calR = 0.
-calY = 0.
+calP = 1./0.87923
+calR = 1./1.13459
+calY = 1./-1.1944
+crosscalP = 1./-1.0474
 
 #Reference images
 rrefimg = None
@@ -23,7 +38,8 @@ rcurimg = None
 dcurimg = None
 
 def yaw():
-    return (dcurcen[0]-drefcen[0])*calY
+    #expected_y_pixel_from_pitch = pitch()/crosscalP
+    return (dcurcen[1] + pitch()/crosscalP - drefcen[1])*calY
 
 def pitch():
     return (rcurcen[0]-rrefcen[0])*calP
@@ -33,19 +49,45 @@ def roll():
 
 def getDiffraction(f=None):
     """
-    Dummy function that gets image from diffraction camera.
+    Function that gets image from diffraction camera.
     Second argument returns coordinates of centroid
     """
-    img = np.random.random(size=(128,128))
-    return img,(100,60)
+    if f != None:
+        img = pyfits.getdata(f)
+        x_cent,y_cent = cent_anal.SG_centroid(img)
+    else:
+        cc.PrepareDevice()
+        try: 
+            cc.StartCamera(diff_id)
+        except WindowsError:
+            cc.StartCamera(diff_id)
+        img = cc.GetImg(diff_exp,50)
+        if np.amax(img) > 200:
+            print 'Warning: Camera Oversaturated. Recommend decreasing exposure time.'
+        x_cent,y_cent = cent_anal.SG_centroid(img)
+        cc.StopCamera()
+    return img,(x_cent,y_cent)
 
 def getReflection(f=None):
     """
-    Dummy function that gets image from reflection camera.
+    Function that gets image from reflection camera.
     Second argument returns coordinates of centroid
     """
-    img = np.random.random(size=(128,128))
-    return img,(100,80)
+    if f != None:
+        img = pyfits.getdata(f)
+        x_cent,y_cent = cent_anal.SG_centroid(img)
+    else:
+        cc.PrepareDevice()
+        try: 
+            cc.StartCamera(ref_id)
+        except WindowsError:
+            cc.StartCamera(ref_id)
+        img = cc.GetImg(ref_exp,50)
+        if np.amax(img) > 200:
+            print 'Warning: Camera Oversaturated. Recommend decreasing exposure time.'
+        x_cent,y_cent = cent_anal.SG_centroid(img)
+        cc.StopCamera()
+    return img,(x_cent,y_cent)
 
 def _dref():
     """
@@ -53,16 +95,21 @@ def _dref():
     """
     #Update plot
     img,cen = getDiffraction()
+    dref.clear()
+    dref.set_title('Diffraction Reference')
     dref.imshow(img)
-    dref.plot(cen[0],cen[1],'*b',markersize=14)
-    dref.set_ylim([0,128])
-    dref.set_xlim([0,128])
+    dref.plot(cen[0],cen[1],'m+',markersize=14)
+    dref.set_xlim([0,1280])
+    dref.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
     global drefcen,drefimg
     drefcen = cen
     drefimg = img
+    
+    # Update labels
+    drefstr.set('Diffraction Cur Centroid: (' + str(round(drefcen[0])) + ',' + str(round(drefcen[1])) + ')')
 
     return
 
@@ -75,16 +122,20 @@ def _drefF():
     
     #Update plot
     img,cen = getDiffraction(f=f)
+    dref.clear()
+    dref.set_title('Diffraction Reference')
     dref.imshow(img)
-    dref.plot(cen[0],cen[1],'*b',markersize=14)
-    dref.set_ylim([0,128])
-    dref.set_xlim([0,128])
+    dref.plot(cen[0],cen[1],'m+',markersize=14)
+    dref.set_xlim([0,1280])
+    dref.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
     global drefcen,drefimg
     drefcen = cen
     drefimg = img
+    
+    drefstr.set('Diffraction Ref Centroid: (' + str(round(drefcen[0])) + ',' + str(round(drefcen[1])) + ')')
     
     return
 
@@ -106,10 +157,12 @@ def _dcur():
     """
     #Update plot
     img,cen = getDiffraction()
+    dcur.clear()
+    dcur.set_title('Diffraction Current')
     dcur.imshow(img)
-    dcur.plot(cen[0],cen[1],'*b',markersize=14)
-    dcur.set_ylim([0,128])
-    dcur.set_xlim([0,128])
+    dcur.plot(cen[0],cen[1],'m+',markersize=14)
+    dcur.set_xlim([0,1280])
+    dcur.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
@@ -119,6 +172,7 @@ def _dcur():
 
     #Update yaw label
     yawstr.set('Yaw (Diffraction): '+str(round(yaw())))
+    dcurstr.set('Diffraction Cur Centroid: (' + str(round(dcurcen[0])) + ',' + str(round(dcurcen[1])) + ')')
 
     return
 
@@ -131,10 +185,12 @@ def _dcurF():
     
     #Update plot
     img,cen = getDiffraction(f=f)
+    dcur.clear()
+    dcur.set_title('Diffraction Current')
     dcur.imshow(img)
-    dcur.plot(cen[0],cen[1],'*b',markersize=14)
-    dcur.set_ylim([0,128])
-    dcur.set_xlim([0,128])
+    dcur.plot(cen[0],cen[1],'m+',markersize=14)
+    dcur.set_xlim([0,1280])
+    dcur.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
@@ -144,6 +200,7 @@ def _dcurF():
 
     #Update yaw label
     yawstr.set('Yaw (Diffraction): '+str(round(yaw())))
+    dcurstr.set('Diffraction Cur Centroid: (' + str(round(dcurcen[0])) + ',' + str(round(dcurcen[1])) + ')')
     
     return
 
@@ -164,16 +221,21 @@ def _rref():
     """
     #Update plot
     img,cen = getReflection()
+    rref.clear()
+    rref.set_title('Reflection Reference')
     rref.imshow(img)
-    rref.plot(cen[0],cen[1],'*b',markersize=14)
-    rref.set_ylim([0,128])
-    rref.set_xlim([0,128])
+    rref.plot(cen[0],cen[1],'m+',markersize=14)
+    rref.set_xlim([0,1280])
+    rref.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
     global rrefcen,rrefimg
     rrefcen = cen
     rrefimg = img
+
+    # Update labels
+    rrefstr.set('Reflection Ref Centroid: (' + str(round(rrefcen[0])) + ',' + str(round(rrefcen[1])) + ')')
 
     return
 
@@ -185,10 +247,12 @@ def _rrefF():
     f = tkFileDialog.askopenfilename()
     #Update plot
     img,cen = getReflection(f=f)
+    rref.clear()
+    rref.set_title('Reflection Reference')
     rref.imshow(img)
-    rref.plot(cen[0],cen[1],'*b',markersize=14)
-    rref.set_ylim([0,128])
-    rref.set_xlim([0,128])
+    rref.plot(cen[0],cen[1],'m+',markersize=14)
+    rref.set_xlim([0,1280])
+    rref.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
@@ -196,6 +260,9 @@ def _rrefF():
     rrefcen = cen
     rrefimg = img
 
+    # Update labels
+    rrefstr.set('Reflection Ref Centroid: (' + str(round(rrefcen[0])) + ',' + str(round(rrefcen[1])) + ')')
+    
     return
 
 def _rrefsave():
@@ -211,15 +278,17 @@ def _rrefsave():
 
 def _rcur():
     """
-    Acquire the diffraction current image and centroid
+    Acquire the reflection current image and centroid
     Calculate yaw and update label
     """
     #Update plot
     img,cen = getReflection()
+    rcur.clear()
+    rcur.set_title('Reflection Current')
     rcur.imshow(img)
-    rcur.plot(cen[0],cen[1],'*b',markersize=14)
-    rcur.set_ylim([0,128])
-    rcur.set_xlim([0,128])
+    rcur.plot(cen[0],cen[1],'m+',markersize=14)
+    rcur.set_xlim([0,1280])
+    rcur.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
@@ -230,6 +299,7 @@ def _rcur():
     #Update labels
     pitchstr.set('Pitch (Reflection): '+str(round(pitch())))
     rollstr.set('Roll (Reflection): '+str(round(roll())))
+    rcurstr.set('Reflection Cur Centroid: (' + str(round(rcurcen[0])) + ',' + str(round(rcurcen[1])) + ')')
 
     return
 
@@ -241,10 +311,12 @@ def _rcurF():
     f = tkFileDialog.askopenfilename()
     #Update plot
     img,cen = getReflection(f=f)
+    rcur.clear()
+    rcur.set_title('Reflection Current')
     rcur.imshow(img)
-    rcur.plot(cen[0],cen[1],'*b',markersize=14)
-    rcur.set_ylim([0,128])
-    rcur.set_xlim([0,128])
+    rcur.plot(cen[0],cen[1],'m+',markersize=14)
+    rcur.set_xlim([0,1280])
+    rcur.set_ylim([0,1024])
     canvas.show()
 
     #Set global variables
@@ -255,6 +327,7 @@ def _rcurF():
     #Update labels
     pitchstr.set('Pitch (Reflection): '+str(round(pitch())))
     rollstr.set('Roll (Reflection): '+str(round(roll())))
+    rcurstr.set('Reflection Cur Centroid: (' + str(round(rcurcen[0])) + ',' + str(round(rcurcen[1])) + ')')
 
     return
 
@@ -268,13 +341,18 @@ def _rcursave():
     except:
         _rcursave()
     return
+
+def _quit():
+    cc.ShutDown()
+    root.quit()
+    root.destroy()
     
 #Set up Tk
 root = Tk.Tk()
 root.wm_title('Arcus Yaw Laser')
 
 #Image figure
-imgs = plt.figure(figsize=(12,10))
+imgs = plt.figure(figsize=(8,8))
 imgs.hold(True)
 dref = imgs.add_subplot(221)
 dref.set_title('Diffraction Reference')
@@ -355,19 +433,19 @@ yawlbl.config(font=('Courier',20))
 yawlbl.pack(side=Tk.TOP)
 
 calPstr = Tk.StringVar()
-calPstr.set('Pitch Calibration: %.2f' % calP)
+calPstr.set('Pitch Calibration: %.4f' % calP)
 calPlbl = Tk.Label(master=angfrm,textvariable=calPstr,width=40)
 calPlbl.config(font=('Courier',20),justify='left')
 calPlbl.pack(side=Tk.TOP)
 
 calRstr = Tk.StringVar()
-calRstr.set('Roll Calibration: %.2f' % calR)
+calRstr.set('Roll Calibration: %.4f' % calR)
 calRlbl = Tk.Label(master=angfrm,textvariable=calRstr,width=40)
 calRlbl.config(font=('Courier',20),justify='left')
 calRlbl.pack(side=Tk.TOP)
 
 calYstr = Tk.StringVar()
-calYstr.set('Yaw Calibration: %.2f' % calY)
+calYstr.set('Yaw Calibration: %.4f' % calY)
 calYlbl = Tk.Label(master=angfrm,textvariable=calYstr,width=30)
 calYlbl.config(font=('Courier',20))
 calYlbl.pack(side=Tk.TOP)
@@ -397,5 +475,10 @@ rcurbf = Tk.Button(master=curfrm2,text='R Load File',command=_rcurF)
 rcurbf.pack(side=Tk.LEFT)
 rcurbs = Tk.Button(master=curfrm2,text='R Save File',command=_rcursave)
 rcurbs.pack(side=Tk.LEFT)
+
+quitbutton = Tk.Button(master=curfrm2,text='QUIT',command=_quit)
+quitbutton.pack(side=Tk.RIGHT)
+
+
 
 root.mainloop()
