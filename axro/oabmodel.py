@@ -97,18 +97,20 @@ def wolterDistortion(filename,Nx,Ny):
     rpert = 1000.-np.sqrt(PT.x**2+PT.y**2)
     return rpert.reshape((200,200)),z.reshape((200,200)),t.reshape((200,200))
 
-def determineHFDFC2Stress():
+def determineHFDFC2Stress(fn):
     """Determine required stress*thickness for correctin of
     HFDFDC2 after PZT processing."""
+##    '/home/rallured/Dropbox/AXRO/HFDFC/'
+##                        '110x110_50x250_200Hz_xyscan_'
+##                        'Height_transformed_4in_deltaR_matrix.fits'
     #Load in data and create coordinate grids
-    fig = pyfits.getdata('/home/rallured/Dropbox/AXRO/HFDFC/'
-                        '110x110_50x250_200Hz_xyscan_'
-                        'Height_transformed_4in_deltaR_matrix.fits')/1e6
-    xf,yf = np.meshgrid(np.linspace(-.045,.045,400),\
-                        np.linspace(-.045,.045,400))
+    fig = pyfits.getdata(fn)/1e6
+    xf,yf = np.meshgrid(np.linspace(-.045,.045,385),\
+                        np.linspace(-.045,.045,385))
     #Fill in NaNs with linear interpolation
     xf2,yf2 = xf[~np.isnan(fig)],yf[~np.isnan(fig)]
     fig2 = griddata((xf2,yf2),fig[~np.isnan(fig)],(xf,yf))
+    fig2[0,0] = fig2[0,1]
     #Perform SG smoothing
     gf = fit.sgolay2d(fig2,41,3,derivative='col')
     #Load stress data

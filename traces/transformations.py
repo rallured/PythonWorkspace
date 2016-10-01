@@ -3,7 +3,7 @@ import transformationsf as tran
 import utilities.transformations as tr
 import pdb
 
-def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
+def transform(rays,dx,dy,dz,rx,ry,rz,ind=None,coords=None):
     """Coordinate transformation. translations are done first,
     then Rx,Ry,Rz
     coords[0] - global to local rotation only
@@ -16,20 +16,20 @@ def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
         tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
                                         l[ind],m[ind],n[ind],\
                                         ux[ind],uy[ind],uz[ind]
-        tran.transform(tx,ty,tz,tl,tm,tn,tux,tuy,tuz,-tx,-ty,-tz,-rx,-ry,-rz)
+        tran.transform(tx,ty,tz,tl,tm,tn,tux,tuy,tuz,-dx,-dy,-dz,-rx,-ry,-rz)
         x[ind],y[ind],z[ind],\
         l[ind],m[ind],n[ind],\
         ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
     else:
-        tran.transform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+        tran.transform(x,y,z,l,m,n,ux,uy,uz,-dx,-dy,-dz,-rx,-ry,-rz)
 
     #Update transformation matrices
     if coords is not None:
         #Define rotation and translation matrices
         rotm = rotationM(rx,ry,rz)
-        tranm = translationM(tx,ty,tz)
+        tranm = translationM(dx,dy,dz)
         rotmi = rotationM(rx,ry,rz,inverse=True)
-        tranmi = translationM(-tx,-ty,-tz)
+        tranmi = translationM(-dx,-dy,-dz)
         #Dot rotation into forward transform
         coords[0] = np.dot(rotm,coords[0])
         coords[1] = np.dot(np.dot(rotm,tranm),coords[1])
@@ -39,20 +39,31 @@ def transform(rays,tx,ty,tz,rx,ry,rz,ind=None,coords=None):
     return
 
 
-def itransform(rays,tx,ty,tz,rx,ry,rz,coords=None):
+def itransform(rays,dx,dy,dz,rx,ry,rz,coords=None,ind=None):
     """Inverse of coordinate transformations. -rz,-ry,-rx then
     translations.
     """
     x,y,z,l,m,n,ux,uy,uz = rays[1:]
-    tran.itransform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+    #tran.itransform(x,y,z,l,m,n,ux,uy,uz,-tx,-ty,-tz,-rx,-ry,-rz)
+
+    if ind is not None:
+        tx,ty,tz,tl,tm,tn,tux,tuy,tuz = x[ind],y[ind],z[ind],\
+                                        l[ind],m[ind],n[ind],\
+                                        ux[ind],uy[ind],uz[ind]
+        tran.itransform(tx,ty,tz,tl,tm,tn,tux,tuy,tuz,-dx,-dy,-dz,-rx,-ry,-rz)
+        x[ind],y[ind],z[ind],\
+        l[ind],m[ind],n[ind],\
+        ux[ind],uy[ind],uz[ind] = tx,ty,tz,tl,tm,tn,tux,tuy,tuz
+    else:
+        tran.itransform(x,y,z,l,m,n,ux,uy,uz,-dx,-dy,-dz,-rx,-ry,-rz)
 
     #Update transformation matrices
     if coords is not None:
         #Define rotation and translation matrices
         rotm = rotationM(rx,ry,rz,inverse=True)
-        tranm = translationM(-tx,-ty,-tz)
+        tranm = translationM(-dx,-dy,-dz)
         rotmi = rotationM(rx,ry,rz)
-        tranmi = translationM(tx,ty,tz)
+        tranmi = translationM(dx,dy,dz)
         #Dot rotation into forward transform
         coords[0] = np.dot(rotm,coords[0])
         coords[1] = np.dot(np.dot(tranm,rotm),coords[1])

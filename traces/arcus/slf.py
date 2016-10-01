@@ -9,7 +9,8 @@ import traces.analyses as anal
 import traces.transformations as tran
 import traces.grating as grat
 
-def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3):
+def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
+             scatter=False):
     """
     Trace a set of rays through an SPO module using a
     finite source distance. Ignore vignetting, we are
@@ -48,10 +49,16 @@ def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3):
         tran.reflect(rays,ind=ind)
         surf.spoSecondary(rays,r,12e3,ind=ind)
         tran.reflect(rays,ind=ind)
-    #Rays are now at secondary surfaces, 
+    #Rays are now at secondary surfaces,
+    #Add scatter
+    if scatter is True:
+        rays[4] = rays[4] + np.random.normal(scale=15./2.35*5e-6,size=N)
+        rays[5] = rays[5] + np.random.normal(scale=1.5/2.35*5e-6,size=N)
+        rays[6] = -np.sqrt(1.-rays[5]**2-rays[4]**2)
     return rays
 
-def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911):
+def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911,\
+             gpitch=0.,gyaw=0.,groll=0.):
     """
     Trace the OPG module. Probably ignore vignetting again.
     Place perfect OPG surfaces at the correct angular distance
@@ -87,7 +94,14 @@ def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911):
             tran.transform(rays,0,0,0,ang,0,0,coords=coords)
             continue
         #Trace rays to surface
+        tyaw = np.random.uniform(low=-gyaw,high=gyaw)
+        tpitch = np.random.uniform(low=-gpitch,high=gpitch)
+        troll = np.random.uniform(low=-groll,high=groll)
+        tran.transform(rays,0,11832.911,0,0,0,0,ind=ind)
+        tran.transform(rays,0,0,0,tpitch,troll,tyaw,ind=ind)
         surf.flat(rays,ind=ind)
+        tran.itransform(rays,0,0,0,tpitch,troll,tyaw,ind=ind)
+        tran.itransform(rays,0,11832.911,0,0,0,0,ind=ind)
         #Identify relevant rays
         ind = np.logical_and(rays[2]>11832.911-96./2,rays[2]<11832.911+96./2)
         ind = np.logical_and(ind,left)
@@ -113,7 +127,9 @@ def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911):
 def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
          hubdist=11832.911,yaw=0.,wave=6.,order=1,\
          opgalign=[0,0,0,0,0,0],f=None,\
-         rrays=False,glob=False,rcen=False):
+         rrays=False,glob=False,rcen=False,\
+         groll=0.,gyaw=0.,gpitch=0.,\
+         scatter=False,coordin=None):
     """
     Trace through the SPO module, then place the OPG module
     at its nominal position, allowing for misalignments about the
@@ -122,8 +138,8 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     OPG module placement.
     """
     #Trace through SPO module
-    rays = traceSPO(N,rin=rin,rout=rout,azwidth=azwidth,srcdist=srcdist)
-    coords = [tran.tr.identity_matrix()]*4
+    rays = traceSPO(N,rin=rin,rout=rout,azwidth=azwidth,srcdist=srcdist,\
+                    scatter=scatter)
 
     #Find the nominal OPG module location using formalism
     #from Flanagan's SPIE paper
@@ -131,20 +147,26 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     #defined using Flangan formula, this should leave you
     #at the center of the beam, therefore the center of the
     #OPG module
-    tran.transform(rays,0,0,0,0,-np.mean(rays[4]),0,coords=coords)
-    #tran.steerX(rays,coords=coords)
-    #tran.steerY(rays,coords=coords)
-    tran.transform(rays,0,0,0,pi-np.mean(rays[5]),0,0,coords=coords)
-    f0 = surf.focusI(rays,coords=coords)
-    tran.transform(rays,np.mean(rays[1]),np.mean(rays[2]),0,0,0,0,\
-                   coords=coords)
-    tran.transform(rays,0,0,0,0,pi,0,coords=coords)
-    tran.transform(rays,0,0,11832.911*np.cos(1.5*np.pi/180),0,0,0,coords=coords)
-    tran.transform(rays,0,0,0,0,1.5*np.pi/180,0,coords=coords)
+    if coordin is None:
+        coords = [tran.tr.identity_matrix()]*4
+        tran.transform(rays,0,0,0,0,-np.mean(rays[4]),0,coords=coords)
+        #tran.steerX(rays,coords=coords)
+        #tran.steerY(rays,coords=coords)
+        tran.transform(rays,0,0,0,pi-np.mean(rays[5]),0,0,coords=coords)
+        f0 = surf.focusI(rays,coords=coords)
+        tran.transform(rays,np.mean(rays[1]),np.mean(rays[2]),0,0,0,0,\
+                       coords=coords)
+        tran.transform(rays,0,0,0,0,pi,0,coords=coords)
+        tran.transform(rays,0,0,11832.911*np.cos(1.5*np.pi/180),0,0,0,coords=coords)
+        tran.transform(rays,0,0,0,0,1.5*np.pi/180,0,coords=coords)
+    else:
+        rays = tran.applyT(rays,coordin)
+        coords = np.copy(coordin)
     surf.flat(rays)
     #Now at center of central grating, with -z pointing toward hub
     tran.transform(rays,*opgalign,coords=coords)
-    rays,record = traceOPG(rays,hubdist=hubdist,yaw=yaw,wave=wave,order=order)
+    rays,record = traceOPG(rays,hubdist=hubdist,yaw=yaw,wave=wave,order=order,\
+                           gyaw=gyaw,groll=groll,gpitch=gpitch)
     tran.itransform(rays,*opgalign,coords=coords)
     #Should be at same reference frame, with rays now diffracted
     if np.sum(record)==0:
@@ -197,5 +219,8 @@ def linearity(polyOrder=1,wavelength=np.linspace(0.,1.57*4.,100),\
 
     rms = np.sqrt(np.mean((recon-cen[1])**2))
     pv = np.max(np.abs(recon-cen[1]))
+
+    #Plot
+    plt.plot(wavelength,cen[1]-recon,label=str(opgalign[-1]*180/np.pi))
     
     return cen,(rms,pv)

@@ -8,10 +8,11 @@ import traces.transformations as tran
 import traces.analyses as anal
 import traces.sources as sources
 import traces.conicsolve as conic
+import traces.axro.slf as slf
 
 
 def createWavefront(rad,num,coeff,rorder=None,aorder=None,\
-                    slitwidth=3.,masknum=15):
+                    slitwidth=3.,masknum=15,trans=np.zeros(2)):
     """Bounce rays off of Zernike surface. Use flat to
     bring rays to a common plane, leaving the OPD as twice
     the figure error of the Zernike surface.
@@ -36,7 +37,7 @@ def createWavefront(rad,num,coeff,rorder=None,aorder=None,\
             rays = trays
             mask = np.repeat(i,round(num/masknum))
 
-    tran.transform(rays,220.3,0,0,0,0,0)
+    tran.transform(rays,220.3+trans[0],trans[1],0,0,0,0)
     #Reflect to Zernike surface
     surf.zernsurf(rays,coeff,rad,nr=1.,rorder=rorder,aorder=aorder)
     tran.reflect(rays)
@@ -61,7 +62,7 @@ def traceThroughPrimary(rays,mask,primalign=np.zeros(6),\
     glo = [tran.tr.identity_matrix()]*4
     #Move to mirror tangent point and apply misalignment
     tran.transform(rays,conic.primrad(8450.,220.,8400.),0,50,0,0,0,coords=glo)
-    tran.transform(rays,*primalign,coords=glo)
+    tran.transform(rays,0,0,0,*primalign[3:],coords=glo)
     tran.itransform(rays,conic.primrad(8450.,220.,8400.),0,50,0,0,0,coords=glo)
     tran.transform(rays,0,0,-8400.,0,0,0,coords=glo)
     #Trace to Wolter surface
@@ -94,7 +95,7 @@ def primaryTrace(rad,num,coeff,primalign=np.zeros(6),detalign=np.zeros(6)):
     to the focus detector.
     """
     #Trace
-    rays,mask = createWavefront(rad,num,coeff)
+    rays,mask = createWavefront(rad,num,coeff,trans=primalign[:2])
     cen = traceThroughPrimary(rays,mask,primalign=primalign,detalign=detalign)
     #Return deviation from centroid of centroid
     cx = np.mean(cen[0])
@@ -120,7 +121,9 @@ def alignPrimary(rad,num,coeff,initial=np.zeros(6),detalign=np.zeros(6)):
     return res
 
 def traceThroughPair(rays,mask,primalign=np.zeros(6),\
-                        detalign=np.zeros(6),primCoeffs=None,cenSig=0.):
+                        detalign=np.zeros(6),cenSig=0.,\
+                     primCoeffs=None,secCoeffs=None,\
+                     secalign=np.zeros(6)):
     """
     Trace rays through the primary mirror and then down to a focus.
     Need to simulate an initial misalignment and then applying
@@ -134,7 +137,7 @@ def traceThroughPair(rays,mask,primalign=np.zeros(6),\
     glo = [tran.tr.identity_matrix()]*4
     #Move to mirror tangent point and apply misalignment
     tran.transform(rays,conic.primrad(8450.,220.,8400.),0,50,0,0,0,coords=glo)
-    tran.transform(rays,*primalign,coords=glo)
+    tran.transform(rays,0,0,0,*primalign[3:],coords=glo)
     tran.itransform(rays,conic.primrad(8450.,220.,8400.),0,50,0,0,0,coords=glo)
     tran.transform(rays,0,0,-8400.,0,0,0,coords=glo)
     #Trace to Wolter surface
@@ -143,17 +146,13 @@ def traceThroughPair(rays,mask,primalign=np.zeros(6),\
     else:
         surf.primaryLL(rays,220.,8400.,8500.,8400.,100./220.,\
                        *primCoeffs)
-    rays = tran.applyT(rays,glo,inverse=True)
-    #Rays are now at primary in global coordinate system
-    #(origin on optical axis and at nominal node height)
-    #Now reflect and move on to secondary
     tran.reflect(rays)
-    glo = [tran.tr.identity_matrix()]*4
-    tran.transform(rays,conic.secrad(8350.,220.,8400.),0,-50.,0,0,0,coords=glo)
+    #Place secondary in primary reference frame
+    tran.transform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
+                   coords=glo)
     tran.transform(rays,*secalign,coords=glo)
-    tran.itransform(rays,conic.secrad(8350.,220.,8400.),0,-50.,0,0,0,coords=glo)
-    tran.transform(rays,0,0,-8400.,0,0,0,coords=glo)
-    #Trace to secondary surface
+    tran.itransform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
+                    coords=glo)
     if secCoeffs is None:
         surf.woltersecondary(rays,220.,8400.)
     else:
@@ -164,3 +163,72 @@ def traceThroughPair(rays,mask,primalign=np.zeros(6),\
     #(origin on optical axis and at nominal node height)
     #Now reflect and go to detector
     tran.reflect(rays)
+    tran.transform(rays,0,0,-8400.,0,0,0)
+    tran.transform(rays,*detalign)
+    surf.flat(rays)
+
+    #Pick out spot centroids
+    cen = [anal.centroid(rays,weights=mask==i) for i in range(mask[-1]+1)]
+    cen = np.transpose(np.array(cen))
+    #Add centroiding error
+    if cenSig > 0:
+        cen = cen + np.random.normal(scale=cenSig,size=np.shape(cen))
+
+    return cen
+
+def pairTrace(rad,num,coeff,primalign=np.zeros(6),secalign=np.zeros(6),\
+              detalign=np.zeros(6)):
+    """
+    Function to create source rays and trace through the mirror pair
+    to the focus detector.
+    """
+    #Trace
+    rays,mask = createWavefront(rad,num,coeff)
+    cen = traceThroughPair(rays,mask,primalign=primalign,detalign=detalign,\
+                           secalign=secalign)
+    #Return deviation from centroid of centroid
+    cx = np.mean(cen[0])
+    cy = np.mean(cen[1])
+    return np.sqrt(np.mean((cx-cen[0])**2+(cy-cen[1])**2))
+
+def alignSecondary(rad,num,coeff,initial=np.zeros(6),detalign=np.zeros(6),\
+                   primalign=np.zeros(6)):
+    """
+    Simulate the process of aligning the secondary mirror to the
+    primary. Assume a starting misalignment of the secondary as
+    input to the optimizer, and then allow the angular degrees
+    of freedom to vary.
+    Primary alignment taken as fixed, output of alignPrimary.
+    Most of this can be done using scipy.optimize.minimize
+    Question of which algorithm to use, likely Nelder-Mead
+    """
+    #Optimize Hartmann test either with minimization or
+    #fitting of misalignments
+    fun = lambda p: pairTrace(rad,num,coeff,\
+                                 secalign=[initial[0],initial[1],initial[2],\
+                                            p[0],p[1],p[2]],\
+                                 detalign=detalign,\
+                              primalign=primalign)
+    
+    res = opt.minimize(fun,initial[3:6],method='Nelder-Mead')
+    final = np.concatenate((initial[:3],res['x']))
+    perf = slf.mirrorPair(1000,secalign=final)
+
+    return final,perf
+
+def zernSensitivity():
+    """
+    Loop through Zernike terms and determine sensitivity and
+    maximum peak-to-valley allowable in the term
+    """
+    x,y = np.meshgrid(np.linspace(-1,1,100),np.linspace(-1,1,100))
+    sens = np.zeros(64)
+    for i in range(3,64):
+        coeff = np.zeros(64)
+        coeff[i] = .0001
+        res = alignSecondary(125./2,1000,coeff,\
+                             initial=[0,0,0,.3e-3,.3e-3,.3e-3])
+        z = surf.zernikemod.zernsurf(x,y,0,0,1,coeff)
+        sens[i] = res[1]/anal.ptov(z)
+
+    return sens

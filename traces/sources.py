@@ -20,7 +20,7 @@ def pointsource(ang,num):
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
     opd = np.repeat(0.,num)
-    return opd,x,y,z,l,m,n,ux,uy,uz
+    return [opd,x,y,z,l,m,n,ux,uy,uz]
 
 def circularbeam(rad,num):
     """Define uniform, circular beam of radius rad, pointing in +z direction
@@ -37,7 +37,7 @@ def circularbeam(rad,num):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
-    return opd,x,y,z,l,m,n,ux,uy,uz
+    return [opd,x,y,z,l,m,n,ux,uy,uz]
 
 def annulus(rin,rout,num):
     """Define annulus of rays pointing in +z direction
@@ -54,7 +54,7 @@ def annulus(rin,rout,num):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
-    return opd,x,y,z,l,m,n,ux,uy,uz
+    return [opd,x,y,z,l,m,n,ux,uy,uz]
 
 def subannulus(rin,rout,dphi,num,zhat=1.):
     """Create a subapertured annulus source in +z direction
@@ -73,7 +73,7 @@ def subannulus(rin,rout,dphi,num,zhat=1.):
     uy = np.copy(l)
     uz = np.copy(l)
     opd = np.copy(l)
-    return opd,x,y,z,l,m,n,ux,uy,uz
+    return [opd,x,y,z,l,m,n,ux,uy,uz]
 
 def rectArray(xsize,ysize,num):
     """Creates a regular array of rays using meshgrid and linspace"""

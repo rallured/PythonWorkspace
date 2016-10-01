@@ -136,7 +136,54 @@ def examineAzimuthalStripSize(strip=np.linspace(2.5,15.,5)):
 
     return np.array([perf,foc,lat,angle,yawbound,pbound,dbound])
         
-        
+def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
+               secalign=np.zeros(6),rrays=False,f=None):
+    """
+
+    """
+    """SLF finite source trace"""
+    #Establish subannulus of rays
+    rays = sources.subannulus(220.,221.,100./220.,N,zhat=-1.)
+    #Transform to node position
+    tran.transform(rays,220,0,0,0,0,0)
+    #Set up finite source distance
+    raydist = sqrt(srcdist**2+rays[1]**2+rays[2]**2)
+    rays[4] = rays[1]/raydist
+    rays[5] = rays[2]/raydist
+    rays[6] = -sqrt(1.-rays[4]**2-rays[5]**2)
+
+    #Place mirror pair
+    coords = [tran.tr.identity_matrix()]*4
+    tran.transform(rays,-220+conic.primrad(8450.,220.,8400.),0,50.,0,0,0,\
+                   coords=coords)
+    tran.transform(rays,*primalign,coords=coords)
+    tran.transform(rays,-conic.primrad(8450.,220.,8400.),0,-8450.,0,0,0,\
+                   coords=coords)
+    surf.wolterprimary(rays,220.,8400.)
+    tran.reflect(rays)
+    #Place secondary in primary's reference frame
+    tran.transform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
+                   coords=coords)
+    tran.transform(rays,*secalign,coords=coords)
+    tran.itransform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
+                   coords=coords)
+    surf.woltersecondary(rays,220.,8400.)
+    tran.reflect(rays)
+
+    #Go back to nominal node reference frame and down to focus
+    rays = tran.applyT(rays,coords,inverse=True)
+
+    if f is None:
+        f = -surf.focusI(rays)
+        print f
+    else:
+        tran.transform(rays,0,0,-f,0,0,0)
+        surf.flat(rays)
+
+    if rrays is True:
+        return rays
+    
+    return anal.hpd(rays)/f * 180/np.pi * 60.**2
 
 def sourceToChamber(N,misalign=np.zeros(6)):
     """
