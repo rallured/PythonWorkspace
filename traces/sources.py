@@ -147,4 +147,4 @@ def rectbeam(xhalfwidth,yhalfwidth,num):
     uy = np.repeat(0.,num)
     uz = np.repeat(0.,num)
     opd = np.repeat(0.,num)
-    return opd,x,y,z,l,m,n,ux,uy,uz
+    return [opd,x,y,z,l,m,n,ux,uy,uz]

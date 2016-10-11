@@ -128,12 +128,18 @@ def radgrat(rays,dpermm,order,wave,ind=None):
         fn(x,y,l,m,n,wave,dpermm,order)
     return
 
-def grat(rays,d,order,wave):
+def grat(rays,d,order,wave,ind=None):
     """Linear grating with groove direction in +y
     Evanescence results in position vector set to zero
     """
     x,y,z,l,m,n = rays[1:7]
-    tran.grat(x,y,l,m,n,d,order,wave)
+
+    if ind is not None:
+        tx,ty,tl,tm,tn = x[ind],y[ind],l[ind],m[ind],n[ind]
+        tran.grat(tx,ty,tl,tm,tn,d,order,wave)
+        x[ind],y[ind],l[ind],m[ind],n[ind] = tx,ty,tl,tm,tn
+    else:
+        tran.grat(x,y,l,m,n,d,order,wave)
     return
 
 def vignette(rays,ind=None):

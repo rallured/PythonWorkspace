@@ -8,6 +8,7 @@ import traces.surfaces as surf
 import traces.analyses as anal
 import traces.transformations as tran
 import traces.grating as grat
+import traces.conicsolve as conic
 
 def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
              scatter=False):
@@ -58,7 +59,8 @@ def traceSPO(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     return rays
 
 def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911,\
-             gpitch=0.,gyaw=0.,groll=0.):
+             gpitch=0.,gyaw=0.,groll=0.,\
+             radapprox=False):
     """
     Trace the OPG module. Probably ignore vignetting again.
     Place perfect OPG surfaces at the correct angular distance
@@ -115,7 +117,47 @@ def traceOPG(rays,hubdist=11832.911,yaw=0.,order=1,wave=1.,ang=2.5/11832.911,\
         #Diffract this set of rays
         tran.reflect(rays,ind=ind)
         tran.transform(rays,0,11832.911-hubdist,0,0,0,0,coords=coords)
-        tran.radgrat(rays,160./hubdist,order,wave,ind=ind)
+        
+        if radapprox is False:
+            tran.radgrat(rays,160./hubdist,order,wave,ind=ind)
+        else:
+            ind3 = np.logical_and(rays[2]<11832.911+48.,\
+                                 rays[2]>11832.911+48-9.282)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,160.,order,wave,ind=ind4)
+
+            ind3 = np.logical_and(rays[2]<11832.911+48.-9.282,\
+                                 rays[2]>11832.911+48-9.282-18.564)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,159.75,order,wave,ind=ind4)
+
+            ind3 = np.logical_and(rays[2]<11832.911+48.-9.282-18.564,\
+                                 rays[2]>11832.911+48-9.282-18.564*2)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,159.5,order,wave,ind=ind4)
+
+            ind3 = np.logical_and(rays[2]<11832.911+48.-9.282-18.564*2,\
+                                 rays[2]>11832.911+48-9.282-18.564*3)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,159.25,order,wave,ind=ind4)
+
+            ind3 = np.logical_and(rays[2]<11832.911+48.-9.282-18.564*3,\
+                                 rays[2]>11832.911+48-9.282-18.564*4)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,159.,order,wave,ind=ind4)
+
+            ind3 = np.logical_and(rays[2]<11832.911+48.-9.282-18.564*4,\
+                                 rays[2]>11832.911+48-9.282-18.564*4-12.462)
+            ind4 = np.logical_and(ind3,ind)
+            if np.sum(ind4)>0:
+                tran.grat(rays,158.75,order,wave,ind=ind4)
+            #pdb.set_trace()
+            
         tran.transform(rays,0,hubdist-11832.911,0,0,0,0,coords=coords)
         #Rotate to next grating
         tran.transform(rays,0,0,0,ang,0,0,coords=coords)
@@ -129,7 +171,8 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
          opgalign=[0,0,0,0,0,0],f=None,\
          rrays=False,glob=False,rcen=False,\
          groll=0.,gyaw=0.,gpitch=0.,\
-         scatter=False,coordin=None):
+         scatter=False,coordin=None,\
+         radapprox=False):
     """
     Trace through the SPO module, then place the OPG module
     at its nominal position, allowing for misalignments about the
@@ -166,7 +209,8 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     #Now at center of central grating, with -z pointing toward hub
     tran.transform(rays,*opgalign,coords=coords)
     rays,record = traceOPG(rays,hubdist=hubdist,yaw=yaw,wave=wave,order=order,\
-                           gyaw=gyaw,groll=groll,gpitch=gpitch)
+                           gyaw=gyaw,groll=groll,gpitch=gpitch,\
+                           radapprox=radapprox)
     tran.itransform(rays,*opgalign,coords=coords)
     #Should be at same reference frame, with rays now diffracted
     if np.sum(record)==0:
@@ -224,3 +268,133 @@ def linearity(polyOrder=1,wavelength=np.linspace(0.,1.57*4.,100),\
     plt.plot(wavelength,cen[1]-recon,label=str(opgalign[-1]*180/np.pi))
     
     return cen,(rms,pv)
+
+def testRadApprox(num,order=1,wave=1.,radapprox=False,N=3,f=None,yaw=0.,\
+                  azwidth=66.*.68,autofocus=False,returnMet=False,axwidth=2.5):
+    """
+
+    """
+    #Set up converging source
+    rays = source.convergingbeam2(12e3,-azwidth/2,azwidth/2,\
+                                  -axwidth/2,axwidth/2,num,0.)
+    tran.transform(rays,0,0,12e3,0,0,0)
+    tran.transform(rays,0,0,0,88.5*np.pi/180.,0,0)
+    tran.transform(rays,0,0,0,0,0,yaw)
+    surf.flat(rays)
+
+    #Place grating
+    if radapprox is False:
+        tran.reflect(rays)
+        tran.transform(rays,0,-12e3,0,0,0,0)
+        tran.radgrat(rays,160./12e3,order,wave)
+        tran.transform(rays,0,12e3,0,0,0,0)
+        tran.transform(rays,0,0,0,0,0,-yaw)
+    else:
+        tran.reflect(rays)
+        gratedges = np.linspace(-50.,50.,N+1)
+        for i in range(N):
+            ind = np.logical_and(rays[2]>gratedges[i],\
+                             rays[2]<gratedges[i+1])
+            d = (12e3+np.mean(gratedges[i:i+2]))/12e3*160.
+            if np.sum(ind)>0:
+                tran.grat(rays,d,-order,wave,ind=ind)
+        tran.transform(rays,0,0,0,0,0,-yaw)
+
+
+    #Go to focal plane
+    tran.transform(rays,0,0,0,-88.5*np.pi/180.,0,0)
+    tran.transform(rays,0,0,0,0,0,np.pi/2)
+
+    if f is not None:
+        try:
+            tran.transform(rays,0,0,-f,0,0,0)
+            surf.flat(rays)
+        except:
+            pdb.set_trace()
+
+    if autofocus is True:
+        surf.focusY(rays)
+
+    if returnMet is True:
+        return anal.hpdY(rays)/12e3*180/np.pi*60**2
+    
+    return rays
+
+def reproduceChevron(num,rin=220.,axlength=100.,azwidth=50.,F=8.4e3,\
+                     hubdist=8e3,radapprox=False,order=1,wave=.83,f=None,\
+                     autofocus=False,returnMet=False,yaw=0.,N=1,\
+                     gratalign=np.zeros(6)):
+    #Create Wolter beam
+    rout = conic.primrad(F+axlength,rin,F)
+    rays = source.subannulus(rin,rout,azwidth/rin,num,zhat=-1.)
+    surf.wolterprimary(rays,rin,F)
+    tran.reflect(rays)
+    surf.woltersecondary(rays,rin,F)
+    tran.reflect(rays)
+    tran.transform(rays,0,0,0,0,0,np.pi/2)
+
+    #Go to focus
+    surf.focusI(rays)
+    #Steer beam
+    coords = [tran.tr.identity_matrix()]*4
+    tran.transform(rays,0,0,0,np.mean(rays[5]),-np.mean(rays[4]),0)
+    pdb.set_trace()
+    #Go up to grating
+    tran.transform(rays,0,0,hubdist/np.cos(1.5*np.pi/180),0,0,0)
+    #Go to incidence angle
+    tran.transform(rays,0,0,0,91.5*np.pi/180,0,0)
+    tran.transform(rays,0,0,0,0,0,yaw)
+    #Apply grating misalignment
+    tran.transform(rays,*gratalign)
+    surf.flat(rays)
+    #Get rid of rays outside grating
+    ind = np.logical_and(np.abs(rays[2])<16,np.abs(rays[1])<25/2.)
+    rays = tran.vignette(rays,ind=ind)
+
+    plt.figure('grat')
+    plt.clf()
+    plt.plot(rays[1],rays[2],'.')
+    plt.title('Beam Footprint')
+
+    #Place grating
+    if radapprox is False:
+        tran.reflect(rays)
+        tran.transform(rays,0,-hubdist,0,0,0,0)
+        tran.radgrat(rays,160./hubdist,order,wave)
+        tran.transform(rays,0,hubdist,0,0,0,0)
+    else:
+        tran.reflect(rays)
+        gratedges = np.linspace(-16.,16.,N+1)
+        for i in range(N):
+            ind = np.logical_and(rays[2]>gratedges[i],\
+                             rays[2]<gratedges[i+1])
+            d = (hubdist+np.mean(gratedges[i:i+2]))/hubdist*160.
+            if np.sum(ind)>0:
+                tran.grat(rays,d,-order,wave,ind=ind)
+
+
+    #Go to focal plane
+    tran.transform(rays,*gratalign)
+    tran.transform(rays,0,0,0,0,0,-yaw)
+    tran.transform(rays,0,0,0,-91.5*np.pi/180.,0,0)
+    tran.transform(rays,0,0,0,0,0,np.pi/2)
+
+    if f is not None:
+        try:
+            tran.transform(rays,0,0,-f,0,0,0)
+            surf.flat(rays)
+        except:
+            pdb.set_trace()
+
+    if autofocus is True:
+        surf.focusY(rays)
+
+    if returnMet is True:
+        return anal.hpdY(rays)/F*180/np.pi*60**2
+
+    plt.figure('LSF')
+    plt.clf()
+    plt.plot(rays[1],rays[2],'.')
+    plt.title('LSF')
+    
+    return rays
