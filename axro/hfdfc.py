@@ -6,6 +6,7 @@ import pdb
 import utilities.imaging.fitting as fitting
 import utilities.imaging.man as man
 import utilities.imaging.analysis as anal
+import os
 
 mask = pyfits.getdata('/home/rallured/Dropbox/WFS/SystemAlignment/'
                       'HFDFC/160312_IFTest/Mask.fits')
@@ -61,3 +62,34 @@ def computeCTF(amp,freq,phase):
     postrms = anal.rms(resid)
 
     return postrms/prerms
+
+def makeSPIEPlot():
+    os.chdir('/home/rallured/Dropbox/WFS/SystemAlignment/'
+             'HFDFC/160317_Correction/NoLights')
+    resid = pyfits.getdata('Resid06.fits')/9.75 * 180/np.pi*60**2
+    goal = pyfits.getdata('Goal.fits')/9.75 * 180/np.pi*60**2
+    ach = pyfits.getdata('Achieved.fits')/9.75/1e3 * 180/np.pi*60**2
+    sinu = pyfits.getdata('Sinusoid.fits')/9.75 * 180/np.pi*60**2
+
+    print anal.rms(resid)*180/np.pi*60**2
+
+    mn = np.nanmin([resid,goal,ach,sinu])
+    mx = np.nanmax([resid,goal,ach,sinu])
+
+    fig = plt.figure('spie')
+    fig.add_subplot(221)
+    plt.imshow(sinu,vmax=mx,vmin=mn)
+    plt.title('Input Sinusoid')
+    fig.add_subplot(222)
+    plt.imshow(goal,vmax=mx,vmin=mn)
+    plt.title('Predicted')
+    fig.add_subplot(223)
+    plt.imshow(ach,vmax=mx,vmin=mn)
+    plt.title('Achieved')
+    fig.add_subplot(224)
+    im = plt.imshow(resid,vmax=mx,vmin=mn)
+    plt.title('Predicted-Achieved')
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([.85,.15,.05,.7])
+    fig.colorbar(im,cax=cbar_ax)

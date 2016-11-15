@@ -280,6 +280,7 @@ subroutine grat(x,y,l,m,n,num,d,order,wave)
   pi = acos(-1.)
 
   !Loop through rays, compute new diffracted ray direction
+  !$omp parallel do
   do i=1,num
     !Compute new direction cosines
     l(i) = l(i) - order*wave/d
@@ -291,5 +292,6 @@ subroutine grat(x,y,l,m,n,num,d,order,wave)
       n(i) = 0.
     end if
   end do
+  !$omp end parallel do
 
 end subroutine grat

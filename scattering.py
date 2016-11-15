@@ -9,17 +9,25 @@ import math
 #Compute PSF of focus from primary mirror only
 #x is mirror radius at position z
 #x0 is array of focal positions
-def primaryPSF(x=None,z=None,perturb=None,x0=None,R0=220.,Z0=8400.,L1 =100.):
+def primaryPSF(x=None,z=None,perturb=None,x0=None,R0=220.,Z0=8400.):
     #Construct profile vectors
-    if x is None:
+    if z is None:
         z = linspace(8400.,8400.+L1,size(perturb))
+    if x is None:
         x = primrad(z,R0,Z0)
     if perturb is not None:
         x = x + perturb
 
+    L1 = z.max()-z.min()
+
+    #Get rid of NaNs
+    ind = ~isnan(x)
+    x = x[ind]
+    z = z[ind]
+
     #Compute other constants
     alpha,p,d,e = woltparam(R0,Z0)
-    wave = 1.e-6 #wavelength of light
+    wave = 1.24e-6 #wavelength of light
     DR = L1*sin(alpha) #aperture approximation
     dz = z[1]-z[0]
 

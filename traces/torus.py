@@ -14,16 +14,15 @@ def torusF2(x,y,z,rin,rout):
     """Return the Torus surface function with the origin
     tangent to the outer surface.
     """
-    return (z**2+2*z*(rin+rout)+2*rin*rout+y**2+x**2)**2 +\
-           4*rout**2*(x**2-rin**2)
+    return ((z+rin+rout)**2+y**2+x**2+rout**2-rin**2)**2 - \
+           4*rout**2*((z+rin+rout)**2+y**2)
 
 def torusGrad(x,y,z,rin,rout):
     """Return the derivatives of the Torus surface function
     with origin tangent to outer surface."""
-    brack = z**2+2*z*(rin+rout)+2*rin*rout+y**2+x**2
-    dfdz = 4*brack*(z+rin+rout)
-    dfdy = 4*brack*y
-    dfdx = 4*brack*x+8*rout**2*x
+    dfdz = 4*(rin+rout+z)*(2*rin*(rout+z)+2*rout*z+x**2+y**2+z**2)
+    dfdy = 4*y*(2*rin*(rout+z)+2*rout*z+x**2+y**2+z**2)
+    dfdx = 4*x*(-rin**2+(rin+rout+z)**2+rout**2+x**2+y**2)
     return dfdx,dfdy,dfdz
     
 def constructQuartic(p,d,rin,rout):

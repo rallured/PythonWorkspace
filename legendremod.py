@@ -17,6 +17,7 @@
 #found in scipy.linalg.lstsq
 
 from numpy import *
+import numpy as np
 import numpy.polynomial.legendre as leg
 import pdb
 import scipy.linalg as lin
@@ -70,6 +71,16 @@ def imagematrix(x,y,xorder,yorder):
         xc[xi] = 0 #Reset this x order to 0
 
     return A
+
+def singleorder(x,y,xorder,yorder):
+    """
+    Form an image of a single 2D Legendre order
+    """
+    xc = np.zeros(xorder+1)
+    xc[-1]=1
+    yc = np.zeros(yorder+1)
+    yc[-1]=1
+    return leg.legval(x,xc)*leg.legval(y,yc)
 
 #Perform least squares fit and put coefficients into x,y matrix
 #fits up to xorder-1 in x and yorder-1 in y

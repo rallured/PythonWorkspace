@@ -83,6 +83,17 @@ def steerX(rays,coords=None):
         transform(rays,0,0,0,0,-np.mean(rays[4]),0,coords=coords)
     return
 
+def pointTo(rays,x0,y0,z0,reverse=-1.):
+    """
+    Direct all ray direction cosines toward (x0,y0,z0)
+    reverse=1. will have all rays point away from (x0,y0,z0)
+    """
+    R = np.sqrt((rays[1]-x0)**2 + (rays[2]-y0)**2 + (rays[3]-z0)**2)
+    rays[4] = reverse*(rays[1]-x0)/R
+    rays[5] = reverse*(rays[2]-y0)/R
+    rays[6] = reverse*(rays[3]-z0)/R
+    return
+
 def reflect(rays,ind=None):
     """Reflect rays based on surface normal
     """

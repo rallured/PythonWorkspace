@@ -338,8 +338,10 @@ def radgrat(rays,hubdist,dpermm,order,wave,ind=None):
 def radgratC(hubdist,dpermm,order,wave,x,y,z,l,m,n):
     """Test
     """
+    #Establish threadId (including any block)
     i = cuda.grid(1)
 
+    #Handle case of threadId larger than array sizes
     if i >= x.shape[0]:
         return
 

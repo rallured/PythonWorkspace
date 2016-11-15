@@ -6,7 +6,9 @@ from scipy.optimize import fmin_slsqp
 #from axro.merit import merit
 import pyfits
 import gc
-#import pyOpt
+import scipy.interpolate as interp
+import utilities.transformations as tr
+import traces.conicsolve as conic
 
 #Need to write merit function calculator for set of influence
 #functions and distortion array
@@ -86,6 +88,115 @@ def rawOptimizer(ifs,dist,bounds=None,smin=0.,smax=5.):
     sol = np.dot(ifs,optv)
 
     return sol,optv
+
+def prepareIFs(ifs,dx=None,azweight=.015):
+    """
+    Put IF arrays in format required by optimizer.
+    If dx is not None, apply derivative.
+    """
+    #Apply derivative if necessary
+    #First element of result is axial derivative
+    if dx is not None:
+        ifs = np.array(np.gradient(ifs,*dx,axis=(1,2)))*180/np.pi*60.**2 / 1000.
+        ifs[1] = ifs[1]*azweight
+        ifs = ifs.transpose(1,0,2,3)
+        sha = np.shape(ifs)
+        for i in range(sha[0]):
+            for j in range(sha[1]):
+                ifs[i,j] = ifs[i,j] - np.nanmean(ifs[i,j])
+        ifs = ifs.reshape((sha[0],sha[1]*sha[2]*sha[3]))
+    else:
+        ifs = ifs.transpose(1,2,0)
+        sha = np.shape(ifs)
+        for i in range(sha[0]):
+            ifs[i] = ifs[i] - np.nanmean(ifs[i])
+        ifs = ifs.reshape((sha[0],sha[1]*sha[2]))
+
+    return np.transpose(ifs)
+
+def prepareDist(d,dx=None,azweight=.015):
+    """
+    Put distortion array in format required by optimizer.
+    If dx is not None, apply derivative.
+    Can also be run on shademasks
+    """
+    #Apply derivative if necessary
+    #First element of result is axial derivative
+    if dx is not None:
+        d = np.array(np.gradient(d,*dx))*180/np.pi*60.**2 / 1000.
+        d[0] = d[0] - np.nanmean(d[0])
+        d[1] = d[1] - np.nanmean(d[1])
+        d[1] = d[1]*azweight
+
+    return d.flatten()
+
+def optimizer(distortion,ifs,shade,smin=0.,smax=5.,bounds=None):
+    """
+    Cleaner implementation of optimizer. ifs and distortion should
+    already be in whatever form (amplitude or slope) desired.
+    IFs should have had prepareIFs already run on them.
+    Units should be identical between the two.
+    """
+    #Load in data
+    if type(distortion)==str:
+        distortion = pyfits.getdata(distortion)
+    if type(ifs)==str:
+        ifs = pyfits.getdata(ifs)
+    if type(shade)==str:
+        shade = pyfits.getdata(shade)
+
+    #Remove shademask
+    ifs = ifs[shade==1]
+    distortion = distortion[shade==1]
+
+    #Remove nans
+    ind = ~np.isnan(distortion)
+    ifs = ifs[ind]
+    distortion = distortion[ind]
+
+    #Handle bounds
+    if bounds is None:
+        bounds = []
+        for i in range(np.shape(ifs)[1]):
+            bounds.append((smin,smax))
+
+    #Call optimizer algorithm
+    optv = fmin_slsqp(ampMeritFunction,np.zeros(np.shape(ifs)[1]),\
+                      bounds=bounds,args=(distortion,ifs),\
+                      iprint=1,fprime=ampMeritDerivative,iter=200,\
+                      acc=1.e-6)
+
+    return optv
+
+def correctDistortion(dist,ifs,shade,dx=None,azweight=.015,smax=5.):
+    """
+    Wrapper function to apply and evaluate a correction
+    on distortion data.
+    Distortion and IFs are assumed to already be on the
+    same grid size.
+    dx should be in mm, dist and ifs should be in microns
+    """
+    #Make sure shapes are correct
+    if not (np.shape(dist)==np.shape(ifs[0])==np.shape(shade)):
+        print 'Unequal shapes!'
+        return None
+
+    #Prepare arrays
+    distp = prepareDist(dist,dx=dx,azweight=azweight)
+    ifsp = prepareIFs(ifs,dx=dx,azweight=azweight)
+    shadep = prepareDist(shade)
+
+    #Run optimizer
+    res = optimizer(-distp,ifsp,shadep,smax=smax)
+
+    #Reconstruct solution and initial slope error
+    gdist = np.gradient(dist,*dx)
+    ifs = ifs.transpose(1,2,0)
+    correction = np.dot(ifs,res)
+    gcor = np.gradient(correction,*dx)
+    resid = gdist[0] + gcor[0]
+
+    return gdist[0]/1e3*180/np.pi*60**2, resid/1e3*180/np.pi*60**2, res
     
 
 def slopeOptimizer2(dslopes=None,ifslopes=None,ifuncf=None,\
@@ -439,3 +550,46 @@ def flatSlopeOptimizer(dslopes=None,ifslopes=None,ifuncf=None,\
 
     return sol,optv
 
+def convertFEAInfluence(filename,Nx,Ny,method='cubic'):
+    """Read in Vanessa's CSV file for AXRO mirror
+    Mirror no longer assumed to be cylinder.
+    Need to regrid initial and perturbed nodes onto regular grid,
+    then compute radial difference.
+    """
+    #Load FEA data
+    d = np.transpose(np.genfromtxt(filename,skip_header=1,delimiter=','))*1e3
+    x0 = d[2]
+    y0 = d[3]
+    z0 = d[4]
+    x = d[2] + d[5]
+    y = d[3] + d[6]
+    z = d[4] + d[7]
+
+    #Rotate cone angle away
+    d0 = np.array([x0,y0,z0,np.ones(len(z0))])
+    d = np.array([x,y,z,np.ones(len(z))])
+    a = conic.woltparam(220.,8400.)[0]
+    p = conic.primrad(8476.,220.,8400.)/1e3
+    r = tr.rotation_matrix(a,[1,0,0],point=[0,0,-p])
+    d0 = np.dot(r,d0)
+    d = np.dot(r,d)
+    d0 = d0[:3]
+    d = d[:3]
+
+    theta0 = np.arctan2(d0[0],-d0[2])
+    r0 = np.sqrt(d0[0]**2+d0[2]**2)
+    theta = np.arctan2(d[0],-d[2])
+    r = np.sqrt(d[0]**2+d[2]**2)
+    
+
+    gy = np.linspace(d0[1].min(),d0[1].max(),Nx+2)
+    gx = np.linspace(theta0.min(),theta0.max(),Ny+2)
+    gx,gy = np.meshgrid(gx,gy)
+    g0 = interp.griddata((d0[1],theta0),r0,(gy,gx),method=method)
+    g0[np.isnan(g0)] = 0.
+    g = interp.griddata((d[1],theta),r,(gy,gx),method=method)
+    g[np.isnan(g)] = 0.
+
+    print filename + ' done'
+    
+    return -(g0[1:-1,1:-1]-g[1:-1,1:-1])#,gx,gy

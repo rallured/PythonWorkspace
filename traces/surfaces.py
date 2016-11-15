@@ -142,27 +142,27 @@ def paraxialY(rays,F):
     surf.paraxialy(x,y,z,l,m,n,ux,uy,uz,F)
     return
 
-def wolterprimary(rays,r0,z0):
+def wolterprimary(rays,r0,z0,psi=1.):
     """Wrapper for Wolter primary surface - no vignetting
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    wolt.wolterprimary(x,y,z,l,m,n,ux,uy,uz,r0,z0)
+    wolt.wolterprimary(x,y,z,l,m,n,ux,uy,uz,r0,z0,psi)
     return
 
-def wolterprimarynode(rays,r0,z0):
+def wolterprimarynode(rays,r0,z0,psi=1.):
     """Place Wolter node at current origin,
     focus at (-r0,0,-z0)
     """
     tran.transform(rays,-r0,0,-z0,0,0,0)
-    wolterprimary(rays,r0,z0)
+    wolterprimary(rays,r0,z0,psi)
     tran.itransform(rays,-r0,0,-z0,0,0,0)
     return
 
-def woltersecondary(rays,r0,z0):
+def woltersecondary(rays,r0,z0,psi=1.):
     """Wrapper for Wolter secondary surface - no vignetting
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    wolt.woltersecondary(x,y,z,l,m,n,ux,uy,uz,r0,z0)
+    wolt.woltersecondary(x,y,z,l,m,n,ux,uy,uz,r0,z0,psi)
     return
 
 def wolterprimtan(rays,r0,z0):
@@ -212,12 +212,13 @@ def woltersinetan(rays,r0,z0,amp,freq):
     transform(0,0,0,np.pi/2+alpha,0,0)
     return
 
-def secondaryLL(rays,r0,z0,zmax,zmin,dphi,coeff,axial,az):
+def secondaryLL(rays,r0,z0,psi,zmax,zmin,dphi,coeff,axial,az):
     """Wrapper for L-L secondary surface
     Placed at focus
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    wolt.woltersecll(x,y,z,l,m,n,ux,uy,uz,r0,z0,zmax,zmin,dphi,coeff,axial,az)
+    wolt.woltersecll(x,y,z,l,m,n,ux,uy,uz,r0,z0,psi,\
+                     zmax,zmin,dphi,coeff,axial,az)
     return
 
 def primaryLL(rays,r0,z0,zmax,zmin,dphi,coeff,axial,az):
@@ -308,6 +309,63 @@ def spoSecondary(rays,R0,F,d=.605,ind=None):
     tg = .75*np.arctan((R0+d/2)/F)
     #Call SPO wrapper
     spoCone(rays,R0,tg,ind=ind)
+    return
+
+def ellipsoidPrimary(rays,R0,F,S,psi):
+    """
+    Trace rays to the primary of an ellipsoid-hyperboloid
+    telescope.
+    Call at focus, just like with Wolter-I
+    """
+    #Compute ellipsoid parameters
+    P,a,b,e,f = con.ellipsoidFunction(S,psi,R0,F)
+    R = b**2/a
+
+    #Move to vertex
+    tran.transform(rays,0,0,F+f-P-a,0,0,0)
+    #Call conic
+    conic(rays,R,-e**2)
+    #Go back to focus
+    tran.itransform(rays,0,0,F+f-P-a,0,0,0)
+
+    return
+
+def ellipsoidSecondary(rays,R0,F,S,psi):
+    """
+    Trays rays to the secondary of an ellipsoid-hyperboloid
+    telescope.
+    Call at focus, just like with Wolter-I.
+    Effective psi for secondary must be computed from
+    ellipsoid parameters.
+    """
+    #Compute ellipsoid parameters
+    P,a,b,e,f = con.ellipsoidFunction(S,psi,R0,F)
+    psi_eff = np.arctan(R0/P)/(np.arctan(R0/F)-np.arctan(R0/P))
+    #Call Wolter secondary
+    woltersecondary(rays,R0,F,psi=psi_eff)
+    return
+
+def ellipsoidPrimaryLL(rays,R0,F,S,psi,zmax,zmin,dphi,coeff,axial,az):
+    """
+    Trace rays to the primary of an ellipsoid-hyperboloid
+    telescope. Add L-L distortions.
+    Call at focus, just like with Wolter-I
+    """
+    opd,x,y,z,l,m,n,ux,uy,uz = rays
+    wolt.ellipsoidwoltll(x,y,z,l,m,n,ux,uy,uz,R0,F,psi,S,\
+                         zmax,zmin,dphi,coeff,axial,az)
+
+    return
+
+def ellipsoidSecondaryLL(rays,R0,F,S,psi,zmax,zmin,dphi,coeff,axial,az):
+    """
+
+    """
+    #Compute ellipsoid parameters
+    P,a,b,e,f = con.ellipsoidFunction(S,psi,R0,F)
+    psi_eff = np.arctan(R0/P)/(np.arctan(R0/F)-np.arctan(R0/P))
+    #Call secondary
+    secondaryLL(rays,R0,F,psi,zmax,zmin,dphi,coeff,axial,az)
     return
 
 def focus(rays,fn,weights=None,nr=None,coords=None):

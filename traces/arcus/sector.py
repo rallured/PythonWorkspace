@@ -425,7 +425,7 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
         #Loop through module angles
         for a in ang[i]:
             #Trace parameters
-            R = np.arange(rin[i],rout[i],.605) #Vector of shell radii
+            R = np.arange(rin[i],rout[i],.775) #Vector of shell radii
             tg = .25*np.arctan((R+.775/2)/12e3) #Primary graze angles
             L = .775/tan(tg) #Primary length
             if i==0:

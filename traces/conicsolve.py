@@ -249,19 +249,55 @@ def wsFoc(r,psi,L1,z0,alpha):
     """
     return .0625*(psi+1)*(r**2*L1/z0**2)/tan(alpha)**2
 
-##def wsPrimRad(z,psi,r0,z0):
-##    """Return the radius of a WS primary as a function of axial coordinate
-##    This is computed numerically by tracing a single ray in plane
-##    orthogonal to optical axis
-##    """
-##    #Set up source pointing toward +z
-##    PT.pointsource(0.,1)
-##    PT.transform(0,0,0,0,-np.pi/2,0) #Point ray to +x
-##    PT.transform(-r0,0,-z,0,0,0) #Go to proper axial location
-##
-##    #Trace to WS primary
-##    PT.wsPrimary(r0,z0,psi)
-##
-##    return PT.x[0]
+def ellipsoidFunction(S,psi,R,F):
+    #Compute primary focal length
+    P = R/np.sin((psi*np.arcsin(R/F)-np.arcsin(R/S))/(1+psi))
+    #Compute ellipsoid parameters
+    f = (S+P)/2.
+    #Solve quadratic equation for a**2
+    a=1.
+    b=-(R**2+(f-P)**2+f**2)
+    c=f**2*(f-P)**2
+    a = np.sqrt((-b + np.sqrt(b**2-4*a*c))/(2*a))
+    b = np.sqrt(a**2 - f**2)
+    e = f/a
 
+    #Can use knowledge of Wolter-I to quickly
+    #arrive at hyperbola parameters. The psi
+    #will be different and should be calculated
+    #in the Wolter-I geometry knowing F and P
+    
+    return P,a,b,e,f
 
+def ellipsoidRad(S,psi,R,F,z):
+    """
+    Compute the radius of an ellipsoid primary mirror
+    at a height z above the two mirror focus.
+    """
+    P,a,b,e,f = ellipsoidFunction(S,psi,R,F)
+    zfoc = f-P+F
+    return sqrt(1-(z-zfoc)**2/a**2)*b
+
+def ellipsoidSag(S,psi,R0,F,z1,z0):
+    """
+    Calculate amount of sag in an ellipsoid primary
+    """
+    z = np.linspace(z0,z1,100)
+    r = ellipsoidRad(S,psi,R0,F,z)
+    fit = np.polyfit(z,r,2)
+    return fit[0]*((z1-z0)/2.)**2
+
+def solveS(P,a,b,e,f,x,y,z,l,m,n):
+    """
+    Analytically solve the conic intersection for
+    a given ray
+    """
+    K = -e**2
+    R = b**2/a
+    denom = l**2+m**2+(K+1)*n**2
+    b2 = (l*x+m*y-R*n+(K+1)*n*z)/denom
+    c2 = (x**2+y**2-2*R*z+(K+1)*z**2)/denom
+    s1 = -b2+sqrt(b2**2-c2)
+    s2 = -b2-sqrt(b2**2-c2)
+    return b2,c2,s1,s2
+    

@@ -303,11 +303,11 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
   integer, intent(in) :: num
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   real*8, intent(in) :: R,K
-  real*8 :: s1,s2,s,z1,z2,denom,b,c,disc
+  real*8 :: s1,s2,s,z1,z2,denom,b,c,disc,dummy
   integer :: i
 
   !Loop through rays and trace to the conic
-  !$omp parallel do private(s,R,denom,b,c,disc,s1,s2,z1,z2)
+  !$omp parallel do private(s,denom,b,c,disc,s1,s2,z1,z2)
   do i=1,num
     !Compute amount to move ray s
     s = 0.
@@ -317,9 +317,12 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
       denom = l(i)**2 + m(i)**2 + (K+1)*n(i)**2
       b = x(i)*l(i) + y(i)*m(i) + ((K+1)*z(i) - R)*n(i)
       b = b/denom
-      c = x(i)**2 + y(i)**2 + (K+1)*z(i)**2 - 2*R*z(i)
+      c = x(i)**2 + y(i)**2 - 2*R*z(i) + (K+1)*z(i)**2
       c = c/denom
       disc = b**2 - c
+      !print *, x(i)**2+y(i)**2
+      !print *, denom,b,c,disc
+      !read *, dummy
       if (disc .ge. 0.) then
         s1 = -b + sqrt(disc)
         s2 = -b - sqrt(disc)
@@ -331,6 +334,8 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
         else
           s = s2
         end if
+        !print *, s
+        !read *, dummy
       end if
     end if
     !Advance ray
@@ -468,25 +473,25 @@ subroutine torus(x,y,z,l,m,n,ux,uy,uz,num,rin,rout)
   integer, intent(in) :: num
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
   real*8, intent(in) :: rin,rout
-  real*8 :: F,Fx,Fy,Fz,Fp,delt,brack,dum
+  real*8 :: F,Fx,Fy,Fz,Fp,delt,dum
   integer :: i
 
   !Loop through rays and trace to mirror
-  !$omp parallel do private(delt,F,Fx,Fy,Fp,brack)
+  !$omp parallel do private(delt,F,Fx,Fy,Fz,Fp)
   do i=1,num
     delt = 100.
     do while(abs(delt)>1.e-10)
-      F = (z(i)**2+2*z(i)*(rin+rout) + 2*rin*rout*y(i)**2 + x(i)**2)**2 + (4*rout**2*(x(i)**2-rin**2))
-      brack = z(i)**2 + 2*z(i)*(rin+rout) + 2*rin*rout*y(i)**2 + x(i)**2
-      Fx = 4*brack*x(i) + 8*rout**2*x(i)
-      Fy = 4*brack*y(i)
-      Fz = 4*brack*(z(i)+rin+rout)
+      F = ((z(i)+rin+rout)**2+y(i)**2+x(i)**2+rout**2-rin**2)**2 - (4*rout**2*(y(i)**2+(z(i)+rin+rout)**2))
+
+      Fx = 4*x(i) * (-rin**2+(rin+rout+z(i))**2+rout**2+x(i)**2+y(i)**2)
+      Fy = 4*y(i) * (2*rin*(rout+z(i)) + 2*rout*z(i) + z(i)**2+y(i)**2+x(i)**2)
+      Fz = 4*(rout+rin+z(i))*(2*rin*(rout+z(i)) + 2*rout*z(i)+z(i)**2+y(i)**2+x(i)**2)
       Fp = Fx*l(i) + Fy*m(i) + Fz*n(i)
       delt = -F/Fp
-      print *, x(i),y(i),z(i)
-      print *, F, Fp
-      print * ,delt
-      read *, dum
+      !print *, x(i),y(i),z(i)
+      !print *, F, Fp
+      !print * ,delt
+      !read *, dum
       x(i) = x(i) + l(i)*delt
       y(i) = y(i) + m(i)*delt
       z(i) = z(i) + n(i)*delt

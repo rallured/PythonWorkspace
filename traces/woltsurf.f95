@@ -4,20 +4,20 @@ include 'specialFunctions.f95'
 !Defined by Van Speybroeck prescription
 !For WFS test, use flat to get rays close so they find correct intersection
 !Surface should be placed at common focus with z+ pointing toward mirrors
-subroutine wolterprimary(x,y,z,l,m,n,ux,uy,uz,num,r0,z0)
+subroutine wolterprimary(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi)
   !Declarations
   implicit none
   integer, intent(in) :: num
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
-  real*8, intent(in) :: r0,z0
+  real*8, intent(in) :: r0,z0,psi
   real*8 :: alpha,thetah,thetap,p,d,e
   real*8 :: F,Fx,Fy,Fz,Fp,delt,dum
   integer :: i
 
   !Compute Van Speybroeck parameters
   alpha = .25*atan(r0/z0)
-  thetah = 3.*alpha
-  thetap = alpha
+  thetah = 2*(1+2*psi)/(1+psi) * alpha
+  thetap = 2*psi/(1+psi) * alpha
   p = z0*tan(4*alpha)*tan(thetap)
   d = z0*tan(4*alpha)*tan(4*alpha-thetah)
   e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
@@ -57,20 +57,20 @@ end subroutine wolterprimary
 !Defined by Van Speybroeck prescription
 !For WFS test, use flat to get rays close so they find correct intersection
 !Surface should be placed at common focus with z+ pointing toward mirrors
-subroutine woltersecondary(x,y,z,l,m,n,ux,uy,uz,num,r0,z0)
+subroutine woltersecondary(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi)
   !Declarations
   implicit none
   integer, intent(in) :: num
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
-  real*8, intent(in) :: r0,z0
+  real*8, intent(in) :: r0,z0,psi
   real*8 :: alpha,thetah,thetap,p,d,e
   real*8 :: F,Fx,Fy,Fz,Fp,delt,dum
   integer :: i
 
   !Compute Van Speybroeck parameters
   alpha = .25*atan(r0/z0)
-  thetah = 3.*alpha
-  thetap = alpha
+  thetah = 2*(1+2*psi)/(1+psi) * alpha
+  thetap = 2*psi/(1+psi) * alpha
   p = z0*tan(4*alpha)*tan(thetap)
   d = z0*tan(4*alpha)*tan(4*alpha-thetah)
   e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
@@ -236,12 +236,12 @@ end subroutine wolterprimLL
 !Construct a hyperboloid as in Wolter but with Legendre-Legendre
 !deformations. Define Legendre and Legendre derivative functions.
 !Pass in coeff, axial order, and azimuthal order as in Zemax implementation
-subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,zmax,zmin,dphi,coeff,axial,az,cnum)
+subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi,zmax,zmin,dphi,coeff,axial,az,cnum)
   !Declarations
   implicit none
   integer, intent(in) :: num,cnum
   real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
-  real*8, intent(in) :: r0,z0,zmax,zmin,dphi,coeff(cnum)
+  real*8, intent(in) :: r0,z0,psi,zmax,zmin,dphi,coeff(cnum)
   integer, intent(in) :: axial(cnum),az(cnum)
   real*8 :: alpha,thetah,thetap,p,d,e
   real*8 :: F,Fx,Fy,Fz,Fp,delt,dum,rad,add,addx,addy,addz,G
@@ -251,8 +251,8 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,zmax,zmin,dphi,coeff,axial
   !Compute Van Speybroeck parameters
   pi = acos(-1.)
   alpha = .25*atan(r0/z0)
-  thetah = 3.*alpha
-  thetap = alpha
+  thetah = 2*(1+2*psi)/(1+psi) * alpha
+  thetap = 2*psi/(1+psi) * alpha
   p = z0*tan(4*alpha)*tan(thetap)
   d = z0*tan(4*alpha)*tan(4*alpha-thetah)
   e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
@@ -261,7 +261,7 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,zmax,zmin,dphi,coeff,axial
   !$omp parallel do private(delt,F,Fx,Fy,Fz,Fp,rad,ang,zarg,targ,add,addx,addy,addz,a,G)
   do i=1,num
     delt = 100.
-    do while(abs(delt)>1.e-7)
+    do while(abs(delt)>1.e-8)
       ang = atan2(y(i),x(i))
       zarg = (z(i)-((zmax+zmin)/2.)) / ((zmax-zmin)/2.)
       targ = 2*ang/dphi
@@ -557,3 +557,83 @@ subroutine spoCone(x,y,z,l,m,n,ux,uy,uz,num,R0,tg)
   !$omp end parallel do
 
 end subroutine spoCone
+
+!Construct an ellipsoid primary but with Legendre-Legendre
+!deformations. Define Legendre and Legendre derivative functions.
+!Pass in coeff, axial order, and azimuthal order as in Zemax implementation
+subroutine ellipsoidWoltLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi,S,zmax,zmin,dphi,coeff,axial,az,cnum)
+  !Declarations
+  implicit none
+  integer, intent(in) :: num,cnum
+  real*8 , intent(inout) :: x(num),y(num),z(num),l(num),m(num),n(num),ux(num),uy(num),uz(num)
+  real*8, intent(in) :: r0,z0,psi,S,zmax,zmin,dphi,coeff(cnum)
+  integer, intent(in) :: axial(cnum),az(cnum)
+  real*8 :: P,ff,bq,cq,aa,bb,e
+  real*8 :: F,Fx,Fy,Fz,Fp,delt,dum,rad,add,addx,addy,addz,G
+  integer :: i,a
+  real*8 :: pi,legendre,legendrep,zarg,targ,ang,dummy,zfoc
+
+  !Compute telescope parameters
+  pi = acos(-1.)
+  P = R0/sin((psi*asin(R0/z0)-asin(R0/S))/(1+psi))
+  ff = (S+P)/2.
+  bq = -(R0**2+(ff-P)**2+ff**2)
+  cq = ff**2*(ff-P)**2
+  aa = sqrt((-bq+sqrt(bq**2-4*cq))/2.)
+  bb = sqrt(aa**2-ff**2)
+  e = ff/aa
+  zfoc = ff-P+z0
+
+  !Loop through rays and trace to mirror
+  !$omp parallel do private(delt,F,Fx,Fy,Fz,Fp,rad,ang,zarg,targ,add,addx,addy,addz,a,G)
+  do i=1,num
+    delt = 100.
+    do while(abs(delt)>1.e-10)
+      ang = atan2(y(i),x(i))
+      zarg = (z(i)-((zmax+zmin)/2.)) / ((zmax-zmin)/2.)
+      targ = 2*ang/dphi
+      
+      !Compute Legendre additive terms
+      add = 0.
+      addx = 0.
+      addy = 0.
+      addz = 0.
+      do a=1,cnum
+        add = add + coeff(a)*legendre(zarg,axial(a))*legendre(targ,az(a))
+        addx = addx - coeff(a)*legendre(zarg,axial(a))*legendrep(targ,az(a))*(2/dphi)*(y(i)/(y(i)**2+x(i)**2))
+        addy = addy + coeff(a)*legendre(zarg,axial(a))*legendrep(targ,az(a))*(2/dphi)*(x(i)/(y(i)**2+x(i)**2))
+        addz = addz + coeff(a)*legendrep(zarg,axial(a))*legendre(targ,az(a))*2/(zmax-zmin)
+      end do
+      G = sqrt(x(i)**2+y(i)**2) + add
+      F = (z(i)-zfoc)**2/aa**2 + G**2/bb**2 - 1.
+      Fx = 2*G/bb**2*(x(i)/sqrt(x(i)**2+y(i)**2)+addx)
+      Fy = 2*G/bb**2*(y(i)/sqrt(x(i)**2+y(i)**2)+addy)
+      Fz = 2*(z(i)-zfoc)/aa**2 + (2*G/bb**2)*(addz)
+      Fp = Fx*l(i) + Fy*m(i) + Fz*n(i)
+      delt = -F/Fp
+      !print *, 'Position: ',x(i), y(i), z(i)
+      !print *, 'Function: ', F, Fx, Fy, Fz
+      !print *, 'Change: ',delt, z0,aa
+      !print *, z(i)-zfoc
+      !read *, dummy
+      x(i) = x(i) + l(i)*delt
+      y(i) = y(i) + m(i)*delt
+      z(i) = z(i) + n(i)*delt
+    end do
+    Fp = sqrt(Fx*Fx+Fy*Fy+Fz*Fz)
+    ux(i) = Fx/Fp
+    uy(i) = Fy/Fp
+    uz(i) = Fz/Fp
+    !Set rays outside mirror definition to NaN
+    !if (abs(zarg)>1 .or. abs(targ) > 1) then
+    !  x(i) = 0.
+    !  y(i) = 0.
+    !  z(i) = 0.
+    !end if
+    !print *, x(i),y(i),z(i)
+    !print *, ux(i),uy(i),uz(i)
+    !read *, dum
+  end do
+  !$omp end parallel do
+
+end subroutine ellipsoidWoltLL
