@@ -9,6 +9,65 @@ import traces.analyses as anal
 import pdb
 import scipy.signal as sig
 
+def ellipsoidPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
+               secalign=np.zeros(6),rrays=False,f=None,\
+                  plist=[[0],[0],[0]],hlist=[[0],[0],[0]]):
+    """
+    Trace an ellipsoid-hyperboloid telescope in SLF geometry.
+    plist is [pcoeff,pax,paz]
+    """
+    #Establish subannulus of rays
+    r1 = conic.ellipsoidRad(srcdist,1.,220.,8400.,8500.)
+    rays = sources.subannulus(220.,r1,100./220.,N,zhat=-1.)
+    tran.pointTo(rays,0,0,srcdist,reverse=1.)
+##    #Transform to node position
+##    tran.transform(rays,220,0,0,0,0,0)
+##    #Set up finite source distance
+##    raydist = sqrt(srcdist**2+rays[1]**2+rays[2]**2)
+##    rays[4] = rays[1]/raydist
+##    rays[5] = rays[2]/raydist
+##    rays[6] = -sqrt(1.-rays[4]**2-rays[5]**2)
+
+    #Place mirror pair
+    coords = [tran.tr.identity_matrix()]*4
+    prad = conic.ellipsoidRad(srcdist,1.,220.,8400.,8450.)
+    tran.transform(rays,prad,0,50.,0,0,0,\
+                   coords=coords)
+    tran.transform(rays,*primalign,coords=coords)
+    tran.transform(rays,-prad,0,-8450.,0,0,0,\
+                   coords=coords)
+    surf.ellipsoidPrimaryLL(rays,220.,8400.,srcdist,1.,8500.,8400.,100./220,\
+                            *plist)
+##    surf.ellipsoidPrimary(rays,220.,8400.,srcdist,1.)
+    tran.reflect(rays)
+    #Place secondary in primary's reference frame
+    srad = conic.ehSecRad(srcdist,1.,220.,8400.,8350.)
+    tran.transform(rays,srad,0,8350.,0,0,0,\
+                   coords=coords)
+    tran.transform(rays,*secalign,coords=coords)
+    tran.itransform(rays,srad,0,8350.,0,0,0,\
+                   coords=coords)
+##    surf.ellipsoidSecondary(rays,220.,8400.,srcdist,1.)
+    surf.ellipsoidSecondaryLL(rays,220.,8400.,srcdist,1.,8400.,8300.,100./220,\
+                              *hlist)
+    ang = anal.grazeAngle(rays)
+    tran.reflect(rays)
+
+    #Go back to nominal node reference frame and down to focus
+    rays = tran.applyT(rays,coords,inverse=True)
+
+    if f is None:
+        f = -surf.focusI(rays)
+        print f
+    else:
+        tran.transform(rays,0,0,-f,0,0,0)
+        surf.flat(rays)
+
+    if rrays is True:
+        return rays
+    
+    return anal.hpd(rays)/f * 180/np.pi * 60.**2
+
 def singleOptic(N,misalign=np.zeros(6)):
     """Trace single primary mirror from SLF finite
     source distance.
@@ -137,11 +196,11 @@ def examineAzimuthalStripSize(strip=np.linspace(2.5,15.,5)):
     return np.array([perf,foc,lat,angle,yawbound,pbound,dbound])
         
 def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
-               secalign=np.zeros(6),rrays=False,f=None):
+               secalign=np.zeros(6),rrays=False,f=None,\
+               plist=[[0],[0],[0]],hlist=[[0],[0],[0]]):
     """
-
+    SLF finite source trace
     """
-    """SLF finite source trace"""
     #Establish subannulus of rays
     rays = sources.subannulus(220.,221.,100./220.,N,zhat=-1.)
     #Transform to node position
@@ -159,7 +218,8 @@ def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
     tran.transform(rays,*primalign,coords=coords)
     tran.transform(rays,-conic.primrad(8450.,220.,8400.),0,-8450.,0,0,0,\
                    coords=coords)
-    surf.wolterprimary(rays,220.,8400.)
+##    surf.wolterprimary(rays,220.,8400.)
+    surf.primaryLL(rays,220.,8400.,8500.,8400.,100./220,*plist)
     tran.reflect(rays)
     #Place secondary in primary's reference frame
     tran.transform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
@@ -167,7 +227,8 @@ def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
     tran.transform(rays,*secalign,coords=coords)
     tran.itransform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
                    coords=coords)
-    surf.woltersecondary(rays,220.,8400.)
+##    surf.woltersecondary(rays,220.,8400.)
+    surf.secondaryLL(rays,220.,8400.,1.,8400.,8300.,100./220,*hlist)
     tran.reflect(rays)
 
     #Go back to nominal node reference frame and down to focus

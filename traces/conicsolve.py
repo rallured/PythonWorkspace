@@ -4,10 +4,10 @@ from matplotlib.pyplot import *
 import pdb
 
 #Return radius of mirror at arbitrary z coordinate
-def primrad(z,r0,z0):
+def primrad(z,r0,z0,psi=1.):
     alpha = .25*arctan(r0/z0)
-    thetah = 3*alpha
-    thetap = alpha
+    thetah = 2*(1+2*psi)/(1+psi) * alpha
+    thetap = 2*psi/(1+psi) * alpha
     p = z0*tan(4*alpha)*tan(thetap)
     d = z0*tan(4*alpha)*tan(4*alpha-thetah)
     e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
@@ -26,10 +26,10 @@ def primsag(z1,r0,z0):
     return fit[0]*((z1-z0)/2.)**2
     
 
-def secrad(z,r0,z0):
+def secrad(z,r0,z0,psi=1.):
     alpha = .25*arctan(r0/z0)
-    thetah = 3*alpha
-    thetap = alpha
+    thetah = 2*(1+2*psi)/(1+psi) * alpha
+    thetap = 2*psi/(1+psi) * alpha
     p = z0*tan(4*alpha)*tan(thetap)
     d = z0*tan(4*alpha)*tan(4*alpha-thetah)
     e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
@@ -277,6 +277,16 @@ def ellipsoidRad(S,psi,R,F,z):
     P,a,b,e,f = ellipsoidFunction(S,psi,R,F)
     zfoc = f-P+F
     return sqrt(1-(z-zfoc)**2/a**2)*b
+
+def ehSecRad(S,psi,R,F,z):
+    """
+    Compute the radius of an ellipsoid-hyperboloid
+    secondary mirror at a height z above the two
+    mirror focus.
+    """
+    P,a,b,e,f = ellipsoidFunction(S,psi,R,F)
+    psi_eff = np.arctan(R/P)/(np.arctan(R/F)-np.arctan(R/P))
+    return secrad(z,R,F,psi=psi_eff)
 
 def ellipsoidSag(S,psi,R0,F,z1,z0):
     """

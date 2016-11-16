@@ -217,6 +217,7 @@ def secondaryLL(rays,r0,z0,psi,zmax,zmin,dphi,coeff,axial,az):
     Placed at focus
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
+    print 'about to call wolt.wolterprimll'
     wolt.woltersecll(x,y,z,l,m,n,ux,uy,uz,r0,z0,psi,\
                      zmax,zmin,dphi,coeff,axial,az)
     return
@@ -365,7 +366,7 @@ def ellipsoidSecondaryLL(rays,R0,F,S,psi,zmax,zmin,dphi,coeff,axial,az):
     P,a,b,e,f = con.ellipsoidFunction(S,psi,R0,F)
     psi_eff = np.arctan(R0/P)/(np.arctan(R0/F)-np.arctan(R0/P))
     #Call secondary
-    secondaryLL(rays,R0,F,psi,zmax,zmin,dphi,coeff,axial,az)
+    secondaryLL(rays,R0,F,psi_eff,zmax,zmin,dphi,coeff,axial,az)
     return
 
 def focus(rays,fn,weights=None,nr=None,coords=None):

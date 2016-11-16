@@ -249,19 +249,20 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi,zmax,zmin,dphi,coeff,a
   real*8 :: pi,legendre,legendrep,zarg,targ,ang
 
   !Compute Van Speybroeck parameters
-  pi = acos(-1.)
   alpha = .25*atan(r0/z0)
   thetah = 2*(1+2*psi)/(1+psi) * alpha
   thetap = 2*psi/(1+psi) * alpha
   p = z0*tan(4*alpha)*tan(thetap)
   d = z0*tan(4*alpha)*tan(4*alpha-thetah)
   e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
+  !print *, “Parameters ok”,p
+  !read *, dum
 
   !Loop through rays and trace to mirror
   !$omp parallel do private(delt,F,Fx,Fy,Fz,Fp,rad,ang,zarg,targ,add,addx,addy,addz,a,G)
   do i=1,num
     delt = 100.
-    do while(abs(delt)>1.e-8)
+    do while(abs(delt)>1.e-7)
       ang = atan2(y(i),x(i))
       zarg = (z(i)-((zmax+zmin)/2.)) / ((zmax-zmin)/2.)
       targ = 2*ang/dphi
@@ -276,11 +277,16 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi,zmax,zmin,dphi,coeff,a
       addz = 0.
       do a=1,cnum
         add = add + coeff(a)*legendre(zarg,axial(a))*legendre(targ,az(a))
+        !print *, add
+        !read *, dum
         addx = addx - coeff(a)*legendre(zarg,axial(a))*legendrep(targ,az(a))*(2/dphi)*(y(i)/(y(i)**2+x(i)**2))
+        !print *, addx
         addy = addy + coeff(a)*legendre(zarg,axial(a))*legendrep(targ,az(a))*(2/dphi)*(x(i)/(y(i)**2+x(i)**2))
+        !print *, addy
         addz = addz + coeff(a)*legendrep(zarg,axial(a))*legendre(targ,az(a))*2/(zmax-zmin)
+        !print *, addz
+        !read *, dum
       end do
-
       G = sqrt(x(i)**2+y(i)**2) + add
       F = -(G**2 - e**2*(d+z(i))**2 + z(i)**2)
       Fx = -2*G*(x(i)/sqrt(x(i)**2+y(i)**2)+addx)
@@ -290,6 +296,7 @@ subroutine woltersecLL(x,y,z,l,m,n,ux,uy,uz,num,r0,z0,psi,zmax,zmin,dphi,coeff,a
       delt = -F/Fp
       !print *, G, F, Fx, Fy, Fz
       !print *, l(i), m(i), n(i), delt
+      !print *, i
       !read *, dum
       x(i) = x(i) + l(i)*delt
       y(i) = y(i) + m(i)*delt
