@@ -217,7 +217,6 @@ def secondaryLL(rays,r0,z0,psi,zmax,zmin,dphi,coeff,axial,az):
     Placed at focus
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
-    print 'about to call wolt.wolterprimll'
     wolt.woltersecll(x,y,z,l,m,n,ux,uy,uz,r0,z0,psi,\
                      zmax,zmin,dphi,coeff,axial,az)
     return

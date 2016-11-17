@@ -103,11 +103,15 @@ def singleOptic(N,misalign=np.zeros(6)):
 
     return rays#anal.hpd(rays)/abs(f)*180/pi*60**2,abs(f)
 
-def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
-                 returnRays=False,f=None):
+def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=100.,\
+                 returnRays=False,f=None,\
+                 plist=[[0],[0],[0]],\
+                 ax=100.):
     """Alternative SLF finite source trace"""
     #Establish subannulus of rays
-    rays = sources.subannulus(220.,221.,az*1.2/220.,n,zhat=-1.)
+    r0 = conic.primrad(8426.,220.,8400.)
+    r1 = conic.primrad(8426.+ax,220.,8400.)
+    rays = sources.subannulus(r0,r1,az/220.,n,zhat=-1.)
     #Transform to node position
     tran.transform(rays,220,0,0,0,0,0)
     #Set up finite source distance
@@ -121,10 +125,13 @@ def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=50.,\
     #Apply misalignment
     tran.transform(rays,*misalign)
     #Place mirror
-    surf.wolterprimarynode(rays,220,8400.)
+    tran.transform(rays,-220.,0,-8400.,0,0,0)
+##    surf.wolterprimarynode(rays,220,8400.)
+    surf.primaryLL(rays,220.,8400.,8426.+ax,8426.,az/220.,*plist)
+    tran.itransform(rays,-220.,0.,-8400.,0,0,0)
     #Vignette rays not landing in active mirror area
-    indz = np.logical_and(rays[3]>26.,rays[3]<126.)
-    ind = np.logical_and(np.abs(rays[2])<az/2.,indz)
+    ind = np.logical_and(rays[3]>26.,rays[3]<(26.+ax))
+##    ind = np.logical_and(np.abs(rays[2])<az/2.,indz)
     rays = tran.vignette(rays,ind=ind)
     #Reverse misalignment
     tran.itransform(rays,*misalign)
