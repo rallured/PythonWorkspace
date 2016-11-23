@@ -359,7 +359,9 @@ def ellipsoidPrimaryLL(rays,R0,F,S,psi,zmax,zmin,dphi,coeff,axial,az):
 
 def ellipsoidSecondaryLL(rays,R0,F,S,psi,zmax,zmin,dphi,coeff,axial,az):
     """
-
+    Trace rays to the secondary of an ellipsoid-hyperboloid
+    telescope. Add L-L distortions.
+    Call at focus, just like with Wolter-I
     """
     #Compute ellipsoid parameters
     P,a,b,e,f = con.ellipsoidFunction(S,psi,R0,F)

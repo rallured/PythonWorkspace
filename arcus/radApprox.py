@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 import matplotlib.pyplot as plt
 from numba import cuda
@@ -227,32 +229,5 @@ def intensity(x0,y0,z0,gnum=10*1024,hubdist=12e3):
 
     return abs(out.sum())**2
 
-###Set up device array
-##gnum = 10*1024
-##out = np.zeros(gnum)*1j
-##outg = cuda.to_device(out)
-##outArr = np.zeros(gnum/1024)*1j
-##outArrg = cuda.to_device(outArr)
-##
-###call it!
-##stream = cuda.stream()
-##tstart = time.time()
-##redEx[gnum/1024,1024,stream](outg,0,0,0)
-##stream.synchronize()
-##print time.time()-tstart
-##
-###Get output
-##tstart = time.time()
-##outg.copy_to_host(out)
-##print time.time()-tstart
-##
-###Try reduction
-##tstart = time.time()
-##print 'About to call reduceGrooves'
-##reduceGrooves[100,1024,stream,\
-##              16*1024](outg,outArrg)
-##stream.synchronize()
-##print time.time()-tstart
-##outArrg.copy_to_host(outArr)
-##print outArr.sum()
-##print time.time()-tstart
+#Evaluate operation of Kernel with NVVP
+x = intensity(0,0,0)

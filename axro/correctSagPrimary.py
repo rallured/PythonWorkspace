@@ -7,6 +7,7 @@ import utilities.imaging.man as man
 import utilities.imaging.fitting as fit
 import legendremod as leg
 import pdb
+import scipy.signal as sig
 
 #Load IFs
 ifs = pyfits.getdata('/home/rallured/Dropbox/AXRO/'
@@ -38,19 +39,18 @@ def correctSag(azwidth=20.,axwidth=100.):
 
     #Fit Legendres to result
     res = man.stripnans(sag+correction)
-    f = fit.legendre2d(res,xo=20,yo=20)
-
-    #Format coefficients for input to tracing routines
-    xo,yo = np.meshgrid(range(21),range(21))
-    xo = xo.flatten()
-    yo = yo.flatten()
-    coeff = f[1].flatten()
+    coeff,ax,az = fit.fitLegendreDistortions(res,xo=20,yo=20)
 
     #coefficients in mm, axial order, azimuthal order
-    #
-    return [coeff/1000.,yo,xo],res
+    #Get rid of anything 5 nm or less in coefficient
+    ind = np.abs(coeff)>.005
+    coeff = coeff[ind]
+    ax = ax[ind]
+    az = az[ind]
 
-def determinePerformance(plist,azwidth=20.,axwidth=100.):
+    return [coeff/1000.,ax,az],res
+
+def determinePerformance(plist=[[0],[0],[0]],azwidth=20.,axwidth=100.):
     """
     Use the coefficients from correctSag as input to the
     SLF raytrace. Determine optimal performance using
@@ -58,9 +58,9 @@ def determinePerformance(plist,azwidth=20.,axwidth=100.):
     """
     #Run traces for various pitch compensation
     pitch = np.linspace(0.,10*.3e-3,200)
-    res = [slf.singleOptic2(10000,misalign=[0,0,0,0,t,0],\
+    res = np.transpose(np.array([slf.singleOptic2(1000,misalign=[0,0,0,0,t,0],\
                             az=azwidth,ax=axwidth,\
-                            plist=plist) for t in pitch]
+                            plist=plist) for t in pitch]))
     #Fit optimal performance
     per = sig.savgol_filter(res[0],11,3)
     ind = np.argmin(per)

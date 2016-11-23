@@ -9,6 +9,49 @@ import traces.analyses as anal
 import pdb
 import scipy.signal as sig
 
+psiE = 1.1844342872222389
+
+def singleEllipse(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=100.,\
+                 returnRays=False,f=None,\
+                 plist=[[0],[0],[0]],\
+                 ax=100.,psi=psiE):
+    """Alternative SLF finite source trace"""
+    #Establish subannulus of rays
+    r0 = conic.primrad(8426.,220.,8400.)
+    r1 = conic.primrad(8426.+ax,220.,8400.)
+    rays = sources.subannulus(r0,r1,az/220.,n,zhat=-1.)
+    tran.pointTo(rays,0.,0.,srcdist,reverse=1.)
+    #Transform to node position
+    tran.transform(rays,220,0,0,0,0,0)
+    #Apply misalignment
+    tran.transform(rays,*misalign)
+    #Place mirror
+    tran.transform(rays,-220.,0,-8400.,0,0,0)
+##    surf.wolterprimarynode(rays,220,8400.)
+    surf.ellipsoidPrimaryLL(rays,220.,8400.,srcdist,psi,8426.+ax,8426.,\
+                            az/220.,*plist)
+    tran.itransform(rays,-220.,0.,-8400.,0,0,0)
+    #Vignette rays not landing in active mirror area
+    ind = np.logical_and(rays[3]>26.,rays[3]<(26.+ax))
+##    ind = np.logical_and(np.abs(rays[2])<az/2.,indz)
+    rays = tran.vignette(rays,ind=ind)
+    #Reverse misalignment
+    tran.itransform(rays,*misalign)
+    #Reflect and go to surface
+    tran.reflect(rays)
+    if f is None:
+        f = surf.focusI(rays)
+    else:
+        tran.transform(rays,0,0,f,0,0,0)
+        surf.flat(rays)
+    #Get centroid
+    cx,cy = anal.centroid(rays)
+
+    if returnRays is True:
+        return rays
+    
+    return anal.hpd(rays)/abs(f)*180/pi*60**2#,f,cx
+
 def ellipsoidPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
                secalign=np.zeros(6),rrays=False,f=None,\
                   plist=[[0],[0],[0]],hlist=[[0],[0],[0]]):
@@ -38,6 +81,9 @@ def ellipsoidPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
                    coords=coords)
     surf.ellipsoidPrimaryLL(rays,220.,8400.,srcdist,1.,8500.,8400.,100./220,\
                             *plist)
+    #Vignette any rays outside of active area
+    rays = tran.vignette(rays,ind=np.logical_and(rays[3]<8500.,\
+                                                 rays[3]>8400.))
 ##    surf.ellipsoidPrimary(rays,220.,8400.,srcdist,1.)
     tran.reflect(rays)
     #Place secondary in primary's reference frame
@@ -50,6 +96,8 @@ def ellipsoidPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
 ##    surf.ellipsoidSecondary(rays,220.,8400.,srcdist,1.)
     surf.ellipsoidSecondaryLL(rays,220.,8400.,srcdist,1.,8400.,8300.,100./220,\
                               *hlist)
+    rays = tran.vignette(rays,ind=np.logical_and(rays[3]<8400.,\
+                                                 rays[3]>8300.))
     ang = anal.grazeAngle(rays)
     tran.reflect(rays)
 
@@ -128,6 +176,8 @@ def singleOptic2(n,misalign=np.zeros(6),srcdist=89.61e3+1.5e3,az=100.,\
     tran.transform(rays,-220.,0,-8400.,0,0,0)
 ##    surf.wolterprimarynode(rays,220,8400.)
     surf.primaryLL(rays,220.,8400.,8426.+ax,8426.,az/220.,*plist)
+    rays = tran.vignette(rays,ind=np.logical_and(rays[3]<8400.+ax,\
+                                                 rays[3]>8400.))
     tran.itransform(rays,-220.,0.,-8400.,0,0,0)
     #Vignette rays not landing in active mirror area
     ind = np.logical_and(rays[3]>26.,rays[3]<(26.+ax))
@@ -227,6 +277,8 @@ def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
                    coords=coords)
 ##    surf.wolterprimary(rays,220.,8400.)
     surf.primaryLL(rays,220.,8400.,8500.,8400.,100./220,*plist)
+    rays = tran.vignette(rays,ind=np.logical_and(rays[3]<8500.,\
+                                                 rays[3]>8400.))
     tran.reflect(rays)
     #Place secondary in primary's reference frame
     tran.transform(rays,conic.secrad(8350.,220.,8400.),0,8350.,0,0,0,\
@@ -236,6 +288,8 @@ def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
                    coords=coords)
 ##    surf.woltersecondary(rays,220.,8400.)
     surf.secondaryLL(rays,220.,8400.,1.,8400.,8300.,100./220,*hlist)
+    rays = tran.vignette(rays,ind=np.logical_and(rays[3]<8400.,\
+                                                 rays[3]>8300.))
     tran.reflect(rays)
 
     #Go back to nominal node reference frame and down to focus

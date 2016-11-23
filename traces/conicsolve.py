@@ -23,7 +23,7 @@ def primsag(z1,r0,z0):
     z = np.linspace(z0,z1,100)
     r = primrad(z,r0,z0)
     fit = np.polyfit(z,r,2)
-    return fit[0]*((z1-z0)/2.)**2
+    return np.abs(fit[0]*((z1-z0)/2.)**2)
     
 
 def secrad(z,r0,z0,psi=1.):
@@ -35,6 +35,17 @@ def secrad(z,r0,z0,psi=1.):
     e = cos(4*alpha)*(1+tan(4*alpha)*tan(thetah))
 
     return sqrt(e**2*(d+z)**2-z**2)
+
+def secsag(z1,z0,r0,F,psi=1.):
+    """
+    Calculate amount of sag as a function of mirror
+    length (z1-z0), and Wolter prescription (r0,z0)
+    Assume that mirror starts out at node
+    """
+    z = np.linspace(z0,z1,100)
+    r = secrad(z,r0,F,psi=psi)
+    fit = np.polyfit(z,r,2)
+    return np.abs(fit[0]*((z1-z0)/2.)**2)
 
 #Wolter parameters
 def woltparam(r0,z0):
@@ -295,7 +306,7 @@ def ellipsoidSag(S,psi,R0,F,z1,z0):
     z = np.linspace(z0,z1,100)
     r = ellipsoidRad(S,psi,R0,F,z)
     fit = np.polyfit(z,r,2)
-    return fit[0]*((z1-z0)/2.)**2
+    return np.abs(fit[0]*((z1-z0)/2.)**2)
 
 def solveS(P,a,b,e,f,x,y,z,l,m,n):
     """
