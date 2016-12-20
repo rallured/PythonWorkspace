@@ -4,7 +4,7 @@ import pdb
 from scipy.optimize import fmin_slsqp
 #from numbapro import guvectorize
 #from axro.merit import merit
-import pyfits
+import astropy.io.fits as pyfits
 import gc
 import scipy.interpolate as interp
 import utilities.transformations as tr
@@ -593,3 +593,16 @@ def convertFEAInfluence(filename,Nx,Ny,method='cubic'):
     print filename + ' done'
     
     return -(g0[1:-1,1:-1]-g[1:-1,1:-1])#,gx,gy
+
+def createShadePerimeter(sh,axialFraction=0.,azFraction=0.):
+    """
+    Create a shademask where a fraction of the axial and
+    azimuthal perimeter is blocked. Fraction is total fraction
+    blocked.
+    sh is shape tuple e.g. (200,200)
+    """
+    arr = np.zeros(sh)
+    axIndex = round(sh[0]*axialFraction/2)
+    azIndex = round(sh[1]*azFraction/2)
+    arr[axIndex:-axIndex,azIndex:-azIndex] = 1.
+    return arr

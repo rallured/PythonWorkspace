@@ -239,6 +239,57 @@ def test(N,rin=700.,rout=737.,azwidth=66.,srcdist=89.61e3+1.5e3,\
     #Return LSF in arcseconds
     return anal.hpdY(rays)/12e3*180/pi*60**2
 
+def misalign(dof,off):
+    """
+    Return array of zeros where arr[dof]=off
+    Used to apply an offset to a specific dof
+    """
+    arr = np.zeros(6)
+    arr[dof] = off
+    return arr
+
+def alignmentSensitivities():
+    """
+    Trace Al K Littrow configuration. For each DoF,
+    apply +- offsets and measure centroids. Fit resulting
+    centroids vs. offset and determine slope and non-linearity
+    """
+    #Get alignment parameters
+    yaw = grat.blazeYaw(1.5*np.pi/180,1.575757,3,160.)
+    rays,rec = test(1000,yaw=yaw,order=6,wave=1.575757/2.,rrays=True)
+    f = -surf.focusY(rays)
+
+    #Perform raytrace scans
+    tr = np.linspace(-5.,5.,100)
+    rot = np.linspace(-.6e-3,.6e-3,100)
+    tx = np.array([[test(1000,yaw=yaw,wave=1240./1490,order=6,\
+               opgalign=misalign(dof,off),\
+               f=f,rcen=True) for off in tr] \
+           for dof in range(3)])
+    rx = np.array([[test(1000,yaw=yaw,wave=1240./1490,order=6,\
+               opgalign=misalign(dof,off),\
+               f=f,rcen=True) for off in rot] \
+          for dof in range(3,6)])
+    
+    #Fit results to 2nd or 3rd order polynomial
+    #Get derivative at off=0.
+    #Compute peak-to-valley departure from this line
+    #Compute peak-to-valley departure from best fit line
+    #np.polyfit(tr,t[:,0]
+    tx = tx.transpose(0,2,1)
+    rx = rx.transpose(0,2,1)
+    tfit = [[np.polyfit(tr,m,3) for m in t] for t in tx]
+    rfit = [[np.polyfit(rot,m,3) for m in t] for t in rx]
+    tslope = [[m[-2]/12e3*180/pi*60**2 for m in t] for t in tfit] #arcsec/mm
+    rslope = [[m[-2]/12e3 for m in t] for t in rfit] #rad/rad=arcsec/arcsec
+    tdiff = [[(m[1]*tr[-1]**2+m[0]*tr[-1]**3)/\
+              (m[2]*tr[-1]) for m in t] for t in tfit]
+    rdiff = [[(m[1]*rot[-1]**2+m[0]*rot[-1]**3)/\
+              (m[2]*rot[-1]) for m in t] for t in rfit]
+    pdb.set_trace()
+    
+    return [tslope,rslope,tdiff,rdiff]
+
 def linearity(polyOrder=1,wavelength=np.linspace(0.,1.57*4.,100),\
               opgalign=[0,0,0,0,0,0]):
     """

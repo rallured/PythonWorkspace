@@ -10,7 +10,7 @@ import axro.solver as slv
 from utilities.plotting import myhist
 import traces.conicsolve as conic
 import legendremod as leg
-from utilities.imaging.analysis import readCyl4D
+from utilities.metrology import readCyl4D
 
 def correctXrayTestMirror(d,ifs,shade=None,dx=None,azweight=.015,smax=5.):
     """
@@ -46,7 +46,7 @@ def computeMeritFunctions(d,dx,x0=np.linspace(-5.,5.,1000),\
     """
     RMS axial slope
     Axial sag
-    
+    d in microns
     """
     #Remove NaNs
     d = man.stripnans(d)

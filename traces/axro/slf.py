@@ -396,6 +396,57 @@ def placeWolterPair(rays,misalign=np.zeros(6)):
     tran.itransform(rays,*misalign)
     return rays
 
-def findFocus(rays):
-    surf.focusX(rays)
-    return None
+def nominalSensitivities():
+    """
+    Compute the alignment sensitivities for the parabola/hyperbola
+    mirror pair in the SLF.
+    """
+    #Scan ranges
+    ang = np.linspace(-5*.3e-3,5*.3e-3,100)
+    tx = np.linspace(-.3,.3,100)
+
+    #Mirror Pair Sensitivities
+    pitch2 = [mirrorPair(1000,primalign=[0,0,0,0,a,0]) for a in ang]
+    yaw2 = [mirrorPair(1000,primalign=[0,0,0,a,0,0]) for a in ang]
+    plt.figure('Pair')
+    plt.plot(ang*180/pi*60,pitch2,label='Pitch')
+    plt.plot(ang*180/pi*60,yaw2,label='Yaw')
+    plt.title('SLF Mirror Pair Alignment Sensitivities')
+    plt.grid()
+    plt.legend(loc='upper center')
+    plt.xlabel('Angular Error (arcmin)')
+    plt.ylabel('HPD (arcsec)')
+
+    #Secondary Sensitivities
+    pitch = [mirrorPair(1000,secalign=[0,0,0,0,a,0]) for a in ang/20]
+    yaw = [mirrorPair(1000,secalign=[0,0,0,a,0,0]) for a in ang/20]
+    roll = [mirrorPair(1000,secalign=[0,0,0,0,0,a]) for a in ang/20]
+    plt.figure('SecondaryAng')
+    plt.semilogy(ang/20.*180/pi*60**2,pitch,label='Pitch')
+    plt.plot(ang/20.*180/pi*60**2,yaw,label='Yaw')
+    plt.plot(ang/20.*180/pi*60**2,roll,label='Roll')
+    plt.grid()
+    plt.legend(loc='upper center')
+    plt.xlabel('Angular Error (arcsec)')
+    plt.ylabel('HPD (arcsec)')
+    plt.xlim([-5,5])
+    plt.ylim([0,3])
+    plt.title('SLF Secondary Alignment Sensitivities')
+    decenter = [mirrorPair(1000,secalign=[t,0,0,0,0,0]) for t in tx]
+    lateral = [mirrorPair(1000,secalign=[0,t,0,0,0,0]) for t in tx]
+    despace = [mirrorPair(1000,secalign=[0,0,t,0,0,0]) for t in tx]
+    plt.figure('SecondaryTx')
+    plt.semilogy(tx,decenter,label='Decenter')
+    plt.plot(tx,despace,label='Despace')
+    plt.plot(tx,lateral,label='Lateral')
+    plt.grid()
+    plt.legend(loc='upper center')
+    plt.xlabel('Translation Error (mm)')
+    plt.ylabel('HPD (arcsec)')
+    plt.title('SLF Secondary Translation Sensitivities')
+    
+    
+    #Compensating behavior...
+    
+
+    return [pitch2,yaw2,pitch,yaw,decenter,lateral,despace]
