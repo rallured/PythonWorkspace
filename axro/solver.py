@@ -568,18 +568,20 @@ def convertFEAInfluence(filename,Nx,Ny,method='cubic'):
     #Rotate cone angle away
     d0 = np.array([x0,y0,z0,np.ones(len(z0))])
     d = np.array([x,y,z,np.ones(len(z))])
-    a = conic.woltparam(220.,8400.)[0]
-    p = conic.primrad(8476.,220.,8400.)/1e3
-    r = tr.rotation_matrix(a,[1,0,0],point=[0,0,-p])
-    d0 = np.dot(r,d0)
-    d = np.dot(r,d)
-    d0 = d0[:3]
-    d = d[:3]
+##    a = conic.woltparam(220.,8400.)[0]
+##    p = conic.primrad(8476.,220.,8400.)/1e3
+##    r = tr.rotation_matrix(a,[1,0,0],point=[0,0,-p])
+##    d0 = np.dot(r,d0)
+##    d = np.dot(r,d)
+##    d0 = d0[:3]
+##    d = d[:3]
 
     theta0 = np.arctan2(d0[0],-d0[2])
-    r0 = np.sqrt(d0[0]**2+d0[2]**2)
+    r0 = np.repeat(220.470,len(theta0))#np.sqrt(d0[0]**2+d0[2]**2)
     theta = np.arctan2(d[0],-d[2])
     r = np.sqrt(d[0]**2+d[2]**2)
+
+    pdb.set_trace()
     
 
     gy = np.linspace(d0[1].min(),d0[1].max(),Nx+2)
@@ -592,7 +594,7 @@ def convertFEAInfluence(filename,Nx,Ny,method='cubic'):
 
     print filename + ' done'
     
-    return -(g0[1:-1,1:-1]-g[1:-1,1:-1])#,gx,gy
+    return -(g0[1:-1,1:-1]-g[1:-1,1:-1]),g0[1:-1,1:-1],g[1:-1,1:-1]
 
 def createShadePerimeter(sh,axialFraction=0.,azFraction=0.):
     """

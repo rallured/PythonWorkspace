@@ -60,3 +60,36 @@ def computeResolution(length,dx,period,N,sh=np.pi/5,pad=0,win=None,\
     ind = abs(freq)<xr
     
     return freq[ind],ff3[ind],ff4[ind],hew3,hew4
+
+def varyingPeriod(length,dx,N,freq=None,pad=0):
+    #Construct perfect grating
+    x = np.arange(0.,length,dx)
+##    y1 = np.cos(2*np.pi*x/period)
+
+    #Construct phase function
+    if freq is None:
+        freq = np.random.uniform(low=6000.,high=6300.,size=N)
+    freq = np.tile(freq,(np.ceil(len(x)/N),1))
+    freq = np.transpose(freq).flatten()
+    freq = freq[:len(x)]
+
+    #Construct profiles
+    y1 = np.cos(2*np.pi*x*freq)
+    y2 = np.cos(2*np.pi*x*np.mean(freq))
+
+    #Take the FFTs
+    if pad < len(x):
+        pad=len(x)
+    pad = int(pad)
+
+    ff3 = np.fft.fft(y1,n=pad)
+    ff4 = np.fft.fft(y2,n=pad)
+
+    freq = np.fft.fftfreq(pad,d=dx)
+    freq = np.fft.fftshift(freq)
+
+    ff3 = np.abs(np.fft.fftshift(ff3))**2
+    ff4 = np.abs(np.fft.fftshift(ff4))**2
+    ff3,ff4 = ff3/np.sum(ff3),ff4/np.sum(ff4)
+
+    return freq,ff3,ff4,x,y1,y2

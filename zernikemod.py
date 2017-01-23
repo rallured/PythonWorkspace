@@ -132,7 +132,7 @@ def zmatrix(rho,theta,N,r=None,m=None):
 
     #Populate matrix columns
     for i in range(size(r)):
-        A[:,i] = zernike(r[i],m[i],rho,theta)
+        A[:,i] = zernike(int(r[i]),int(m[i]),rho,theta)
 
     return A
 
@@ -238,6 +238,7 @@ def zcoeff(filename,save=False,cx=0.,cy=0.,rad=1.,order=20,r=None,m=None,**kwags
 
     #Create Zernike polynomial matrix for least squares fit
     #Using all Zernike polynomials up to radial order 20
+    pdb.set_trace()
     A = zmatrix(rho,theta,order,r=r,m=m)
 
     #Perform least squares fit
