@@ -305,7 +305,8 @@ def mirrorPair(N,srcdist=89.61e3+1.5e3,primalign=np.zeros(6),\
     if rrays is True:
         return rays
     
-    return anal.hpd(rays)/f * 180/np.pi * 60.**2
+    return anal.hpd(rays)/f * 180/np.pi * 60.**2, \
+           airnp.mean(rays[1]), np.mean(rays[2])
 
 def sourceToChamber(N,misalign=np.zeros(6)):
     """

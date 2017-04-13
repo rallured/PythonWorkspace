@@ -5,7 +5,6 @@ import zernikemod,pdb,time
 import traces.conicsolve as con
 import reconstruct
 import math
-from numbapro import cuda
 
 ##Get rid of global variables. Use ray vectors as input to all functions.
 ##Use a flag to indicate whether arrays are on the host or the GPU.
@@ -332,29 +331,29 @@ def radgrat(rays,hubdist,dpermm,order,wave,ind=None):
         tran.radgrat(x,y,l,m,n,hubdist,dpermm,order,wave)
     return
 
-#Trying CUDA
-@cuda.jit('void(double,double,double,double,'
-          'double[:],double[:],double[:],double[:],double[:],double[:])')
-def radgratC(hubdist,dpermm,order,wave,x,y,z,l,m,n):
-    """Test
-    """
-    #Establish threadId (including any block)
-    i = cuda.grid(1)
-
-    #Handle case of threadId larger than array sizes
-    if i >= x.shape[0]:
-        return
-
-    d = dpermm * math.sqrt((hubdist-y[i])**2 + x[i]**2)
-    yaw = math.pi/2 + math.atan(x[i]/(hubdist-y[i]))
-
-    det = l[i]**2 + m[i]**2
-
-    if det<1:
-        l[i] = l[i] + math.sin(yaw)*order*wave/d
-        m[i] = m[i] - math.cos(yaw)*order*wave/d
-        n[i] = math.sqrt(1.-l[i]**2-m[i]**2)
-    
+###Trying CUDA
+##@cuda.jit('void(double,double,double,double,'
+##          'double[:],double[:],double[:],double[:],double[:],double[:])')
+##def radgratC(hubdist,dpermm,order,wave,x,y,z,l,m,n):
+##    """Test
+##    """
+##    #Establish threadId (including any block)
+##    i = cuda.grid(1)
+##
+##    #Handle case of threadId larger than array sizes
+##    if i >= x.shape[0]:
+##        return
+##
+##    d = dpermm * math.sqrt((hubdist-y[i])**2 + x[i]**2)
+##    yaw = math.pi/2 + math.atan(x[i]/(hubdist-y[i]))
+##
+##    det = l[i]**2 + m[i]**2
+##
+##    if det<1:
+##        l[i] = l[i] + math.sin(yaw)*order*wave/d
+##        m[i] = m[i] - math.cos(yaw)*order*wave/d
+##        n[i] = math.sqrt(1.-l[i]**2-m[i]**2)
+##    
 
 def grat(rays,d,order,wave):
     """Linear grating with groove direction in +y
@@ -845,28 +844,28 @@ def referencedWavefront(xang,yang,phase,xang2,yang2,phase2):
 
     return influence
 
-##############CUDA ROUTINES################3
-def transferToGPU():
-    """Get rays transfered to the GPU shared memory"""
-    xg = cuda.to_device(x)
-    yg = cuda.to_device(y)
-    zg = cuda.to_device(z)
-    lg = cuda.to_device(l)
-    mg = cuda.to_device(m)
-    ng = cuda.to_device(n)
-    uxg = cuda.to_device(ux)
-    uyg = cuda.to_device(uy)
-    uzg = cuda.to_device(uz)
-    return [xg,yg,zg,lg,mg,ng,uxg,uyg,uzg]
-
-def returnFromGPU(xg,yg,zg,lg,mg,ng,uxg,uyg,uzg):
-    """Get rays from GPU shared memory back to host"""
-    xg.copy_to_host(x)
-    yg.copy_to_host(y)
-    zg.copy_to_host(z)
-    lg.copy_to_host(l)
-    mg.copy_to_host(m)
-    ng.copy_to_host(n)
-    uxg.copy_to_host(ux)
-    uyg.copy_to_host(uy)
-    uzg.copy_to_host(uz)
+################CUDA ROUTINES################3
+##def transferToGPU():
+##    """Get rays transfered to the GPU shared memory"""
+##    xg = cuda.to_device(x)
+##    yg = cuda.to_device(y)
+##    zg = cuda.to_device(z)
+##    lg = cuda.to_device(l)
+##    mg = cuda.to_device(m)
+##    ng = cuda.to_device(n)
+##    uxg = cuda.to_device(ux)
+##    uyg = cuda.to_device(uy)
+##    uzg = cuda.to_device(uz)
+##    return [xg,yg,zg,lg,mg,ng,uxg,uyg,uzg]
+##
+##def returnFromGPU(xg,yg,zg,lg,mg,ng,uxg,uyg,uzg):
+##    """Get rays from GPU shared memory back to host"""
+##    xg.copy_to_host(x)
+##    yg.copy_to_host(y)
+##    zg.copy_to_host(z)
+##    lg.copy_to_host(l)
+##    mg.copy_to_host(m)
+##    ng.copy_to_host(n)
+##    uxg.copy_to_host(ux)
+##    uyg.copy_to_host(uy)
+##    uzg.copy_to_host(uz)

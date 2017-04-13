@@ -5,6 +5,7 @@ import pdb,sys
 from traces.axro.WSverify import traceChaseParam
 import matplotlib.pyplot as plt
 import time
+import utilities.plotting as uplt
 
 #Need to determine resolution and effective area
 #as a function of shell radius
@@ -340,4 +341,26 @@ def sphericalNodes(rin,z0,fov,Nshells,N):
         z0 = zstart
     return rlist,zlist
 
+def rxPlot():
+    #Get Rx
+    rx = np.transpose(np.genfromtxt('/home/rallured/Dropbox/AXRO/WSTracing/'
+                                    '150528_Pauls_Rx.csv',delimiter=','))
+    geo = np.transpose(np.genfromtxt('/home/rallured/Dropbox/AXRO/WSTracing/'
+                                     'geometric_transmission_102711.txt'))
+    rx = rx[:,geo[1]>0]
+    geo = geo[1][geo[1]>0]
+    f = np.sqrt(rx[1][-1]**2+10000.**2)
+    z = np.sqrt(f**2-rx[1]**2) #spherical
 
+    #Make plot
+    plt.figure('SX')
+    plt.clf()
+    for i in np.arange(0,len(geo),3):
+        rp1 = con.primrad(z[i]+50.,rx[1][i],1e4)
+        rp2 = con.primrad(z[i]+250.,rx[1][i],1e4)
+        rh1 = con.secrad(z[i]-50.,rx[1][i],1e4)
+        rh2 = con.secrad(z[i]-250.,rx[1][i],1e4)
+        uplt.isoplot([rp1,rp2],[z[i]+50.-1e4,z[i]+250.-1e4],'b')
+        uplt.isoplot([rh1,rh2],[z[i]-50.-1e4,z[i]-250.-1e4],'b')
+
+    return rx,geo

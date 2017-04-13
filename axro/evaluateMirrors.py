@@ -11,8 +11,10 @@ from utilities.plotting import myhist
 import traces.conicsolve as conic
 import legendremod as leg
 from utilities.metrology import readCyl4D
+import astropy.io.fits as pyfits
 
-def correctXrayTestMirror(d,ifs,shade=None,dx=None,azweight=.015,smax=5.):
+def correctXrayTestMirror(d,ifs,shade=None,dx=None,azweight=.015,smax=5.,\
+                          bounds=None):
     """
     Get distortion on same grid as IFs and run correction.
     Rebin result onto original distortion grid and apply.
@@ -26,9 +28,9 @@ def correctXrayTestMirror(d,ifs,shade=None,dx=None,azweight=.015,smax=5.):
         shade = np.ones(np.shape(d2))
 
     #Run correction
-    orig, cor, volt = slv.correctDistortion(d2,ifs,shade,\
+    volt = slv.correctDistortion(d2,ifs,shade,\
                                             dx=dx,azweight=azweight,\
-                                            smax=smax)
+                                            smax=smax,bounds=bounds)
     
     #Add correction to original data
     ifs2 = ifs.transpose(1,2,0)
@@ -42,7 +44,8 @@ def correctXrayTestMirror(d,ifs,shade=None,dx=None,azweight=.015,smax=5.):
     return cor3,volt
 
 def computeMeritFunctions(d,dx,x0=np.linspace(-5.,5.,1000),\
-                          graze=conic.woltparam(220.,8400.)[0]):
+                          graze=conic.woltparam(220.,8400.)[0],\
+                          renorm=False):
     """
     RMS axial slope
     Axial sag
@@ -62,14 +65,20 @@ def computeMeritFunctions(d,dx,x0=np.linspace(-5.,5.,1000),\
     #Compute PSF
     primfoc = conic.primfocus(220.,8400.)
     dx2 = x0[1]-x0[0]
+
+    resa = scat.primary2DPSF(d,dx[0],x0=x0)
 ##    z = np.linspace(8500.,8400.,np.shape(d)[0]) #Proper orientation for 4D
-    z = np.arange(0,-np.shape(d)[0],-1)*dx[0]*np.cos(graze)+8400.
-    res = np.array([scat.primaryPSF(z=z,perturb=-di/1e3,x0=x0) \
-                    for di in np.transpose(d)])
-    resa = np.mean(res,axis=0)
-    if np.sum(resa)*dx2 < .95:
+##    z = np.arange(0,-np.shape(d)[0],-1)*dx[0]*np.cos(graze)+8400.
+##    res = np.array([scat.primaryPSF(z=z,perturb=-di/1e3,x0=x0) \
+##                    for di in np.transpose(d)])
+##    resa = np.mean(res,axis=0)
+    integral = np.sum(resa)*dx2
+    if integral < .95:
         print 'Possible sampling problem'
         print str(np.sum(resa)*dx2)
+
+    if renorm is True:
+        resa = resa/integral
 
     #Compute PSF merit functions
     rmsPSF = np.sqrt(np.sum(resa*x0**2)*dx2-(np.sum(resa*x0)*dx2)**2)
@@ -96,7 +105,8 @@ def computeMeritFunctions(d,dx,x0=np.linspace(-5.,5.,1000),\
 ##           sag,rmsy*2,rmsx*2,\
 ##           rmsPSF/primfoc*180/np.pi*60**2*2,hpdPSF/primfoc*180/np.pi*60**2,\
 ##           rmsy*2*2,hpdsl
-    return rmsPSF/primfoc*180/np.pi*60**2*2,hpdPSF/primfoc*180/np.pi*60**2
+    return rmsPSF/primfoc*180/np.pi*60**2*2,hpdPSF/primfoc*180/np.pi*60**2,\
+           [x0,resa]
     
 def evaluate2DLeg(xo,yo,shade=np.ones((200,200)),ifs=None,coeff=1.,smax=5.):
     """
@@ -117,7 +127,50 @@ def evaluate2DLeg(xo,yo,shade=np.ones((200,200)),ifs=None,coeff=1.,smax=5.):
                                      smax=smax)
 
     #Evalute performances
-    perf0 = computeMeritFunctions(dist,[.5],x0=np.linspace(-5.,5.,500))[-1]
-    perf1 = computeMeritFunctions(dist+cor,[.5],x0=np.linspace(-5.,5,500))[-1]
+    perf0 = computeMeritFunctions(dist,[.5],x0=np.linspace(-5.,5.,500))[1]
+    perf1 = computeMeritFunctions(dist+cor,[.5],x0=np.linspace(-5.,5,500))[1]
 
     return perf0,perf1,volt
+
+def evaluate2DLegAlexey(xo,yo,disfile=None,iffile=None,shadefile=None,dx=.5,\
+                       pzt_max_strain=5.,pzt_min_strain=0.,coeff=.1,\
+                        scale=.7):
+    """
+    Setup Python.par if necessary, then compute correction and
+    pre and post performance
+    xo,yo are arrays with orders to be scanned
+    """
+    #Setup Python.par
+    if iffile is not None:
+        slv.setupAlexey(iffile,shadefile,disfile,dx,\
+                        pzt_max_strain=pzt_max_strain,\
+                        pzt_min_strain=pzt_min_strain)
+        slv.preMath()
+
+    #Run solver
+    shade = slv.createShadePerimeter((200,200),axialFraction=1-scale,\
+                                     azFraction=1-scale)
+    pyfits.writeto('/home/rallured/solve_pzt/shademasks/Pyshade.fits',shade,\
+                   clobber=True)
+    slv.preMath()
+
+    #Loop through Legendres
+    x,y = man.autoGrid(shade,xr=[-1.,1.],yr=[-1.,1.])
+    pre = np.zeros((len(xo),len(yo)))
+    post = np.copy(pre)
+    for i in range(len(xo)):
+        for j in range(len(yo)):
+            l = leg.singleorder(x,y,xo[i],yo[j])
+            l[shade==0] = np.nan
+            ly = np.gradient(l,dx*1e3)[0]
+            coeff = 50e-6/np.nanmax(abs(ly[shade==1]))
+            l = leg.singleorder(x,y,xo[i],yo[j])*coeff
+            cor,resid,volt = slv.pyExecute(l)
+            resid[shade==0] = np.nan
+            l[shade==0] = np.nan
+            pre[i,j] = computeMeritFunctions(l,[dx],\
+                                             x0=np.linspace(-5.,5.,500))[1]
+            post[i,j] = computeMeritFunctions(resid,[dx],\
+                                              x0=np.linspace(-5.,5.,500))[1]
+
+    return pre,post,cor

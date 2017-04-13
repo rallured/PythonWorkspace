@@ -2,7 +2,8 @@ import numpy as np
 from numpy import sin,cos,exp,sqrt,pi,tan
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import pdb,sys,pickle,pyfits,os
+import pdb,sys,pickle,os
+import astropy.io.fits as pyfits
 import traces.grating as grat
 import utilities.plotting as plotting
 from traces.axro.SMARTX import CXCreflIr
@@ -420,7 +421,8 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
         xp,yp,zp = [],[],[]
         xs,ys,zs = [],[],[]
     coords = [tran.tr.identity_matrix()]*4
-    
+
+    flag = 0
     for i in range(8):
         #Loop through module angles
         for a in ang[i]:
@@ -480,7 +482,7 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
                     trays,tref = traceSPO(R,L,focVec,N,M,spanv,twave,\
                                   offX=offX,\
                                   offY=offY,\
-                                      ang=aa)
+                                      ang=aa,scatter=True)
             else:
 ##                trays,tref = traceSPO(R,L,focVec,N,M,spanv,wave,\
 ##                                  offX=np.cos(aa)*offX-np.sin(aa)*offY,\
@@ -501,7 +503,7 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
                     trays,tref = traceSPO(R,L,focVec,N,M,spanv,wave,\
                                   offX=offX,\
                                   offY=offY,\
-                                      ang=aa)
+                                      ang=aa,scatter=True)
             tweights = tweights*tref
             
             #Rotate to appropriate angle
@@ -511,13 +513,16 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
             try:
                 rays = [np.concatenate([rays[ti],trays[ti]]) for ti in range(10)]
                 weights = np.concatenate([weights,tweights])
+                flags = np.append(flags,np.repeat(flag,len(tweights)))
                 if wave=='uniform':
                     fwave = np.concatenate([fwave,twave])
             except:
                 rays = trays
                 weights = tweights
+                flags = np.repeat(flag,len(tweights))
                 if wave=='uniform':
                     fwave = twave
+            flag = flag + 1
 
     #Get to plane of outermost grating
     tran.transform(rays,0,0,focVec[-1]-(L.max()+gap+95.),0,0,0,coords=coords)
@@ -530,10 +535,10 @@ def defineSPOaperture(N,wave,offX=0.,offY=0.,gap=50.,vis=False):
     if wave=='uniform':
         return rays,weights,focVec[-1],lmax,fwave,coords
 
-    return rays,weights,focVec[-1],lmax,coords
+    return rays,weights,focVec[-1],lmax,coords,flags
 
 def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.,\
-             vis=None,ang=None,coords=None):
+             vis=None,ang=None,coords=None,scatter=False):
     """Trace SPO surfaces sequentially. Collect rays from
     each SPO shell and set them to the PT rays at the end.
     Start at the inner radius, use the wafer and pore thicknesses
@@ -593,6 +598,15 @@ def traceSPO(R,L,focVec,N,M,spanv,wave,d=.605,t=.775,offX=0.,offY=0.,\
         #Trace to secondary
         surf.spoSecondary(rays,R[i],focVec[i])            
         tran.reflect(rays)
+
+        #Add scatter
+        if scatter is True:
+            theta = np.arctan2(rays[2],rays[1])
+            inplane = np.random.normal(scale=10./2.35*5e-6,size=N)
+            outplane = np.random.normal(scale=1.5/2.35*5e-6,size=N)
+            rays[4] = rays[4] + inplane*np.cos(theta) + outplane*np.sin(theta)
+            rays[5] = rays[5] + inplane*np.sin(theta) + outplane*np.cos(theta)
+            rays[6] = -np.sqrt(1.-rays[5]**2-rays[4]**2)
                            
         #Compute reflectivity
         inc = PT.grazeAngle(rays)#inc = np.arcsin(l*ux+m*uy+n*uz)
@@ -1261,3 +1275,28 @@ def twoChannelLayout():
     plt.plot(0,0,'*')
     oa2 = np.dot(tr,[0,0,0,1])
     plt.plot(oa2[0],oa2[1],'*')
+
+def turnoffChannels(rays,weights,flags,off):
+    """
+    Create vector to turn off certain channels. Figure out
+    new resolution and area.
+    """
+    #Compute original RMS and sum of weights
+    area0 = np.sum(weights)
+    rms0 = np.sqrt(np.average(rays[2]**2,weights=weights))
+
+    if off is None:
+        return area0,rms0*2.35*180/np.pi*60**2/12e3
+    
+    #And all of the booleans
+    tf = (flags!=off[0])
+    for o in off[1:]:
+        tf = (tf) & (flags!=o)
+    rays = tran.vignette(rays,ind=tf)
+    weights = weights[tf]
+
+    #Return RMS and sum of weights
+    return np.sum(weights),np.sqrt(np.average(rays[2]**2,\
+                            weights=weights))/12e3*180/np.pi*60**2*2.35
+    
+

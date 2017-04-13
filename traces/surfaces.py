@@ -93,7 +93,7 @@ def conic(rays,R,K,nr=None):
     """
     opd,x,y,z,l,m,n,ux,uy,uz = rays
     if nr is not None:
-        surf.conicopd(opd,x,y,l,m,n,ux,uy,uz,R,K,nr)
+        surf.conicopd(opd,x,y,z,l,m,n,ux,uy,uz,R,K,nr)
     else:
         surf.conic(x,y,z,l,m,n,ux,uy,uz,R,K)
     return

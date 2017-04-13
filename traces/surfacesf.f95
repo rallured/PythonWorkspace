@@ -326,10 +326,8 @@ subroutine conic(x,y,z,l,m,n,ux,uy,uz,num,R,K)
       if (disc .ge. 0.) then
         s1 = -b + sqrt(disc)
         s2 = -b - sqrt(disc)
-        !Choose smallest positive resulting Z
-        z1 = z(i) + s1*n(i)
-        z2 = z(i) + s2*n(i)
-        if (abs(z1) .le. abs(z2)) then
+        !Choose smallest distance
+        if (abs(s1) .le. abs(s2)) then
           s = s1
         else
           s = s2
@@ -373,7 +371,7 @@ subroutine conicopd(opd,x,y,z,l,m,n,ux,uy,uz,num,R,K,nr)
   integer :: i
 
   !Loop through rays and trace to the conic
-  !$omp parallel do private(s,R,denom,b,c,disc,s1,s2,z1,z2)
+  !$omp parallel do private(s,denom,b,c,disc,s1,s2,z1,z2)
   do i=1,num
     !Compute amount to move ray s
     s = 0.
@@ -389,10 +387,8 @@ subroutine conicopd(opd,x,y,z,l,m,n,ux,uy,uz,num,R,K,nr)
       if (disc .ge. 0.) then
         s1 = -b + sqrt(disc)
         s2 = -b - sqrt(disc)
-        !Choose smallest positive resulting Z
-        z1 = z(i) + s1*n(i)
-        z2 = z(i) + s2*n(i)
-        if (abs(z1) .le. abs(z2)) then
+        !Choose smallest distance
+        if (abs(s1) .le. abs(s2)) then
           s = s1
         else
           s = s2

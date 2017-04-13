@@ -10,6 +10,14 @@ import traces.sources as sources
 import traces.conicsolve as conic
 import traces.axro.slf as slf
 
+import utilities.imaging.analysis as ana
+import utilities.imaging.man as man
+import utilities.imaging.fitting as fit
+
+pcoeff,pax,paz = np.genfromtxt('/home/rallured/Dropbox/AXRO/'
+                        'Alignment/CoarseAlignment/150615_OP1S09Coeffs.txt')
+pcoeff = pcoeff/1000.
+primc = [pcoeff,pax,pax]
 
 def createWavefront(rad,num,coeff,rorder=None,aorder=None,\
                     slitwidth=3.,masknum=15,trans=np.zeros(2)):
@@ -89,18 +97,20 @@ def traceThroughPrimary(rays,mask,primalign=np.zeros(6),\
 
     return cen
     
-def primaryTrace(rad,num,coeff,primalign=np.zeros(6),detalign=np.zeros(6)):
+def primaryTrace(rad,num,coeff,primalign=np.zeros(6),detalign=np.zeros(6),\
+                 pcoeffs=None):
     """
     Function to create source rays and trace through the primary
     to the focus detector.
     """
     #Trace
     rays,mask = createWavefront(rad,num,coeff,trans=primalign[:2])
-    cen = traceThroughPrimary(rays,mask,primalign=primalign,detalign=detalign)
+    cen = traceThroughPrimary(rays,mask,primalign=primalign,detalign=detalign,\
+                              primCoeffs=pcoeffs)
     #Return deviation from centroid of centroid
     cx = np.mean(cen[0])
     cy = np.mean(cen[1])
-    return np.sqrt(np.mean((cx-cen[0])**2+(cy-cen[1])**2))
+    return cen#np.sqrt(np.mean((cx-cen[0])**2+(cy-cen[1])**2))
 
 def alignPrimary(rad,num,coeff,initial=np.zeros(6),detalign=np.zeros(6)):
     """
@@ -189,7 +199,7 @@ def pairTrace(rad,num,coeff,primalign=np.zeros(6),secalign=np.zeros(6),\
     #Return deviation from centroid of centroid
     cx = np.mean(cen[0])
     cy = np.mean(cen[1])
-    return np.sqrt(np.mean((cx-cen[0])**2+(cy-cen[1])**2))
+    return cen#np.sqrt(np.mean((cx-cen[0])**2+(cy-cen[1])**2))
 
 def alignSecondary(rad,num,coeff,initial=np.zeros(6),detalign=np.zeros(6),\
                    primalign=np.zeros(6)):
@@ -232,3 +242,96 @@ def zernSensitivity():
         sens[i] = res[1]/anal.ptov(z)
 
     return sens
+
+def fullShellPair(ang=2*np.pi,secalign=[0,0,0,0,0,0]):
+    """
+    Trace a full shell optic with misalignments of the secondary
+    with respect to primary. Allow azimuthal extent to be a variable.
+    """
+    #Set up ray bundle
+    rays = sources.subannulus(220.,220.6,ang,100000,zhat=-1.)
+    tran.transform(rays,0,0,-8400.,0,0,0)
+    theta = np.arctan2(rays[2],rays[1])
+    
+    #Trace through optics
+    surf.wolterprimary(rays,220.,8400.)
+    tran.reflect(rays)
+    tran.transform(rays,0,0,8400.,0,0,0)
+    tran.transform(rays,*secalign)
+    tran.transform(rays,0,0,-8400.,0,0,0)
+    surf.woltersecondary(rays,220.,8400.)
+    tran.reflect(rays)
+    tran.transform(rays,0,0,8400.,0,0,0)
+    tran.itransform(rays,*secalign)
+
+    #Go to focus
+    tran.transform(rays,0,0,-8400.,0,0,0)
+    surf.flat(rays)
+
+    #Plot misalignment curves
+##    plt.plot(theta,rays[1],'.')
+##    plt.plot(theta,rays[2],'.')
+    plt.plot(rays[1],rays[2],'.')
+
+    return rays,theta
+
+def sourceAlignment(dx,dy,dz):
+    """
+    Set up a trace of rays from the fiber source to
+    the OAP. Determine wavefront error of collimated
+    beam.
+    """
+    #Source
+    rays = sources.circularbeam(125./4,10000)
+    tran.pointTo(rays,dx,dy,-775./2+dz,reverse=1)
+    rays[0] = np.sqrt((rays[1]+dx)**2+(rays[2]+dy)**2+(775./2+dz)**2)
+    pdb.set_trace()
+
+    #Go to focus
+    tran.transform(rays,0,0,0,np.pi/2,0,0)
+    tran.transform(rays,0,-775./2,-775./2,0,0,0)
+
+    #Trace to parabola
+    surf.conic(rays,775.,-1.,nr=1.)
+    tran.reflect(rays)
+
+    #Restrict to 5" diameter
+##    ind = np.logical_and(rays[3]>387.5-62.5,rays[3]<387.5+62.5)
+##    tran.vignette(rays,ind=ind)
+
+    #Reflect
+##    for i in range(7,10):
+##        rays[i] = -rays[i]
+    tran.transform(rays,0,0,775./2,0,0,0)
+    surf.flat(rays,nr=1.)
+
+    pdb.set_trace()
+
+
+    #Get OPD
+    opd,dx0,dy0 = anal.interpolateVec(rays,0,200,200)
+    opd = man.remove2DLeg(opd,xo=1,yo=0)
+    opd = man.remove2DLeg(opd,xo=0,yo=1)
+    pv = ana.ptov(opd)
+    
+    plt.figure('OPD')
+    plt.imshow(opd)
+    plt.colorbar()
+
+    wavesl = np.gradient(opd,dx0)
+    resy = fit.legendre2d(wavesl[0],xo=2,yo=2)
+    resx = fit.legendre2d(wavesl[1],xo=2,yo=2)
+    resy[0][np.isnan(opd)] = np.nan
+    resx[0][np.isnan(opd)] = np.nan
+    
+    plt.figure('Y')
+    plt.imshow(resy[0]*180/np.pi*60**2)
+    plt.colorbar()
+
+    plt.figure('X')
+    plt.imshow(resx[0]*180/np.pi*60**2)
+    plt.colorbar()
+    
+    
+
+    return pv*1e6
